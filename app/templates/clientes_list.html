@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO Y ACCION PRINCIPAL DE LA VISTA --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Gestión de Clientes</div>
+
+  <div class="citas-tools">
+    {% if can_create %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('clientes.clientes_new') }}">Registrar cliente</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- --- TABLA PRINCIPAL DE CLIENTES --- -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Domicilio</th>
+        <th>Teléfono</th>
+        <th>Estado</th>
+        <th>Mascotas</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for client, mascotas_count in clientes_rows %}
+      <tr>
+        <td>{{ client.nombre }}</td>
+        <td>{{ client.correo }}</td>
+        <td>{{ client.domicilio or '-' }}</td>
+        <td>{{ client.telefono or '-' }}</td>
+        <td>
+          {% if client.activo %}
+          <span class="estado-activo">Activo</span>
+          {% else %}
+          <span class="estado-cancelada">Inactivo</span>
+          {% endif %}
+        </td>
+        <td><span class="badge">{{ mascotas_count }}</span></td>
+        <td>
+          <!-- --- MENU DE ACCIONES DISPONIBLES PARA CADA CLIENTE --- -->
+          <details class="actions-dropdown">
+            <summary class="actions-summary">
+              <div class="more-icon"></div>
+            </summary>
+            <div class="actions-menu">
+              {% if can_edit %}
+              <a class="actions-item" href="{{ url_for('clientes.clientes_edit', client_id=client.id) }}">Editar</a>
+              {% endif %}
+              {% if can_view_pets %}
+              <a class="actions-item" href="{{ url_for('clientes.clientes_mascotas', client_id=client.id) }}">Ver mascotas</a>
+              {% endif %}
+              {% if can_view_finance %}
+              <a class="actions-item" href="{{ url_for('clientes.clientes_finanzas', client_id=client.id) }}">Historial financiero</a>
+              {% endif %}
+              {% if can_notify %}
+              <a class="actions-item" href="{{ url_for('clientes.clientes_notificar', client_id=client.id) }}">Enviar notificación</a>
+              {% endif %}
+              {% if can_inactivate and client.activo %}
+              <a class="actions-item" href="{{ url_for('clientes.clientes_inactivar', client_id=client.id) }}">Inactivar</a>
+              {% endif %}
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7">No hay clientes registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

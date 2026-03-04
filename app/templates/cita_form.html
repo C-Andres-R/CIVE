@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar cita{% else %}Nueva cita{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">{% if mode == 'edit' %}Editar cita{% else %}Crear cita{% endif %}</div>
+</div>
+
+<!-- --- FORMULARIO PRINCIPAL DE CITAS --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DE VALIDACION --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+      {% for category, message in messages %}
+      <div class="usuario-alert">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="POST"
+      action="{% if mode == 'edit' %}{{ url_for('citas.citas_edit', cita_id=cita_id) }}{% else %}{{ url_for('citas.citas_new') }}{% endif %}">
+
+      <!-- --- DATOS BASE DE LA CITA --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha y hora *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="datetime-local" name="fecha_hora" value="{{ form_data.fecha_hora }}" required>
+        </div>
+      </div>
+
+      <!-- --- RELACION DE LA CITA CON MASCOTA Y CLIENTE --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Motivo *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="motivo" required>{{ form_data.motivo }}</textarea>
+        </div>
+      </div>
+
+      <!-- --- ASIGNACION DEL VETERINARIO RESPONSABLE --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Mascota *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="mascota_id" required>
+            <option value="">Seleccione mascota</option>
+            {% for mascota_id, mascota_nombre, dueno_id, dueno_nombre in mascotas %}
+            <option value="{{ mascota_id }}" {% if form_data.mascota_id == mascota_id|string %}selected{% endif %}>
+              {{ mascota_nombre }} (dueño: {{ dueno_nombre }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Cliente *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="cliente_id" {% if (me.rol or '')|lower == 'cliente' %}disabled{% endif %} required>
+            <option value="">Seleccione cliente</option>
+            {% for cliente in clientes %}
+            <option value="{{ cliente.id }}" {% if form_data.cliente_id == cliente.id|string %}selected{% endif %}>{{ cliente.nombre }}</option>
+            {% endfor %}
+          </select>
+          {% if (me.rol or '')|lower == 'cliente' %}
+          <input type="hidden" name="cliente_id" value="{{ form_data.cliente_id }}">
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario asignado *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_id" required>
+            <option value="">Seleccione veterinario</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if form_data.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

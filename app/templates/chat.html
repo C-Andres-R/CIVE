@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Chatbot | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- CONTENEDOR PRINCIPAL DEL CHAT --- -->
+<div class="chat-page">
+  <!-- --- ENCABEZADO DE LA VISTA --- -->
+  <div class="chat-page-header">
+    <div class="page-title">Chatbot</div>
+  </div>
+
+  <!-- --- MENSAJES DEL SISTEMA --- -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- --- AREA DE CONVERSACION Y ENTRADA DE MENSAJES --- -->
+  <section class="chat-card">
+    <div id="chat-messages" class="chat-messages">
+      <div class="bubble bot">¿Cómo podemos ayudarte hoy?</div>
+      <!-- --- OPCIONES RAPIDAS PARA INICIAR LA CONVERSACION --- -->
+      <div id="chat-quick-options" class="quick-options" data-schedule-label="{{ schedule_option_label }}">
+        {% for option in quick_options %}
+        <button type="button" class="chip" data-question="{{ option }}">{{ option }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="chat-dynamic-actions" class="quick-options hidden"></div>
+
+    <form id="chat-form" class="chat-input-wrap">
+      <input id="chat-input" type="text" placeholder="Escribe tu mensaje..." autocomplete="off">
+      <button id="chat-submit-btn" type="submit">Enviar</button>
+    </form>
+  </section>
+
+  {% if is_admin %}
+  <!-- --- PANEL DE ADMINISTRACION DE PREGUNTAS FRECUENTES --- -->
+  <section class="faq-admin">
+    <div class="faq-admin-header">
+      <h2>Gestión de FAQs</h2>
+      <button id="toggle-create-faq" type="button" class="admin-add-btn">Añadir</button>
+    </div>
+
+    <form id="create-faq-form" class="faq-form hidden" method="post" action="{{ url_for('chat.chat_faq_create') }}">
+      <label>Pregunta</label>
+      <input type="text" name="pregunta" required>
+      <label>Respuesta</label>
+      <textarea name="respuesta" rows="3" required></textarea>
+      <button type="submit">Guardar FAQ</button>
+    </form>
+
+    <div class="faq-list">
+      {% for row in faq_rows %}
+      <form class="faq-item" method="post" action="{{ url_for('chat.chat_faq_edit', faq_id=row.id) }}">
+        <label>ID {{ row.id }}</label>
+        <input type="text" name="pregunta" value="{{ row.pregunta }}" required>
+        <textarea name="respuesta" rows="2" required>{{ row.respuesta }}</textarea>
+        <button type="submit">Editar</button>
+      </form>
+      {% else %}
+      <p>No hay FAQs registradas.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Referencias principales del chat y de sus controles dinamicos.
+  const messagesEl = document.getElementById("chat-messages");
+  const formEl = document.getElementById("chat-form");
+  const inputEl = document.getElementById("chat-input");
+  const quickOptionsEl = document.getElementById("chat-quick-options");
+  const dynamicActionsEl = document.getElementById("chat-dynamic-actions");
+  const submitBtnEl = document.getElementById("chat-submit-btn");
+  const toggleCreateFaqBtn = document.getElementById("toggle-create-faq");
+  const createFaqForm = document.getElementById("create-faq-form");
+  const isAdmin = {{ is_admin|tojson }};
+  const scheduleOptionLabel = (quickOptionsEl && quickOptionsEl.dataset.scheduleLabel) || "Quiero agendar una cita";
+  let evaluationStep = null;
+
+  function appendBubble(text, who) {
+    // Agrega un nuevo mensaje al historial de la conversacion.
+    const bubble = document.createElement("div");
+    bubble.className = `bubble ${who}`;
+    bubble.textContent = text;
+    messagesEl.appendChild(bubble);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  async function askBot(question) {
+    // Envia la pregunta al servidor y actualiza la interfaz con la respuesta.
+    appendBubble(question, "user");
+    try {
+      const resp = await fetch("{{ url_for('chat.chat_ask') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const data = await resp.json();
+      appendBubble(data.answer || data.message || "No pude procesar tu solicitud.", "bot");
+      updateEvaluationControls(data);
+    } catch (e) {
+      appendBubble("Ocurrió un error al consultar el chat.", "bot");
+    }
+  }
+
+  function clearDynamicActions() {
+    // Limpia las acciones auxiliares cuando cambia el flujo del chat.
+    dynamicActionsEl.innerHTML = "";
+    dynamicActionsEl.classList.add("hidden");
+  }
+
+  function renderQuickOptions(options) {
+    // Dibuja los snippets del chat a partir de una lista de preguntas.
+    if (!quickOptionsEl) return;
+    quickOptionsEl.innerHTML = "";
+    (options || []).forEach((question) => {
+      const value = (question || "").trim();
+      if (!value) return;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.dataset.question = value;
+      btn.textContent = value;
+      quickOptionsEl.appendChild(btn);
+    });
+  }
+
+  function buildQuickOptionsFromFaqAdmin() {
+    // En vista admin sincroniza snippets con las FAQs visibles en el panel.
+    if (!isAdmin) return null;
+    const faqInputs = document.querySelectorAll(".faq-list .faq-item input[name='pregunta']");
+    const seen = new Set();
+    const items = [];
+    faqInputs.forEach((input) => {
+      const value = (input.value || "").trim();
+      if (!value) return;
+      const key = value.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push(value);
+    });
+    if (!seen.has(scheduleOptionLabel.toLowerCase())) {
+      items.push(scheduleOptionLabel);
+    }
+    return items;
+  }
+
+  function showRatingOptions(options) {
+    // Muestra botones rapidos cuando el chat solicita una calificacion.
+    dynamicActionsEl.innerHTML = "";
+    (options || []).forEach((value) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = String(value);
+      btn.addEventListener("click", () => askBot(String(value)));
+      dynamicActionsEl.appendChild(btn);
+    });
+    dynamicActionsEl.classList.remove("hidden");
+  }
+
+  function updateEvaluationControls(data) {
+    // Ajusta los controles visibles segun el paso de evaluacion actual.
+    evaluationStep = data.evaluation_step || null;
+
+    if (evaluationStep === "rating") {
+      showRatingOptions(data.rating_options || [1, 2, 3, 4, 5]);
+      submitBtnEl.style.display = "inline-block";
+      return;
+    }
+
+    if (evaluationStep === "comment") {
+      clearDynamicActions();
+      submitBtnEl.style.display = "inline-block";
+      return;
+    }
+
+    clearDynamicActions();
+    submitBtnEl.style.display = "inline-block";
+  }
+
+  if (quickOptionsEl) {
+    quickOptionsEl.addEventListener("click", (event) => {
+      const btn = event.target.closest(".chip");
+      if (!btn || !quickOptionsEl.contains(btn)) return;
+      askBot(btn.dataset.question || "");
+    });
+  }
+
+  // Cuando el historial llega al limite, propagamos wheel al contenedor padre.
+  if (messagesEl) {
+    messagesEl.addEventListener("wheel", (event) => {
+      const atTop = messagesEl.scrollTop <= 0;
+      const atBottom = messagesEl.scrollTop + messagesEl.clientHeight >= messagesEl.scrollHeight - 1;
+      if ((event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom)) {
+        const page = document.querySelector(".chat-page");
+        if (page) {
+          page.scrollTop += event.deltaY;
+          event.preventDefault();
+        }
+      }
+    }, { passive: false });
+  }
+
+  // Refuerza consistencia de snippets para admins usando la misma fuente visible.
+  const adminOptions = buildQuickOptionsFromFaqAdmin();
+  if (adminOptions) {
+    renderQuickOptions(adminOptions);
+  }
+
+  formEl.addEventListener("submit", (e) => {
+    // Evita recargar la pagina y envia solo mensajes validos.
+    e.preventDefault();
+    const question = inputEl.value;
+    if (!question.trim()) return;
+    // En el paso de comentario no aceptamos textos vacios.
+    if (evaluationStep === "comment" && !question.trim()) return;
+    askBot(question);
+    inputEl.value = "";
+  });
+
+  if (toggleCreateFaqBtn && createFaqForm) {
+    // Permite mostrar u ocultar el formulario para registrar nuevas FAQs.
+    toggleCreateFaqBtn.addEventListener("click", () => {
+      createFaqForm.classList.toggle("hidden");
+    });
+  }
+</script>
+{% endblock %}

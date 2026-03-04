@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Mascotas asociadas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">Mascotas asociadas</div>
+  <div class="section-subtitle">{{ client.nombre }}</div>
+</div>
+
+<!-- --- DATOS DEL CLIENTE Y LISTADO DE MASCOTAS --- -->
+<div class="content-stack">
+  <!-- --- RESUMEN DEL CLIENTE SELECCIONADO --- -->
+  <div class="info-card">
+    <p><strong>Cliente:</strong> {{ client.nombre }}</p>
+    <p><strong>Correo:</strong> {{ client.correo }}</p>
+    <p><strong>Teléfono:</strong> {{ client.telefono or '-' }}</p>
+  </div>
+
+  <!-- --- TABLA DE MASCOTAS ASOCIADAS --- -->
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Especie</th>
+          <th>Raza</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pet in pets %}
+        <tr>
+          <td>{{ pet.nombre }}</td>
+          <td>{{ pet.especie|capitalize }}</td>
+          <td>{{ pet.raza or '-' }}</td>
+          <td>
+            {% if pet.estado == 'activa' %}
+            <span class="estado-activo">Activa</span>
+            {% else %}
+            <span class="estado-cancelada">Inactiva</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4">El cliente no tiene mascotas asociadas.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

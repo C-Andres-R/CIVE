@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Reasignar citas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA REASIGNACION --- -->
+<div class="page-header">
+  <div class="page-title">Reasignar citas por ausencia</div>
+</div>
+
+<!-- --- FORMULARIO PARA CAMBIAR EL VETERINARIO DE UNA CITA --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+      {% for category, message in messages %}
+      <div class="usuario-alert">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="post" action="{{ url_for('citas.citas_reasignar') }}">
+      <!-- --- SELECCION DE LA CITA Y SUS VETERINARIOS --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha de la cita *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" required>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Cita *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="cita_id" required>
+            <option value="">Seleccione cita</option>
+            {% for c in citas_futuras %}
+            <option value="{{ c.id }}" {% if form_data.cita_id == c.id|string %}selected{% endif %}>
+              #{{ c.id }} - {{ c.fecha_hora.strftime('%Y-%m-%d %H:%M') }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario original *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_original_id" required>
+            <option value="">Seleccione veterinario original</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if form_data.veterinario_original_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario nuevo *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_nuevo_id" required>
+            <option value="">Seleccione veterinario nuevo</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if form_data.veterinario_nuevo_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <label class="usuario-check">
+        <input type="checkbox" name="ausencia_confirmada" {% if form_data.ausencia_confirmada %}checked{% endif %}>
+        Confirmo manualmente la ausencia del veterinario original.
+      </label>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Reasignar cita</button>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Volver a citas</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

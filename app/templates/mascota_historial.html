@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Historial mascota | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO Y ACCIONES DEL HISTORIAL --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Historial completo de {{ mascota.nombre }}</div>
+
+  <!-- --- ACCESOS RAPIDOS RELACIONADOS CON LA MASCOTA --- -->
+  <div class="citas-tools">
+    {% if can_multimedia %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">Multimedia</a>
+    {% endif %}
+    {% if can_behavior %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">Comportamiento</a>
+    {% endif %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_index') }}">Volver</a>
+  </div>
+
+  <!-- --- RESUMEN DE DATOS CLINICOS Y DEL DUENO --- -->
+  <div class="history-grid">
+    <div class="info-card">
+      <h3>Datos de mascota</h3>
+      <p><strong>Nombre:</strong> {{ mascota.nombre }}</p>
+      <p><strong>Fecha nacimiento:</strong> {{ mascota.fecha_nacimiento.strftime('%Y-%m-%d') if mascota.fecha_nacimiento else '-' }}</p>
+      <p><strong>Especie/Raza:</strong> {{ mascota.especie|capitalize }} / {{ mascota.raza or '-' }}</p>
+      <p><strong>Sexo:</strong> {{ mascota.sexo|capitalize }}</p>
+      <p><strong>Peso:</strong> {{ '%.2f'|format(mascota.peso or 0) }} kg</p>
+      <p><strong>Estado:</strong> {{ mascota.estado|capitalize }}</p>
+      <p><strong>Razón inactivación:</strong> {{ mascota.razon_inactivacion or '-' }}</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Dueño y comportamiento</h3>
+      <p><strong>Dueño:</strong> {{ dueno_nombre }}</p>
+      <p><strong>Correo:</strong> {{ dueno_correo }}</p>
+      <p><strong>Comportamiento:</strong></p>
+      <p>{{ mascota.comportamiento or 'Sin comportamiento registrado.' }}</p>
+      <p><strong>Datos adicionales:</strong></p>
+      <p>{{ mascota.datos_adicionales or 'Sin datos adicionales.' }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- --- TABLA DE CITAS ASOCIADAS A LA MASCOTA --- -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Fecha/Hora</th>
+        <th>Motivo</th>
+        <th>Estado</th>
+        <th>Veterinario</th>
+        <th>Cliente</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cita, cliente_nombre, veterinario_nombre in citas_rows %}
+      <tr>
+        <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ cita.motivo or '-' }}</td>
+        <td>{{ cita.estado|capitalize }}</td>
+        <td>{{ veterinario_nombre }}</td>
+        <td>{{ cliente_nombre }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5">No hay citas vinculadas para esta mascota.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

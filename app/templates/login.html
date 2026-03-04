@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CIVE Medical Pets - Login">
+    <title>Inicia sesión - CIVE Medical Pets</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+
+<body>
+    <!-- --- CONTENEDOR PRINCIPAL DEL INICIO DE SESION --- -->
+    <div class="login-container">
+        <!-- --- BLOQUE VISUAL DE IDENTIDAD --- -->
+        <div class="login-left">
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='images/logo-cive.png') }}" alt="CIVE Medical Pets Ecatepec">
+            </div>
+        </div>
+
+        <!-- --- BLOQUE DEL FORMULARIO DE ACCESO --- -->
+        <div class="login-right">
+            <div class="login-header">
+                <h1 class="login-title">Inicia sesión</h1>
+            </div>
+
+            <!-- --- MENSAJES DE VALIDACION O ERROR --- -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="login-messages">
+                {% for category, message in messages %}
+                <div class="login-alert login-alert-{{ category }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- --- FORMULARIO PRINCIPAL DE AUTENTICACION --- -->
+            <form class="login-form" method="POST" action="{{ url_for('pages.login_post')}}">
+                <!-- --- CAPTURA DEL CORREO --- -->
+                <div class="form-group">
+                    <label class="form-label" for="email">email</label>
+                    <div class="form-input-wrapper">
+                        <input type="email" id="email" name="correo" class="form-input" required>
+                    </div>
+                </div>
+
+                <!-- --- CAPTURA DE LA CONTRASENA --- -->
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <div class="form-input-wrapper">
+                        <input
+                            type="password"
+                            id="password"
+                            name="contrasena"
+                            class="form-input"
+                            required
+                        >
+                        <button type="button" class="password-toggle" id="passwordToggle">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- --- ENLACE DE APOYO PARA RECUPERACION --- -->
+                <div class="form-footer">
+                    <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <!-- --- ACCION PRINCIPAL DEL FORMULARIO --- -->
+                <button type="submit" class="login-button">Iniciar sesión</button>
+            </form>
+
+            <!-- --- SEPARADOR VISUAL ENTRE ACCIONES --- -->
+            <div class="separator"></div>
+
+            <!-- --- ENLACE INFORMATIVO DE REGISTRO --- -->
+            <div class="signup-text">
+                ¿Aún no tienes una cuenta? <a href="#">Regístrate aquí.</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Permite mostrar u ocultar la contrasena escrita por el usuario.
+        const passwordInput = document.getElementById('password');
+        const passwordToggle = document.getElementById('passwordToggle');
+
+        passwordToggle.addEventListener('click', (e) => {
+            // Alterna entre texto visible y contrasena oculta.
+            e.preventDefault();
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+        });
+
+    </script>
+</body>
+
+</html>

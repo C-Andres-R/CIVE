@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == "edit" %}Editar cliente{% else %}Registrar cliente{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/usuario_form.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">{% if mode == "edit" %}Editar cliente{% else %}Registrar cliente{% endif %}</div>
+</div>
+
+<!-- --- FORMULARIO PRINCIPAL DE CLIENTES --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DE VALIDACION --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="POST"
+      action="{% if mode == 'edit' %}{{ url_for('clientes.clientes_edit', client_id=client_id) }}{% else %}{{ url_for('clientes.clientes_new') }}{% endif %}">
+      <!-- --- DATOS PERSONALES Y DE CONTACTO DEL CLIENTE --- -->
+      <div class="cliente-form-grid cliente-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Nombres *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}" required>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Apellido Materno</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Apellido Paterno</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ form_data.apellido_paterno }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="cliente-form-grid cliente-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Calle</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="calle" value="{{ form_data.calle }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Número</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="numero" value="{{ form_data.numero }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Colonia</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="colonia" value="{{ form_data.colonia }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="cliente-form-grid cliente-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">C.P.</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="codigo_postal" value="{{ form_data.codigo_postal }}" maxlength="5">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Estado</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="estado" value="{{ form_data.estado }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Entidad</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="entidad" value="{{ form_data.entidad }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="cliente-form-grid cliente-form-grid--2">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Teléfono *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}" required>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Correo electrónico *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">
+          {% if mode == "edit" %}Nueva contraseña (opcional){% else %}Contraseña *{% endif %}
+        </label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="password" name="contrasena" {% if mode != "edit" %}required{% endif %}
+            placeholder="{% if mode == 'edit' %}Dejar vacío para conservar la actual{% else %}Mínimo 12 caracteres{% endif %}">
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">
+          {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}
+        </button>
+        <a class="usuario-btn-link" href="{{ url_for('clientes.clientes_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

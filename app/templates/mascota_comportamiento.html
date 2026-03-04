@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Comportamiento mascota | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">Comportamientos especiales</div>
+</div>
+
+<!-- --- FORMULARIO PARA REGISTRAR COMPORTAMIENTO --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- --- DATOS BASICOS DE LA MASCOTA --- -->
+    <div class="info-card">
+      <strong>Mascota:</strong> {{ mascota.nombre }}<br>
+      <strong>Estado:</strong> {{ mascota.estado|capitalize }}
+    </div>
+
+    <!-- --- CAPTURA DE OBSERVACIONES DE COMPORTAMIENTO --- -->
+    <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Comportamiento *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="comportamiento" rows="6" required>{{ comportamiento }}</textarea>
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Guardar comportamiento</button>
+        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

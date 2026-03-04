@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar mascota{% else %}Registrar mascota{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">{% if mode == "edit" %}Editar mascota{% else %}Registrar mascota{% endif %}</div>
+</div>
+
+<!-- --- FORMULARIO PRINCIPAL DE MASCOTAS --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DE VALIDACION --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="POST" action="{% if mode == 'edit' %}{{ url_for('mascotas.mascotas_edit', mascota_id=mascota_id) }}{% else %}{{ url_for('mascotas.mascotas_new') }}{% endif %}">
+      <!-- --- DATOS GENERALES DE LA MASCOTA --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Nombre *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="nombre" value="{{ form_data.nombre }}" required>
+        </div>
+      </div>
+
+      <div class="split-row">
+        <!-- --- DATOS FISICOS Y DE CLASIFICACION --- -->
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Fecha nacimiento *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="date" name="fecha_nacimiento" value="{{ form_data.fecha_nacimiento }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Edad (años)</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="number" name="edad" min="0" value="{{ form_data.edad }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="split-row">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Peso (kg) *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="number" name="peso" min="0.01" step="0.01" value="{{ form_data.peso }}" required>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Raza *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="raza" value="{{ form_data.raza }}" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="split-row">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Especie *</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="especie" required>
+              <option value="">Seleccione especie</option>
+              <option value="perro" {% if form_data.especie == 'perro' %}selected{% endif %}>Perro</option>
+              <option value="gato" {% if form_data.especie == 'gato' %}selected{% endif %}>Gato</option>
+              <option value="otro" {% if form_data.especie == 'otro' %}selected{% endif %}>Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Sexo *</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="sexo" required>
+              <option value="">Seleccione sexo</option>
+              <option value="macho" {% if form_data.sexo == 'macho' %}selected{% endif %}>Macho</option>
+              <option value="hembra" {% if form_data.sexo == 'hembra' %}selected{% endif %}>Hembra</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <!-- --- ASIGNACION DEL DUENO DE LA MASCOTA --- -->
+        <label class="usuario-form-label">Dueño asociado *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="dueno_id" {% if only_self_owner %}disabled{% else %}required{% endif %}>
+            <option value="">Seleccione dueño</option>
+            {% for c in clientes %}
+            {% set selected = (form_data.dueno_id|string == c.id|string) or (only_self_owner and me_id|string == c.id|string) %}
+            <option value="{{ c.id }}" {% if selected %}selected{% endif %}>{{ c.nombre }} ({{ c.correo }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if only_self_owner %}
+        <input type="hidden" name="dueno_id" value="{{ me_id }}">
+        <small class="field-note">Como cliente, la mascota queda vinculada a tu cuenta.</small>
+        {% endif %}
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Datos adicionales</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="datos_adicionales" rows="4">{{ form_data.datos_adicionales }}</textarea>
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

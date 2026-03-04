@@ -1,0 +1,151 @@
+.citas-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cive-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cive-btn:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.cive-btn:active {
+  transform: scale(0.98);
+}
+
+.cive-btn--tool {
+  min-width: 160px;
+}
+
+.filters {
+  background: #ffffff;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 10px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filter-field label {
+  font-size: 14px;
+  color: var(--color-text-dark);
+}
+
+.filter-field input,
+.filter-field select {
+  height: 42px;
+  border: none;
+  border-bottom: 1px solid var(--border-login);
+  border-radius: 0;
+  padding: 0 10px;
+  font-size: 14px;
+  background: var(--bg-login);
+}
+
+.filter-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.cive-btn--filter {
+  min-width: 0;
+  width: 100%;
+}
+
+.flash-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flash-item {
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.flash-item.error {
+  border: 1px solid #f5c6cb;
+  background: #fdecea;
+  color: #611a15;
+}
+
+.flash-item.success {
+  border: 1px solid #c3e6cb;
+  background: #eafaf1;
+  color: #1e4620;
+}
+
+.estado-pendiente {
+  color: #8a6d3b;
+}
+
+.estado-cancelada {
+  color: #a94442;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-form {
+  margin: 0;
+}
+
+.cive-btn--action {
+  min-width: 0;
+  width: auto;
+}
+
+.text-area-wrap {
+  height: auto;
+}
+
+.text-area-wrap textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.result-card {
+  margin-top: 16px;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.result-card ul {
+  margin-left: 18px;
+}

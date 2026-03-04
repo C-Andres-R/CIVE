@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Mascotas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO, MENSAJES Y ACCION PRINCIPAL --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Registro de Mascotas</div>
+
+  <div class="citas-tools">
+    {% if can_create %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_new') }}">Registrar mascota</a>
+    {% endif %}
+  </div>
+
+  <!-- --- FILTROS DEL LISTADO DE MASCOTAS --- -->
+  <form class="filters" method="get" action="{{ url_for('mascotas.mascotas_index') }}">
+    <div class="filter-field">
+      <label>Estado</label>
+      <select name="estado">
+        <option value="">Todos</option>
+        <option value="activa" {% if filters.estado == 'activa' %}selected{% endif %}>Activa</option>
+        <option value="inactiva" {% if filters.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label>Orden</label>
+      <select name="orden">
+        <option value="asc" {% if filters.orden == 'asc' %}selected{% endif %}>Registro ascendente</option>
+        <option value="desc" {% if filters.orden == 'desc' %}selected{% endif %}>Registro descendente</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button class="cive-btn cive-btn--filter" type="submit">Filtrar</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('mascotas.mascotas_index') }}">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+<!-- --- TABLA PRINCIPAL DE MASCOTAS --- -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Especie</th>
+        <th>Raza</th>
+        <th>Sexo</th>
+        <th>Peso</th>
+        <th>Dueño</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mascota, dueno_nombre, dueno_activo in mascotas_rows %}
+      <tr>
+        <td>{{ mascota.nombre }}</td>
+        <td>{{ mascota.especie|capitalize }}</td>
+        <td>{{ mascota.raza or '-' }}</td>
+        <td>{{ mascota.sexo|capitalize }}</td>
+        <td>{{ '%.2f'|format(mascota.peso or 0) }} kg</td>
+        <td>
+          {{ dueno_nombre }}
+          {% if not dueno_activo %}
+          <span class="badge">Dueño inactivo</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if mascota.estado == 'activa' %}
+          <span class="estado-activo">Activa</span>
+          {% else %}
+          <span class="estado-cancelada">Inactiva</span>
+          {% endif %}
+        </td>
+        <td>
+          <!-- --- MENU DE ACCIONES DISPONIBLES PARA CADA MASCOTA --- -->
+          <details class="actions-dropdown">
+            <summary class="actions-summary">
+              <div class="more-icon"></div>
+            </summary>
+            <div class="actions-menu">
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Historial completo</a>
+              {% if can_edit %}
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_edit', mascota_id=mascota.id) }}">Editar</a>
+              {% endif %}
+              {% if can_inactivate and mascota.estado == 'activa' %}
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_inactivar', mascota_id=mascota.id) }}">Inactivar</a>
+              {% endif %}
+              {% if can_link_owner %}
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_vincular_dueno', mascota_id=mascota.id) }}">Vincular dueño</a>
+              {% endif %}
+              {% if can_multimedia %}
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">Multimedia</a>
+              {% endif %}
+              {% if can_behavior %}
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">Comportamiento</a>
+              {% endif %}
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">No hay mascotas registradas con esos filtros.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

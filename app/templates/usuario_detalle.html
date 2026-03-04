@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Detalle de usuario | CIVE{% endblock %}
+{% block content %}
+{% set u = user[0] %}
+{% set rol_nombre = user[1] %}
+
+<!-- --- RESUMEN DEL USUARIO SELECCIONADO --- -->
+<div style="padding:24px;">
+  <h2>Detalle de usuario</h2>
+  <p><b>ID:</b> {{ u.id }}</p>
+  <p><b>Nombre:</b> {{ u.nombre }}</p>
+  <p><b>Correo:</b> {{ u.correo }}</p>
+  <p><b>Domicilio:</b> {{ u.domicilio or '-' }}</p>
+  <p><b>Teléfono:</b> {{ u.telefono or '-' }}</p>
+  <p><b>Rol:</b> {{ rol_nombre }}</p>
+  <p><b>Activo:</b> {{ 'Sí' if u.activo else 'No' }}</p>
+
+  <!-- --- ACCIONES DISPONIBLES DESDE EL DETALLE --- -->
+  <div style="margin-top: 16px;">
+    <a href="{{ url_for('usuarios.usuarios_edit', user_id=user[0].id) }}">Editar</a>
+    <a href="{{ url_for('usuarios.usuarios_index') }}" style="margin-left: 12px;">Volver</a>
+  </div>
+
+</div>
+{% endblock %}

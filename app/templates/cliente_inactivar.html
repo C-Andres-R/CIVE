@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Inactivar cliente | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/usuario_form.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">Inactivar cliente</div>
+</div>
+
+<!-- --- FORMULARIO DE INACTIVACION DEL CLIENTE --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- --- RESUMEN DEL CLIENTE ANTES DE INACTIVARLO --- -->
+    <div class="info-card">
+      <p><strong>Cliente:</strong> {{ client.nombre }}</p>
+      <p><strong>Correo:</strong> {{ client.correo }}</p>
+      <p><strong>Estado actual:</strong> {{ 'Activo' if client.activo else 'Inactivo' }}</p>
+    </div>
+
+    <!-- --- CAPTURA DE LA RAZON Y CONFIRMACION --- -->
+    <form class="usuario-form" method="POST" action="{{ url_for('clientes.clientes_inactivar', client_id=client.id) }}">
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Razón de inactivación *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="razon_inactivacion" rows="4" required></textarea>
+        </div>
+      </div>
+
+      <label class="usuario-check">
+        <input type="checkbox" name="confirmar" value="si">
+        Confirmo que deseo inactivar a este cliente.
+      </label>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Inactivar</button>
+        <a class="usuario-btn-link" href="{{ url_for('clientes.clientes_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

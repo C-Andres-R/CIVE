@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Portal del cliente | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO Y MENSAJES DEL PORTAL --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Portal del cliente</div>
+  <div class="section-subtitle">{{ client.nombre }}</div>
+</div>
+
+<!-- --- RESUMEN GENERAL DEL CLIENTE --- -->
+<div class="content-stack portal-stack">
+  <div class="detail-grid">
+    <!-- --- DATOS PERSONALES DEL CLIENTE --- -->
+    <div class="info-card">
+      <h3>Datos personales</h3>
+      <p><strong>Nombre:</strong> {{ client.nombre }}</p>
+      <p><strong>Correo:</strong> {{ client.correo }}</p>
+      <p><strong>Teléfono:</strong> {{ client.telefono or '-' }}</p>
+      <p><strong>Domicilio:</strong> {{ client.domicilio or '-' }}</p>
+    </div>
+
+    <!-- --- RESUMEN FINANCIERO GENERAL --- -->
+    <div class="info-card">
+      <h3>Resumen financiero</h3>
+      <p><strong>Facturado:</strong> ${{ '%.2f'|format(summary.total_facturado) }}</p>
+      <p><strong>Pagado:</strong> ${{ '%.2f'|format(summary.total_pagado) }}</p>
+      <p><strong>Adeudo:</strong> ${{ '%.2f'|format(summary.total_adeudo) }}</p>
+      <p><strong>Movimientos pendientes:</strong> {{ summary.pendientes }}</p>
+    </div>
+  </div>
+
+  <!-- --- RESUMEN RAPIDO DE MASCOTAS ASOCIADAS --- -->
+  <div class="section-card">
+    <div class="section-card__head">
+      <h3>Mascotas asociadas</h3>
+      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_mascotas', client_id=client.id) }}">Ver detalle</a>
+    </div>
+    <div class="chips">
+      {% for pet in pets %}
+      <span class="badge">{{ pet.nombre }} · {{ pet.especie|capitalize }}</span>
+      {% else %}
+      <span class="empty-inline">Sin mascotas asociadas.</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- --- HISTORIAL BASICO DE CITAS DEL CLIENTE --- -->
+  <div class="section-card">
+    <div class="section-card__head">
+      <h3>Citas del cliente</h3>
+    </div>
+    <div class="table-container table-container--card table-container--inner">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Mascota</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cita, mascota_nombre in appointments %}
+          <tr>
+            <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
+            <td>{{ mascota_nombre }}</td>
+            <td>{{ cita.motivo or '-' }}</td>
+            <td>{{ cita.estado|capitalize }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4">No hay citas registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- --- RESUMEN DE ADEUDOS E HISTORIAL FINANCIERO --- -->
+  <div class="section-card">
+    <div class="section-card__head">
+      <h3>Facturación pendiente / historial financiero</h3>
+      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_finanzas', client_id=client.id) }}">Ver historial</a>
+    </div>
+
+    <div class="detail-grid">
+      <div class="info-card">
+        <h3>Pendiente</h3>
+        {% for row in pending_rows %}
+        <p>{{ row.fecha_pago.strftime('%Y-%m-%d') if row.fecha_pago else '-' }} · ${{ '%.2f'|format(row.adeudo or 0) }} · {{ row.estado }}</p>
+        {% else %}
+        <p>No tienes adeudos pendientes.</p>
+        {% endfor %}
+      </div>
+
+      <div class="info-card">
+        <h3>Historial reciente</h3>
+        {% for row in financial_rows[:5] %}
+        <p>{{ row.fecha_pago.strftime('%Y-%m-%d') if row.fecha_pago else '-' }} · ${{ '%.2f'|format(row.monto_pagado) }} · {{ row.metodo_pago }}</p>
+        {% else %}
+        <p>No hay movimientos registrados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

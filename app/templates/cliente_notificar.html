@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Enviar notificación | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/usuario_form.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">Enviar notificación</div>
+</div>
+
+<!-- --- FORMULARIO PARA ENVIAR NOTIFICACIONES --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- --- DATOS BASICOS DEL DESTINATARIO --- -->
+    <div class="info-card">
+      <p><strong>Cliente:</strong> {{ client.nombre }}</p>
+      <p><strong>Correo destino:</strong> {{ client.correo or '-' }}</p>
+    </div>
+
+    <!-- --- CAPTURA DEL ASUNTO Y MENSAJE --- -->
+    <form class="usuario-form" method="POST" action="{{ url_for('clientes.clientes_notificar', client_id=client.id) }}">
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Asunto *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="asunto" value="{{ form_data.asunto }}" required>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Mensaje *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="mensaje" rows="8" required>{{ form_data.mensaje }}</textarea>
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Enviar correo</button>
+        <a class="usuario-btn-link" href="{{ url_for('clientes.clientes_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

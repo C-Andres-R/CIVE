@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Vincular dueño | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">Vincular dueño a mascota</div>
+</div>
+
+<!-- --- FORMULARIO PARA CAMBIAR EL DUENO DE LA MASCOTA --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <div class="flash-item {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- --- DATOS BASICOS DE LA MASCOTA --- -->
+    <div class="info-card">
+      <strong>Mascota:</strong> {{ mascota.nombre }}
+    </div>
+
+    <!-- --- SELECCION DEL NUEVO DUENO --- -->
+    <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_vincular_dueno', mascota_id=mascota.id) }}">
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Dueño asociado *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="dueno_id" required>
+            <option value="">Seleccione dueño</option>
+            {% for c in clientes %}
+            <option value="{{ c.id }}" {% if selected_dueno_id == c.id|string %}selected{% endif %}>{{ c.nombre }} ({{ c.correo }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Guardar vinculación</button>
+        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

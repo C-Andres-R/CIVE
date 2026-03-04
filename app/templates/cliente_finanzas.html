@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Historial financiero | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DEL HISTORIAL FINANCIERO --- -->
+<div class="page-header">
+  <div class="page-title">Historial financiero del cliente</div>
+  <div class="section-subtitle">{{ client.nombre }}</div>
+</div>
+
+<!-- --- RESUMEN Y TABLA DE MOVIMIENTOS --- -->
+<div class="content-stack">
+  <!-- --- TARJETAS DE TOTALES FINANCIEROS --- -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Facturado</span>
+      <strong>${{ '%.2f'|format(summary.total_facturado) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pagado</span>
+      <strong>${{ '%.2f'|format(summary.total_pagado) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Descuentos</span>
+      <strong>${{ '%.2f'|format(summary.total_descuento) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Adeudo</span>
+      <strong>${{ '%.2f'|format(summary.total_adeudo) }}</strong>
+    </div>
+  </div>
+
+  <!-- --- DETALLE COMPLETO DE MOVIMIENTOS DEL CLIENTE --- -->
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th>Total</th>
+          <th>Descuento</th>
+          <th>Pagado</th>
+          <th>Adeudo</th>
+          <th>Estado</th>
+          <th>Método de pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in financial_rows %}
+        <tr>
+          <td>{{ row.fecha_pago.strftime('%Y-%m-%d %H:%M') if row.fecha_pago else '-' }}</td>
+          <td>{{ row.descripcion or '-' }}</td>
+          <td>${{ '%.2f'|format(row.monto_total) }}</td>
+          <td>${{ '%.2f'|format(row.descuento or 0) }}</td>
+          <td>${{ '%.2f'|format(row.monto_pagado) }}</td>
+          <td>${{ '%.2f'|format(row.adeudo or 0) }}</td>
+          <td>
+            {% if row.estado == 'pagado' %}
+            <span class="estado-activo">Pagado</span>
+            {% elif row.estado == 'parcial' %}
+            <span class="estado-pendiente">Parcial</span>
+            {% else %}
+            <span class="estado-cancelada">Pendiente</span>
+            {% endif %}
+          </td>
+          <td>{{ row.metodo_pago }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">No hay movimientos financieros registrados para este cliente.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

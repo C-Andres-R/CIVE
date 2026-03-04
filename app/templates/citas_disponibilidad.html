@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Disponibilidad | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA CONSULTA --- -->
+<div class="page-header">
+  <div class="page-title">Consultar disponibilidad</div>
+</div>
+
+<!-- --- FORMULARIO Y RESULTADO DE DISPONIBILIDAD --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DEL SISTEMA --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+      {% for category, message in messages %}
+      <div class="usuario-alert">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="post" action="{{ url_for('citas.citas_disponibilidad') }}">
+      <!-- --- DATOS NECESARIOS PARA LA CONSULTA --- -->
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_id" required>
+            <option value="">Seleccione veterinario</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if form_data.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" required>
+        </div>
+      </div>
+
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">Consultar</button>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Volver a citas</a>
+      </div>
+    </form>
+
+    {% if result %}
+    <!-- --- RESULTADO Y HORARIOS SUGERIDOS --- -->
+    <div class="result-card">
+      <p><strong>Veterinario:</strong> {{ result.veterinario.nombre }}</p>
+      <p><strong>Fecha:</strong> {{ result.fecha.strftime('%Y-%m-%d') }}</p>
+      <p>
+        <strong>Resultado:</strong>
+        {% if result.disponible %}
+        <span class="estado-activo">Disponible</span>
+        {% else %}
+        <span class="estado-cancelada">No disponible</span>
+        {% endif %}
+      </p>
+
+      {% if result.sugerencias %}
+      <p><strong>Horarios sugeridos:</strong></p>
+      <ul>
+        {% for s in result.sugerencias %}
+        <li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

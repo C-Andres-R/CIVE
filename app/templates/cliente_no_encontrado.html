@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Cliente no encontrado | CIVE{% endblock %}
+
+{% block content %}
+<!-- --- MENSAJE DE ERROR CUANDO EL CLIENTE NO EXISTE --- -->
+<div style="padding:24px;">
+  <h2>Cliente no encontrado</h2>
+  <p>No se localizó el cliente con identificador {{ client_id }}.</p>
+  <a href="{{ url_for('clientes.clientes_index') }}">Volver a clientes</a>
+</div>
+{% endblock %}

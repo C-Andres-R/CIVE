@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}No encontrado | CIVE{% endblock %}
+{% block content %}
+<!-- --- MENSAJE DE ERROR CUANDO EL USUARIO NO EXISTE --- -->
+<div style="padding:24px;">
+  <h2>Usuario no encontrado</h2>
+  <p>ID: {{ user_id }}</p>
+  <a href="{{ url_for('usuarios.usuarios_index') }}">Volver</a>
+</div>
+{% endblock %}

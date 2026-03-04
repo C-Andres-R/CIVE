@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CIVE{% endblock %}</title>
+
+    <!-- --- HOJAS DE ESTILO COMPARTIDAS --- -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_usuarios.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- --- ACCESO RAPIDO PARA MOVIL --- -->
+    <button class="hamburger" aria-label="Abrir menú" aria-expanded="false" type="button">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <div class="dashboard">
+        <!-- --- BARRA LATERAL DE NAVEGACION --- -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                Bienvenido
+            </div>
+
+            <!-- --- ENLACES PRINCIPALES SEGUN EL ROL DEL USUARIO --- -->
+            <div class="nav-list">
+                {% set is_cliente = ((me.rol if me is defined and me else '') or '')|lower == 'cliente' %}
+                {% if is_cliente %}
+                <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_portal') }}">Portal del cliente</a>
+                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.chat_page') }}">Chat</a>
+                <a class="nav-item" href="{{ url_for('pages.logout_page') }}">Cerrar sesión</a>
+                {% else %}
+                <a class="nav-item {% if (active_nav or 'usuarios') == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios.usuarios_index') }}">Usuarios</a>
+                <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_index') }}">Citas</a>
+                <a class="nav-item {% if (active_nav or '') == 'mascotas' %}active{% endif %}" href="{{ url_for('mascotas.mascotas_index') }}">Mascotas</a>
+                <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_index') }}">Clientes</a>
+                <a class="nav-item" href="#">Expedientes</a>
+                <a class="nav-item" href="#">Reportes</a>
+                <a class="nav-item" href="#">Datos</a>
+                <a class="nav-item" href="#">Encuestas</a>
+                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.chat_page') }}">Chat</a>
+                <a class="nav-item" href="{{ url_for('pages.logout_page') }}">Cerrar sesión</a>
+                {% endif %}
+            </div>
+
+
+            <img src="{{ url_for('static', filename='images/logo-cive.png') }}" alt="CIVE Medical Pets"
+                class="sidebar-logo">
+        </aside>
+
+        <!-- --- CONTENIDO DINAMICO DE CADA VISTA --- -->
+        <main class="main">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <div class="sidebar-overlay"></div>
+
+    <script>
+        // Controla la apertura y el cierre del menu lateral en pantallas pequenas.
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+
+        function toggleMenu() {
+            // Sincroniza el boton, el panel y la capa de fondo.
+            const isActive = hamburger.classList.toggle('active');
+            sidebar.classList.toggle('sidebar-open');
+            overlay.classList.toggle('active');
+            hamburger.setAttribute('aria-expanded', isActive);
+        }
+
+        if (hamburger && sidebar && overlay) {
+            hamburger.addEventListener('click', toggleMenu);
+            overlay.addEventListener('click', toggleMenu);
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

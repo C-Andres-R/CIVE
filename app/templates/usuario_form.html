@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == "edit" %}Editar usuario{% else %}Nuevo usuario{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/usuario_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO DE LA VISTA --- -->
+<div class="page-header">
+  <div class="page-title">{% if mode == "edit" %}Editar usuario{% else %}Nuevo usuario{% endif %}</div>
+</div>
+
+<!-- --- FORMULARIO PRINCIPAL DE USUARIOS --- -->
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <!-- --- MENSAJES DE VALIDACION --- -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+      {% for category, message in messages %}
+      <div class="usuario-alert">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form class="usuario-form" method="POST"
+      action="{% if mode == 'edit' %}{{ url_for('usuarios.usuarios_edit', user_id=user_id) }}{% else %}{{ url_for('usuarios.usuarios_new') }}{% endif %}">
+
+      <!-- --- DATOS PERSONALES Y DE CONTACTO DEL USUARIO --- -->
+      <div class="usuario-form-grid usuario-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Nombres *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}" required>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Apellido Materno</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Apellido Paterno</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ form_data.apellido_paterno }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="usuario-form-grid usuario-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Calle</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="calle" value="{{ form_data.calle }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Número</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="numero" value="{{ form_data.numero }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Colonia</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="colonia" value="{{ form_data.colonia }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="usuario-form-grid usuario-form-grid--3">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">C.P.</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="codigo_postal" value="{{ form_data.codigo_postal }}" maxlength="5">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Estado</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="estado" value="{{ form_data.estado }}">
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Entidad</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="entidad" value="{{ form_data.entidad }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="usuario-form-grid usuario-form-grid--2">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Teléfono *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}" required>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Correo *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- --- CONFIGURACION DE ACCESO Y ROL --- -->
+      <div class="usuario-form-grid usuario-form-grid--2">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">
+            {% if mode == "edit" %}Nueva contraseña (opcional){% else %}Contraseña *{% endif %}
+          </label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="password" name="contrasena" {% if mode != "edit" %}required{% endif %}
+              placeholder="{% if mode == 'edit' %}Dejar vacío para mantener la actual{% else %}Mínimo 12 caracteres{% endif %}">
+          </div>
+          <small style="color:#697077;">Debe incluir mayúscula, minúscula, número y carácter especial.</small>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Rol *</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="rol_id" required>
+              <option value="">Seleccione un rol</option>
+              {% for rol in roles %}
+              <option value="{{ rol.id }}" {% if form_data.rol_id|string==rol.id|string %}selected{% endif %}>
+                {{ rol.nombre }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <label class="usuario-check">
+        <input type="checkbox" name="activo" {% if form_data.activo %}checked{% endif %}>
+        Activo
+      </label>
+
+      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">
+          {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}
+        </button>
+
+        <a class="usuario-btn-link" href="{{ url_for('usuarios.usuarios_index') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

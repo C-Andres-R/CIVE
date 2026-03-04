@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Multimedia mascota | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO Y MENSAJES DE LA VISTA --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Multimedia de {{ mascota.nombre }}</div>
+
+  <!-- --- FORMULARIO PARA SUBIR NUEVO MATERIAL --- -->
+  <div class="history-grid single">
+    <div class="info-card">
+      <h3>Subir archivo</h3>
+      <p>Formatos permitidos: JPG, PNG y PDF (máximo 2MB).</p>
+      {% if not fotos_table_exists or not docs_table_exists %}
+      <p class="warn-note">
+        Atención: aun faltan tablas en BD.
+        {% if not fotos_table_exists %}No existe <strong>fotos_mascota</strong>.{% endif %}
+        {% if not docs_table_exists %}No existe <strong>documentos_mascota</strong>.{% endif %}
+      </p>
+      {% endif %}
+      <!-- --- FORMULARIO DE CARGA DE ARCHIVOS --- -->
+      <form class="usuario-form" method="POST" enctype="multipart/form-data" action="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">
+        <div class="usuario-form-row">
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="file" name="archivo" accept=".jpg,.jpeg,.png,.pdf" required>
+          </div>
+        </div>
+
+        <div class="usuario-actions">
+          <button class="usuario-btn-primary" type="submit">Subir</button>
+          <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Volver</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- --- LISTADO DE FOTOS Y DOCUMENTOS REGISTRADOS --- -->
+  <div class="history-grid">
+    <div class="info-card">
+      <h3>Fotos</h3>
+      <div class="media-grid">
+        {% for foto in fotos %}
+        <a class="media-thumb" href="{{ url_for('static', filename=foto.path) }}" target="_blank" rel="noopener">
+          <img src="{{ url_for('static', filename=foto.path) }}" alt="{{ foto.name }}">
+          <span>{{ foto.name }}</span>
+        </a>
+        {% else %}
+        <p>No hay fotos registradas.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="info-card">
+      <h3>Documentos</h3>
+      <div class="doc-list">
+        {% for doc in documentos %}
+        <a href="{{ url_for('static', filename=doc.path) }}" target="_blank" rel="noopener">{{ doc.name }}</a>
+        {% else %}
+        <p>No hay documentos registrados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

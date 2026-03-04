@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Citas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- --- ENCABEZADO, MENSAJES Y ACCIONES RAPIDAS --- -->
+<div class="page-header">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="page-title">Citas</div>
+
+  <div class="citas-tools">
+    {% if can_create %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('citas.citas_new') }}">Crear cita</a>
+    {% endif %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('citas.citas_disponibilidad') }}">Consultar disponibilidad</a>
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('citas.citas_reasignar') }}">Reasignar citas</a>
+  </div>
+
+  <!-- --- FILTROS DEL LISTADO DE CITAS --- -->
+  <form class="filters" method="get" action="{{ url_for('citas.citas_index') }}">
+    <div class="filter-field">
+      <label>Estado</label>
+      <select name="estado">
+        <option value="">Todos</option>
+        <option value="pendiente" {% if filters.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+        <option value="confirmada" {% if filters.estado == 'confirmada' %}selected{% endif %}>Confirmada</option>
+        <option value="cancelada" {% if filters.estado == 'cancelada' %}selected{% endif %}>Cancelada</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label>Fecha inicio</label>
+      <input type="date" name="fecha_inicio" value="{{ filters.fecha_inicio }}">
+    </div>
+
+    <div class="filter-field">
+      <label>Fecha fin</label>
+      <input type="date" name="fecha_fin" value="{{ filters.fecha_fin }}">
+    </div>
+
+    <div class="filter-field">
+      <label>Veterinario</label>
+      <select name="veterinario_id">
+        <option value="">Todos</option>
+        {% for vet in veterinarios %}
+        <option value="{{ vet.id }}" {% if filters.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label>Orden</label>
+      <select name="orden">
+        <option value="asc" {% if filters.orden == 'asc' %}selected{% endif %}>Fecha ascendente</option>
+        <option value="desc" {% if filters.orden == 'desc' %}selected{% endif %}>Fecha descendente</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button class="cive-btn cive-btn--filter" type="submit">Filtrar</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('citas.citas_index') }}">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+<!-- --- TABLA PRINCIPAL DE CITAS --- -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Fecha/Hora</th>
+        <th>Cliente</th>
+        <th>Mascota</th>
+        <th>Veterinario</th>
+        <th>Estado</th>
+        <th>Recordatorio</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cita, cliente_nombre, mascota_nombre, veterinario_nombre, recordatorio_estado, recordatorio_confirmado in citas_rows %}
+      <tr>
+        <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ cliente_nombre }}</td>
+        <td>{{ mascota_nombre }}</td>
+        <td>{{ veterinario_nombre }}</td>
+        <td>
+          {% if cita.estado == 'cancelada' or cita.cancelada %}
+          <span class="estado-cancelada">Cancelada</span>
+          {% elif cita.estado == 'confirmada' %}
+          <span class="estado-activo">Confirmada</span>
+          {% else %}
+          <span class="estado-pendiente">Pendiente</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if recordatorio_estado %}
+          {{ recordatorio_estado|capitalize }}
+          {% if recordatorio_confirmado %}
+          (Confirmado)
+          {% endif %}
+          {% else %}
+          -
+          {% endif %}
+        </td>
+        <td>
+          <!-- --- ACCIONES DISPONIBLES SEGUN PERMISOS Y ESTADO DE LA CITA --- -->
+          <div class="row-actions">
+            {% if can_manage and cita.fecha_hora > now and not cita.cancelada and cita.estado != 'cancelada' %}
+            <a class="cive-btn cive-btn--action" href="{{ url_for('citas.citas_edit', cita_id=cita.id) }}">Editar</a>
+            <form class="action-form" method="post" action="{{ url_for('citas.citas_cancel', cita_id=cita.id) }}">
+              <button class="cive-btn cive-btn--action" type="submit">Cancelar</button>
+            </form>
+            {% endif %}
+
+            {% if can_send_reminder and not cita.cancelada and cita.estado != 'cancelada' %}
+            <form class="action-form" method="post" action="{{ url_for('citas.citas_send_reminder', cita_id=cita.id) }}">
+              <button class="cive-btn cive-btn--action" type="submit">Enviar recordatorio</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7">No hay citas para los filtros seleccionados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
