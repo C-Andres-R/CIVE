@@ -6,3 +6,4 @@ python-dotenv
 mysqlclient
 gunicorn
 requests
+bcrypt
