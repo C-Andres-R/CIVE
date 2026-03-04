@@ -69,6 +69,27 @@ La app queda en:
 
 - `http://127.0.0.1:5000`
 
+## Despliegue en Railway
+
+El proyecto ya incluye:
+
+- `gunicorn` en `requirements.txt`
+- `Procfile` con:
+  - `web: gunicorn wsgi:app --bind 0.0.0.0:$PORT`
+
+Variables mínimas que debes configurar en Railway:
+
+- `SECRET_KEY`
+- `JWT_SECRET_KEY`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_HOST`
+- `DB_NAME`
+- `API_BASE_URL` (URL pública de tu app en Railway)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_USE_TLS` (si usarás notificaciones)
+- `ADMIN_EMAIL`
+- `CLINIC_PHONE`
+
 ## Estructura relevante
 
 - `app/` aplicación Flask (rutas, modelos, templates, estáticos)
