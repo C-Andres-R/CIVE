@@ -4,3 +4,4 @@ Flask-Migrate
 Flask-JWT-Extended
 python-dotenv
 mysqlclient
+gunicorn
