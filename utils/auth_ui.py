@@ -1,25 +1,40 @@
-import json
-import urllib.request
-from flask import current_app, session
+from flask import session
+from flask_jwt_extended import decode_token
+
+from app.extensions import db
+from app.models import Usuario
 
 
 # --- INTEGRACION CON AUTENTICACION ---
 def get_current_user_from_api():
-    # Consulta la API interna para obtener los datos del usuario autenticado.
+    # Obtiene el usuario autenticado validando el JWT localmente.
     token = session.get("access_token")
     if not token:
         return None
 
-    api_base = current_app.config.get("API_BASE_URL", "http://127.0.0.1:5000")
-    url = f"{api_base}/auth/me"
-
-    req = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        claims = decode_token(token)
     except Exception:
         return None
+
+    user_id = claims.get("sub")
+    if not user_id:
+        return None
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+
+    user: Usuario | None = db.session.get(Usuario, user_id)
+    if not user or user.eliminado or not user.activo:
+        return None
+
+    return {
+        "id": user.id,
+        "nombre": user.nombre,
+        "correo": user.correo,
+        "telefono": user.telefono,
+        "domicilio": user.domicilio,
+        "rol": claims.get("rol"),
+    }

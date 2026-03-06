@@ -1,7 +1,8 @@
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-import requests
+from flask_jwt_extended import create_access_token
 
+from app.auth.service import authenticate_user
 from utils.auth_ui import get_current_user_from_api
 
 pages_bp = Blueprint("pages", __name__)
@@ -28,43 +29,24 @@ def login_page():
 
 @pages_bp.post("/login")
 def login_post():
-    # Envía las credenciales al servicio de autenticación y guarda la sesión.
+    # Valida credenciales y guarda el JWT en la sesión.
     correo = (request.form.get("correo") or "").strip().lower()
     contrasena = request.form.get("contrasena") or ""
 
     if not correo or not contrasena:
         flash("Por favor, revisa tu correo y contraseña.")
         return redirect(url_for("pages.login_page"))
-    
-    # Construimos la URL del servicio interno de autenticación.
-    jwt_login_url = request.host_url.strip("/") + "/auth/login"
 
-    # Enviamos las credenciales al servicio de autenticacion interno.
-    try:
-        response = requests.post(
-            jwt_login_url,
-            json={"correo":correo,
-                  "contrasena":contrasena
-            }
-        ,
-        timeout=5
-        )
-    except requests.RequestException:
-        flash("Error de conexión. Por favor, intenta más tarde.")
-        return redirect(url_for("pages.login_page"))
-    
-    if response.status_code != 200:
+    user, rol_nombre = authenticate_user(correo, contrasena)
+    if not user:
         flash("Credenciales incorrectas. Por favor, intenta de nuevo.")
-        return redirect(url_for("pages.login_page"))
-    
-    data = response.json() or {}
-    access_token = data.get("access_token")
-
-    if not access_token:
-        flash("Error interno: token no recibido.")
         return redirect(url_for("pages.login_page"))
 
     # Guardamos el token en la sesion para las siguientes vistas.
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"rol": rol_nombre}
+    )
     session["access_token"] = access_token
     return redirect(url_for("pages.dashboard_page"))
 
