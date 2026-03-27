@@ -38,12 +38,13 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Razón de inactivación *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="razon_inactivacion" rows="4" required></textarea>
+          <textarea class="usuario-input" name="razon_inactivacion" rows="4">{{ form_data.razon_inactivacion }}</textarea>
         </div>
+        <small class="field-error">{{ field_errors.razon_inactivacion or "" }}</small>
       </div>
 
       <label class="usuario-check">
-        <input type="checkbox" name="confirmar" value="si" required>
+        <input type="checkbox" name="confirmar" value="si" {% if form_data.confirmar %}checked{% endif %} required>
         Confirmo que deseo inactivar esta mascota.
       </label>
 

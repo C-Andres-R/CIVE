@@ -175,9 +175,29 @@
     dynamicActionsEl.classList.remove("hidden");
   }
 
+  function showChoiceOptions(options) {
+    // Muestra botones rápidos para respuestas cerradas como Si/No.
+    dynamicActionsEl.innerHTML = "";
+    (options || []).forEach((option) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = option.label || option.value || "";
+      btn.addEventListener("click", () => askBot(String(option.value || option.label || "")));
+      dynamicActionsEl.appendChild(btn);
+    });
+    dynamicActionsEl.classList.remove("hidden");
+  }
+
   function updateEvaluationControls(data) {
-    // Ajusta los controles visibles segun el paso de evaluacion actual.
+    // Ajusta los controles visibles segun el paso del flujo actual.
     evaluationStep = data.evaluation_step || null;
+
+    if (Array.isArray(data.choice_options) && data.choice_options.length > 0) {
+      showChoiceOptions(data.choice_options);
+      submitBtnEl.style.display = "inline-block";
+      return;
+    }
 
     if (evaluationStep === "rating") {
       showRatingOptions(data.rating_options || [1, 2, 3, 4, 5]);

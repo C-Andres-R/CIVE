@@ -27,26 +27,15 @@
             </div>
 
             <!-- --- MENSAJES DE VALIDACION O ERROR --- -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="login-messages">
-                {% for category, message in messages %}
-                <div class="login-alert login-alert-{{ category }}">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endwith %}
-
             <!-- --- FORMULARIO PRINCIPAL DE AUTENTICACION --- -->
-            <form class="login-form" method="POST" action="{{ url_for('pages.login_post')}}">
+            <form class="login-form" method="POST" action="{{ url_for('pages.login_post')}}" novalidate>
                 <!-- --- CAPTURA DEL CORREO --- -->
                 <div class="form-group">
                     <label class="form-label" for="email">email</label>
                     <div class="form-input-wrapper">
-                        <input type="email" id="email" name="correo" class="form-input" required>
+                        <input type="email" id="email" name="correo" class="form-input" value="{{ form_data.correo }}">
                     </div>
+                    <small class="field-error" data-field-error="correo">{{ field_errors.correo or "" }}</small>
                 </div>
 
                 <!-- --- CAPTURA DE LA CONTRASENA --- -->
@@ -58,7 +47,6 @@
                             id="password"
                             name="contrasena"
                             class="form-input"
-                            required
                         >
                         <button type="button" class="password-toggle" id="passwordToggle">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -68,6 +56,7 @@
                             </svg>
                         </button>
                     </div>
+                    <small class="field-error" data-field-error="contrasena">{{ field_errors.contrasena or "" }}</small>
                 </div>
 
                 <!-- --- ENLACE DE APOYO PARA RECUPERACION --- -->
@@ -91,14 +80,61 @@
 
     <script>
         // Permite mostrar u ocultar la contrasena escrita por el usuario.
+        const form = document.querySelector('.login-form');
+        const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const passwordToggle = document.getElementById('passwordToggle');
+        const errorEls = {
+            correo: document.querySelector('[data-field-error="correo"]'),
+            contrasena: document.querySelector('[data-field-error="contrasena"]'),
+        };
+        let submitAttempted = {{ "true" if field_errors else "false" }};
+
+        const setError = (field, message) => {
+            const el = errorEls[field];
+            if (el) el.textContent = submitAttempted ? (message || '') : '';
+        };
+
+        const validateCorreo = () => {
+            const value = (emailInput.value || '').trim();
+            if (!value) {
+                setError('correo', 'Este campo no puede estar vacío.');
+                return false;
+            }
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+                setError('correo', 'Por favor, verifica la información ingresada.');
+                return false;
+            }
+            setError('correo', '');
+            return true;
+        };
+
+        const validateContrasena = () => {
+            const value = passwordInput.value || '';
+            if (!value) {
+                setError('contrasena', 'Este campo no puede estar vacío.');
+                return false;
+            }
+            setError('contrasena', '');
+            return true;
+        };
+
+        const validateForm = () => [validateCorreo(), validateContrasena()].every(Boolean);
 
         passwordToggle.addEventListener('click', (e) => {
             // Alterna entre texto visible y contrasena oculta.
             e.preventDefault();
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
+        });
+
+        emailInput.addEventListener('input', validateForm);
+        passwordInput.addEventListener('input', validateForm);
+        form.addEventListener('submit', (e) => {
+            submitAttempted = true;
+            if (!validateForm()) {
+                e.preventDefault();
+            }
         });
 
     </script>

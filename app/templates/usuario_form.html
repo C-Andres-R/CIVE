@@ -26,7 +26,7 @@
     {% endif %}
     {% endwith %}
 
-    <form class="usuario-form" method="POST"
+    <form class="usuario-form" method="POST" novalidate
       action="{% if mode == 'edit' %}{{ url_for('usuarios.usuarios_edit', user_id=user_id) }}{% else %}{{ url_for('usuarios.usuarios_new') }}{% endif %}">
 
       <!-- --- DATOS PERSONALES Y DE CONTACTO DEL USUARIO --- -->
@@ -34,15 +34,9 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}" required>
+            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}">
           </div>
-        </div>
-
-        <div class="usuario-form-row">
-          <label class="usuario-form-label">Apellido Materno</label>
-          <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
-          </div>
+          <small class="field-error" data-field-error="nombres">{{ field_errors.nombres or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -50,6 +44,15 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="text" name="apellido_paterno" value="{{ form_data.apellido_paterno }}">
           </div>
+          <small class="field-error" data-field-error="apellido_paterno">{{ field_errors.apellido_paterno or "" }}</small>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Apellido Materno</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
+          </div>
+          <small class="field-error" data-field-error="apellido_materno">{{ field_errors.apellido_materno or "" }}</small>
         </div>
       </div>
 
@@ -82,6 +85,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="text" name="codigo_postal" value="{{ form_data.codigo_postal }}" maxlength="5">
           </div>
+          <small class="field-error" data-field-error="codigo_postal">{{ field_errors.codigo_postal or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -103,15 +107,17 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Teléfono *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}" required>
+            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}">
           </div>
+          <small class="field-error" data-field-error="telefono">{{ field_errors.telefono or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Correo *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}" required>
+            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}">
           </div>
+          <small class="field-error" data-field-error="correo">{{ field_errors.correo or "" }}</small>
         </div>
       </div>
 
@@ -122,16 +128,17 @@
             {% if mode == "edit" %}Nueva contraseña (opcional){% else %}Contraseña *{% endif %}
           </label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="password" name="contrasena" {% if mode != "edit" %}required{% endif %}
+            <input class="usuario-input" type="password" name="contrasena"
               placeholder="{% if mode == 'edit' %}Dejar vacío para mantener la actual{% else %}Mínimo 12 caracteres{% endif %}">
           </div>
+          <small class="field-error" data-field-error="contrasena">{{ field_errors.contrasena or "" }}</small>
           <small style="color:#697077;">Debe incluir mayúscula, minúscula, número y carácter especial.</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Rol *</label>
           <div class="usuario-input-wrap">
-            <select class="usuario-select" name="rol_id" required>
+            <select class="usuario-select" name="rol_id">
               <option value="">Seleccione un rol</option>
               {% for rol in roles %}
               <option value="{{ rol.id }}" {% if form_data.rol_id|string==rol.id|string %}selected{% endif %}>
@@ -140,6 +147,7 @@
               {% endfor %}
             </select>
           </div>
+          <small class="field-error" data-field-error="rol_id">{{ field_errors.rol_id or "" }}</small>
         </div>
       </div>
 
@@ -147,6 +155,7 @@
         <input type="checkbox" name="activo" {% if form_data.activo %}checked{% endif %}>
         Activo
       </label>
+      <small class="field-error" data-field-error="activo">{{ field_errors.activo or "" }}</small>
 
       <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
@@ -159,4 +168,199 @@
     </form>
   </div>
 </div>
+<script>
+  (() => {
+    const form = document.querySelector('.usuario-form');
+    if (!form) return;
+
+    const mode = '{{ mode }}';
+    const submitButton = form.querySelector('.usuario-btn-primary');
+    const nombresInput = form.querySelector('input[name="nombres"]');
+    const apellidoPaternoInput = form.querySelector('input[name="apellido_paterno"]');
+    const apellidoMaternoInput = form.querySelector('input[name="apellido_materno"]');
+    const codigoPostalInput = form.querySelector('input[name="codigo_postal"]');
+    const telefonoInput = form.querySelector('input[name="telefono"]');
+    const correoInput = form.querySelector('input[name="correo"]');
+    const contrasenaInput = form.querySelector('input[name="contrasena"]');
+    const rolInput = form.querySelector('select[name="rol_id"]');
+    const activoInput = form.querySelector('input[name="activo"]');
+    let submitAttempted = {{ "true" if field_errors else "false" }};
+
+    const errorEls = {
+      nombres: form.querySelector('[data-field-error="nombres"]'),
+      apellido_paterno: form.querySelector('[data-field-error="apellido_paterno"]'),
+      apellido_materno: form.querySelector('[data-field-error="apellido_materno"]'),
+      codigo_postal: form.querySelector('[data-field-error="codigo_postal"]'),
+      telefono: form.querySelector('[data-field-error="telefono"]'),
+      correo: form.querySelector('[data-field-error="correo"]'),
+      contrasena: form.querySelector('[data-field-error="contrasena"]'),
+      rol_id: form.querySelector('[data-field-error="rol_id"]'),
+      activo: form.querySelector('[data-field-error="activo"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const hasOnlyLetters = (value) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(value);
+
+    const validateNombres = () => {
+      const value = (nombresInput.value || '').trim();
+      if (!value) {
+        setError('nombres', 'El nombre es obligatorio.');
+        return false;
+      }
+      if (!hasOnlyLetters(value)) {
+        setError('nombres', 'El campo no puede contener números.');
+        return false;
+      }
+      setError('nombres', '');
+      return true;
+    };
+
+    const validateApellidoPaterno = () => {
+      const value = (apellidoPaternoInput.value || '').trim();
+      if (!value) {
+        setError('apellido_paterno', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      if (!hasOnlyLetters(value)) {
+        setError('apellido_paterno', 'El campo no puede contener números.');
+        return false;
+      }
+      setError('apellido_paterno', '');
+      return true;
+    };
+
+    const validateApellidoMaterno = () => {
+      const value = (apellidoMaternoInput.value || '').trim();
+      if (!value) {
+        setError('apellido_materno', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      if (!hasOnlyLetters(value)) {
+        setError('apellido_materno', 'El campo no puede contener números.');
+        return false;
+      }
+      setError('apellido_materno', '');
+      return true;
+    };
+
+    const validateCodigoPostal = () => {
+      const value = (codigoPostalInput.value || '').trim();
+      if (value && !/^\d{5}$/.test(value)) {
+        setError('codigo_postal', 'El C.P. debe tener exactamente 5 dígitos.');
+        return false;
+      }
+      setError('codigo_postal', '');
+      return true;
+    };
+
+    const validateTelefono = () => {
+      const value = (telefonoInput.value || '').trim();
+      if (!value) {
+        setError('telefono', 'El teléfono es obligatorio.');
+        return false;
+      }
+      if (!/^[0-9+\-()\s]{10,20}$/.test(value)) {
+        setError('telefono', 'El teléfono debe tener un formato válido.');
+        return false;
+      }
+      const digits = value.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) {
+        setError('telefono', 'El teléfono debe tener un formato válido.');
+        return false;
+      }
+      setError('telefono', '');
+      return true;
+    };
+
+    const validateCorreo = () => {
+      const value = (correoInput.value || '').trim();
+      if (!value) {
+        setError('correo', 'El correo es obligatorio.');
+        return false;
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+        setError('correo', 'El correo no tiene un formato válido.');
+        return false;
+      }
+      setError('correo', '');
+      return true;
+    };
+
+    const validateContrasena = () => {
+      const value = contrasenaInput.value || '';
+      if (mode !== 'edit' && !value) {
+        setError('contrasena', 'La contraseña es obligatoria.');
+        return false;
+      }
+      if (!value) {
+        setError('contrasena', '');
+        return true;
+      }
+
+      const passwordErrors = [];
+      if (value.trim().length < 12) passwordErrors.push('La contraseña debe tener al menos 12 caracteres.');
+      if (!/[A-Z]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos una letra mayúscula.');
+      if (!/[a-z]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos una letra minúscula.');
+      if (!/\d/.test(value)) passwordErrors.push('La contraseña debe incluir al menos un número.');
+      if (!/[^A-Za-z0-9]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos un carácter especial.');
+
+      if (passwordErrors.length) {
+        setError('contrasena', passwordErrors.join(' '));
+        return false;
+      }
+      setError('contrasena', '');
+      return true;
+    };
+
+    const validateRol = () => {
+      if (!(rolInput.value || '').trim()) {
+        setError('rol_id', 'El rol es obligatorio.');
+        return false;
+      }
+      setError('rol_id', '');
+      return true;
+    };
+
+    const validateActivo = () => {
+      if (activoInput.checked) {
+        setError('activo', '');
+      }
+      return true;
+    };
+
+    const validateForm = () => {
+      const checks = [
+        validateNombres(),
+        validateApellidoPaterno(),
+        validateApellidoMaterno(),
+        validateCodigoPostal(),
+        validateTelefono(),
+        validateCorreo(),
+        validateContrasena(),
+        validateRol(),
+        validateActivo(),
+      ];
+      return checks.every(Boolean);
+    };
+
+    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, codigoPostalInput, telefonoInput, correoInput, contrasenaInput].forEach((input) => {
+      input.addEventListener('input', validateForm);
+    });
+    rolInput.addEventListener('change', validateForm);
+    activoInput.addEventListener('change', validateForm);
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    validateForm();
+  })();
+</script>
 {% endblock %}

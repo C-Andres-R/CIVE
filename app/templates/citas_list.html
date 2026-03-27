@@ -30,7 +30,7 @@
   </div>
 
   <!-- --- FILTROS DEL LISTADO DE CITAS --- -->
-  <form class="filters" method="get" action="{{ url_for('citas.citas_index') }}">
+  <form class="filters" method="get" action="{{ url_for('citas.citas_index') }}" novalidate>
     <div class="filter-field">
       <label>Estado</label>
       <select name="estado">
@@ -44,11 +44,13 @@
     <div class="filter-field">
       <label>Fecha inicio</label>
       <input type="date" name="fecha_inicio" value="{{ filters.fecha_inicio }}">
+      <small class="field-error" data-field-error="fecha_inicio">{{ field_errors.fecha_inicio or "" }}</small>
     </div>
 
     <div class="filter-field">
       <label>Fecha fin</label>
       <input type="date" name="fecha_fin" value="{{ filters.fecha_fin }}">
+      <small class="field-error" data-field-error="fecha_fin">{{ field_errors.fecha_fin or "" }}</small>
     </div>
 
     <div class="filter-field">
@@ -76,6 +78,60 @@
   </form>
 </div>
 
+<script>
+  (() => {
+    const form = document.querySelector('.filters');
+    if (!form) return;
+
+    const fechaInicioInput = form.querySelector('input[name="fecha_inicio"]');
+    const fechaFinInput = form.querySelector('input[name="fecha_fin"]');
+    const errorEls = {
+      fecha_inicio: form.querySelector('[data-field-error="fecha_inicio"]'),
+      fecha_fin: form.querySelector('[data-field-error="fecha_fin"]'),
+    };
+    let submitAttempted = {{ "true" if field_errors else "false" }};
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const validateFilters = () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const fechaInicio = fechaInicioInput.value;
+      const fechaFin = fechaFinInput.value;
+      let valid = true;
+
+      if (fechaInicio && fechaInicio > todayStr) {
+        setError('fecha_inicio', 'La fecha de inicio no puede ser posterior a hoy.');
+        valid = false;
+      } else {
+        setError('fecha_inicio', '');
+      }
+
+      if (fechaFin && fechaInicio && fechaFin < fechaInicio) {
+        setError('fecha_fin', 'La fecha de fin no puede ser previa a la fecha marcada como inicio.');
+        valid = false;
+      } else {
+        setError('fecha_fin', '');
+      }
+
+      return valid;
+    };
+
+    fechaInicioInput.addEventListener('change', validateFilters);
+    fechaFinInput.addEventListener('change', validateFilters);
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateFilters()) {
+        event.preventDefault();
+      }
+    });
+  })();
+</script>
+
 <!-- --- TABLA PRINCIPAL DE CITAS --- -->
 <div class="table-container">
   <table class="table">
@@ -91,7 +147,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for cita, cliente_nombre, mascota_nombre, veterinario_nombre, recordatorio_estado, recordatorio_confirmado in citas_rows %}
+      {% for cita, cliente_nombre, mascota_nombre, veterinario_nombre, recordatorio_estado, recordatorio_confirmado, recordatorio_anticipacion_horas, recordatorio_programado_para in citas_rows %}
       <tr>
         <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') }}</td>
         <td>{{ cliente_nombre }}</td>
@@ -109,6 +165,10 @@
         <td>
           {% if recordatorio_estado %}
           {{ recordatorio_estado|capitalize }}
+          {% if recordatorio_estado == 'programado' and recordatorio_anticipacion_horas %}
+          <br>
+          <small>{{ recordatorio_anticipacion_horas }} h antes{% if recordatorio_programado_para %} - {{ recordatorio_programado_para.strftime('%Y-%m-%d %H:%M') }}{% endif %}</small>
+          {% endif %}
           {% if recordatorio_confirmado %}
           (Confirmado)
           {% endif %}
@@ -127,9 +187,27 @@
             {% endif %}
 
             {% if can_send_reminder and not cita.cancelada and cita.estado != 'cancelada' %}
-            <form class="action-form" method="post" action="{{ url_for('citas.citas_send_reminder', cita_id=cita.id) }}">
-              <button class="cive-btn cive-btn--action" type="submit">Enviar recordatorio</button>
-            </form>
+            <div class="reminder-menu-wrap">
+              <button class="cive-btn cive-btn--action js-reminder-toggle" type="button" data-target="reminder-menu-{{ cita.id }}">
+                Programar recordatorio
+              </button>
+              <div id="reminder-menu-{{ cita.id }}" class="reminder-menu hidden">
+                <form class="reminder-form" method="post" action="{{ url_for('citas.citas_schedule_reminder', cita_id=cita.id) }}" novalidate>
+                  <label for="anticipacion-{{ cita.id }}">Anticipación</label>
+                  <select id="anticipacion-{{ cita.id }}" name="anticipacion_horas">
+                    <option value="">Selecciona una opción</option>
+                    <option value="24" {% if recordatorio_anticipacion_horas == 24 %}selected{% endif %}>24 horas antes</option>
+                    <option value="12" {% if recordatorio_anticipacion_horas == 12 %}selected{% endif %}>12 horas antes</option>
+                    <option value="2" {% if recordatorio_anticipacion_horas == 2 %}selected{% endif %}>2 horas antes</option>
+                  </select>
+                  <small class="field-error reminder-field-error hidden">Debes seleccionar una opción.</small>
+                  <div class="reminder-form-actions">
+                    <button class="cive-btn cive-btn--action" type="submit">Guardar</button>
+                    <button class="cive-btn cive-btn--ghost js-reminder-close" type="button" data-target="reminder-menu-{{ cita.id }}">Cerrar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
             {% endif %}
           </div>
         </td>
@@ -142,4 +220,63 @@
     </tbody>
   </table>
 </div>
+
+<script>
+  (() => {
+    const toggles = document.querySelectorAll('.js-reminder-toggle');
+    const closes = document.querySelectorAll('.js-reminder-close');
+    const reminderForms = document.querySelectorAll('.reminder-form');
+
+    const closeAll = () => {
+      document.querySelectorAll('.reminder-menu').forEach((menu) => menu.classList.add('hidden'));
+    };
+
+    toggles.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const menu = document.getElementById(targetId);
+        if (!menu) return;
+        const isHidden = menu.classList.contains('hidden');
+        closeAll();
+        if (isHidden) {
+          menu.classList.remove('hidden');
+        }
+      });
+    });
+
+    closes.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const menu = document.getElementById(targetId);
+        if (menu) menu.classList.add('hidden');
+      });
+    });
+
+    reminderForms.forEach((form) => {
+      const select = form.querySelector('select[name="anticipacion_horas"]');
+      const error = form.querySelector('.reminder-field-error');
+      if (!select || !error) return;
+
+      select.addEventListener('change', () => {
+        if (select.value) {
+          error.classList.add('hidden');
+        }
+      });
+
+      form.addEventListener('submit', (event) => {
+        if (select.value) {
+          error.classList.add('hidden');
+          return;
+        }
+        event.preventDefault();
+        error.classList.remove('hidden');
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.reminder-menu-wrap')) return;
+      closeAll();
+    });
+  })();
+</script>
 {% endblock %}

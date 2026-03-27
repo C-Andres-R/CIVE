@@ -14,6 +14,8 @@ class RecordatorioCita(db.Model):
         default="programado",
     )
     enviado_en = db.Column(db.DateTime, nullable=True)
+    anticipacion_horas = db.Column(db.Integer, nullable=True)
+    programado_para = db.Column(db.DateTime, nullable=True)
     confirmado = db.Column(db.Boolean, nullable=False, default=False)
     confirmado_en = db.Column(db.DateTime, nullable=True)
     token_confirmacion = db.Column(db.String(128), nullable=True, unique=True)

@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session
 from flask_jwt_extended import create_access_token
 
 from app.auth.service import authenticate_user
@@ -25,22 +25,34 @@ def login_page():
     # Muestra la pantalla de inicio de sesión.
     if session.get("access_token"):
         return redirect(url_for("pages.dashboard_page"))
-    return render_template("login.html")
+    return render_template("login.html", form_data={"correo": ""}, field_errors={})
 
 @pages_bp.post("/login")
 def login_post():
     # Valida credenciales y guarda el JWT en la sesión.
     correo = (request.form.get("correo") or "").strip().lower()
     contrasena = request.form.get("contrasena") or ""
+    form_data = {"correo": correo}
+    field_errors = {}
 
-    if not correo or not contrasena:
-        flash("Por favor, revisa tu correo y contraseña.")
-        return redirect(url_for("pages.login_page"))
+    if not correo:
+        field_errors["correo"] = "Este campo no puede estar vacío."
+    elif "@" not in correo or "." not in correo.split("@")[-1]:
+        field_errors["correo"] = "Por favor, verifica la información ingresada."
+
+    if not contrasena:
+        field_errors["contrasena"] = "Este campo no puede estar vacío."
+
+    if field_errors:
+        return render_template("login.html", form_data=form_data, field_errors=field_errors)
 
     user, rol_nombre = authenticate_user(correo, contrasena)
     if not user:
-        flash("Credenciales incorrectas. Por favor, intenta de nuevo.")
-        return redirect(url_for("pages.login_page"))
+        field_errors = {
+            "correo": "Por favor, verifica la información ingresada.",
+            "contrasena": "Por favor, verifica la información ingresada.",
+        }
+        return render_template("login.html", form_data=form_data, field_errors=field_errors)
 
     # Guardamos el token en la sesion para las siguientes vistas.
     access_token = create_access_token(

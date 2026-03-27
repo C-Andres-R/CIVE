@@ -26,57 +26,73 @@
     {% endif %}
     {% endwith %}
 
-    <form class="usuario-form" method="post" action="{{ url_for('citas.citas_reasignar') }}">
+    <form class="usuario-form" method="post" action="{{ url_for('citas.citas_reasignar') }}" novalidate id="reasignar-form">
       <!-- --- SELECCION DE LA CITA Y SUS VETERINARIOS --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha de la cita *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" required>
+          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" id="fecha_cita">
         </div>
+        <small class="field-error" data-field-error="fecha">{{ field_errors.fecha or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Cita *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="cita_id" required>
+          <select class="usuario-select" name="cita_id" id="cita_id">
             <option value="">Seleccione cita</option>
             {% for c in citas_futuras %}
-            <option value="{{ c.id }}" {% if form_data.cita_id == c.id|string %}selected{% endif %}>
+            <option
+              value="{{ c.id }}"
+              data-fecha="{{ c.fecha_hora.strftime('%Y-%m-%d') }}"
+              data-vet-original="{{ c.veterinario_id }}"
+              {% if form_data.cita_id == c.id|string %}selected{% endif %}>
               #{{ c.id }} - {{ c.fecha_hora.strftime('%Y-%m-%d %H:%M') }}
             </option>
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="cita_id">{{ field_errors.cita_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Veterinario original *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="veterinario_original_id" required>
+          <select class="usuario-select" name="veterinario_original_id" id="veterinario_original_id">
             <option value="">Seleccione veterinario original</option>
             {% for vet in veterinarios %}
             <option value="{{ vet.id }}" {% if form_data.veterinario_original_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="veterinario_original_id">{{ field_errors.veterinario_original_id or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Motivo de ausencia *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="motivo_ausencia" id="motivo_ausencia">
+            <option value="">Seleccione un motivo</option>
+            {% for key, label in absence_reason_options.items() %}
+            <option value="{{ key }}" {% if form_data.motivo_ausencia == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error" data-field-error="motivo_ausencia">{{ field_errors.motivo_ausencia or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Veterinario nuevo *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="veterinario_nuevo_id" required>
+          <select class="usuario-select" name="veterinario_nuevo_id" id="veterinario_nuevo_id">
             <option value="">Seleccione veterinario nuevo</option>
             {% for vet in veterinarios %}
             <option value="{{ vet.id }}" {% if form_data.veterinario_nuevo_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="veterinario_nuevo_id">{{ field_errors.veterinario_nuevo_id or "" }}</small>
       </div>
-
-      <label class="usuario-check">
-        <input type="checkbox" name="ausencia_confirmada" {% if form_data.ausencia_confirmada %}checked{% endif %}>
-        Confirmo manualmente la ausencia del veterinario original.
-      </label>
 
       <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
@@ -86,4 +102,117 @@
     </form>
   </div>
 </div>
+
+<script>
+  (() => {
+    const form = document.getElementById('reasignar-form');
+    const fechaInput = document.querySelector('input[name="fecha"]');
+    const vetOriginalSelect = document.getElementById('veterinario_original_id');
+    const citaSelect = document.getElementById('cita_id');
+    const motivoSelect = document.getElementById('motivo_ausencia');
+    const vetNuevoSelect = document.getElementById('veterinario_nuevo_id');
+    if (!form || !fechaInput || !vetOriginalSelect || !citaSelect || !motivoSelect || !vetNuevoSelect) return;
+
+    const baseOptions = Array.from(citaSelect.options).map((option) => ({
+      value: option.value,
+      text: option.textContent,
+      fecha: option.dataset.fecha || '',
+      vetOriginal: option.dataset.vetOriginal || '',
+      selected: option.selected,
+    }));
+
+    const syncCitas = () => {
+      const fecha = fechaInput.value;
+      const vetOriginal = vetOriginalSelect.value;
+      const currentValue = citaSelect.value;
+      citaSelect.innerHTML = '';
+
+      baseOptions.forEach((option, index) => {
+        const isPlaceholder = index === 0 || option.value === '';
+        const matchesFecha = !fecha || option.fecha === fecha;
+        const matchesVet = !vetOriginal || option.vetOriginal === vetOriginal;
+        if (!isPlaceholder && (!matchesFecha || !matchesVet)) return;
+
+        const opt = document.createElement('option');
+        opt.value = option.value;
+        opt.textContent = option.text;
+        if (option.fecha) opt.dataset.fecha = option.fecha;
+        if (option.vetOriginal) opt.dataset.vetOriginal = option.vetOriginal;
+        if (option.value === currentValue) opt.selected = true;
+        citaSelect.appendChild(opt);
+      });
+
+      if (citaSelect.options.length === 0) {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'No hay citas para la selección actual';
+        placeholder.selected = true;
+        citaSelect.appendChild(placeholder);
+      }
+    };
+
+    fechaInput.addEventListener('change', syncCitas);
+    vetOriginalSelect.addEventListener('change', syncCitas);
+    syncCitas();
+
+    const errorEls = {
+      fecha: form.querySelector('[data-field-error="fecha"]'),
+      cita_id: form.querySelector('[data-field-error="cita_id"]'),
+      veterinario_original_id: form.querySelector('[data-field-error="veterinario_original_id"]'),
+      motivo_ausencia: form.querySelector('[data-field-error="motivo_ausencia"]'),
+      veterinario_nuevo_id: form.querySelector('[data-field-error="veterinario_nuevo_id"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = message || '';
+    };
+
+    const clearFieldError = (field) => setError(field, '');
+
+    const validateForm = () => {
+      let valid = true;
+
+      clearFieldError('fecha');
+      clearFieldError('cita_id');
+      clearFieldError('veterinario_original_id');
+      clearFieldError('motivo_ausencia');
+      clearFieldError('veterinario_nuevo_id');
+
+      if (!fechaInput.value) {
+        setError('fecha', 'Debes seleccionar la fecha de la cita.');
+        valid = false;
+      }
+      if (!citaSelect.value) {
+        setError('cita_id', 'Debes seleccionar la cita por reasignar.');
+        valid = false;
+      }
+      if (!vetOriginalSelect.value) {
+        setError('veterinario_original_id', 'Debes seleccionar el veterinario original.');
+        valid = false;
+      }
+      if (!motivoSelect.value) {
+        setError('motivo_ausencia', 'Debes seleccionar el motivo de ausencia.');
+        valid = false;
+      }
+      if (!vetNuevoSelect.value) {
+        setError('veterinario_nuevo_id', 'Debes seleccionar el veterinario nuevo.');
+        valid = false;
+      }
+
+      return valid;
+    };
+
+    fechaInput.addEventListener('change', () => clearFieldError('fecha'));
+    citaSelect.addEventListener('change', () => clearFieldError('cita_id'));
+    vetOriginalSelect.addEventListener('change', () => clearFieldError('veterinario_original_id'));
+    motivoSelect.addEventListener('change', () => clearFieldError('motivo_ausencia'));
+    vetNuevoSelect.addEventListener('change', () => clearFieldError('veterinario_nuevo_id'));
+
+    form.addEventListener('submit', (event) => {
+      if (validateForm()) return;
+      event.preventDefault();
+    });
+  })();
+</script>
 {% endblock %}

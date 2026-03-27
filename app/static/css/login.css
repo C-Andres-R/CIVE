@@ -75,6 +75,12 @@
   gap: 4px;
 }
 
+.field-error {
+  min-height: 18px;
+  color: #b42318;
+  font-size: 12px;
+}
+
 .form-label {
   font-size: 14px;
   font-weight: var(--font-weight-regular);

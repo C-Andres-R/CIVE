@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import secrets
 from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
@@ -27,6 +26,13 @@ PERMISSIONS = {
     "hu008": {ROLE_ADMIN},
     "hu009": {ROLE_ADMIN, ROLE_CLIENTE, ROLE_VETERINARIO},
     "hu010": {ROLE_ADMIN, ROLE_CLIENTE},
+}
+REMINDER_OFFSET_OPTIONS = {24, 12, 2}
+ABSENCE_REASON_OPTIONS = {
+    "incapacidad": "Incapacidad",
+    "vacaciones": "Vacaciones",
+    "emergencia": "Emergencia",
+    "otro": "Otro",
 }
 
 
@@ -171,6 +177,8 @@ def _build_cita_list_query(me):
             veterinario.nombre.label("veterinario_nombre"),
             RecordatorioCita.estado.label("recordatorio_estado"),
             RecordatorioCita.confirmado.label("recordatorio_confirmado"),
+            RecordatorioCita.anticipacion_horas.label("recordatorio_anticipacion_horas"),
+            RecordatorioCita.programado_para.label("recordatorio_programado_para"),
         )
         .join(cliente, Cita.cliente_id == cliente.id)
         .join(Mascota, Cita.mascota_id == Mascota.id)
@@ -192,35 +200,42 @@ def _build_cita_list_query(me):
 def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None):
     # Valida y normaliza los datos capturados en el formulario de citas.
     errors = []
+    field_errors = {}
 
     fecha_hora_raw = form.get("fecha_hora") or ""
     motivo = (form.get("motivo") or "").strip()
     mascota_id = _parse_int(form.get("mascota_id"))
-    cliente_id = _parse_int(form.get("cliente_id"))
     veterinario_id = _parse_int(form.get("veterinario_id"))
 
     fecha_hora = _parse_datetime_local(fecha_hora_raw)
-
-    if _role_name(me) == ROLE_CLIENTE:
-        cliente_id = _parse_int(me.get("id"))
+    cliente_id = None
 
     if not fecha_hora:
-        errors.append("La fecha/hora es obligatoria y debe ser válida.")
-    elif not _is_future_datetime(fecha_hora):
-        errors.append("La fecha/hora debe ser futura.")
+        field_errors["fecha_hora"] = "Este campo no puede estar vacío."
+    else:
+        today = date.today()
+        if fecha_hora.date() <= today:
+            field_errors["fecha_hora"] = "Debes seleccionar una fecha posterior a hoy."
+        elif fecha_hora.year != today.year:
+            field_errors["fecha_hora"] = "Solo puedes agendar citas dentro del año actual."
 
     if not motivo:
-        errors.append("El motivo es obligatorio.")
+        field_errors["motivo"] = "Por favor ingresa el motivo de la cita para continuar."
     if not mascota_id:
-        errors.append("La mascota es obligatoria.")
-    if not cliente_id:
-        errors.append("El cliente es obligatorio.")
+        field_errors["mascota_id"] = "Este campo no puede estar vacío."
     if not veterinario_id:
-        errors.append("El veterinario es obligatorio.")
+        field_errors["veterinario_id"] = "Este campo no puede estar vacío."
 
     cliente = None
     mascota = None
     veterinario = None
+
+    if mascota_id:
+        mascota = db.session.get(Mascota, mascota_id)
+        if not mascota:
+            field_errors["mascota_id"] = "La mascota seleccionada no existe."
+        else:
+            cliente_id = mascota.dueno_id
 
     if cliente_id:
         cliente = (
@@ -231,15 +246,9 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
             .first()
         )
         if not cliente:
-            errors.append("El cliente seleccionado no es válido.")
-
-    if mascota_id:
-        mascota = db.session.get(Mascota, mascota_id)
-        if not mascota:
-            errors.append("La mascota seleccionada no existe.")
-
-    if cliente and mascota and mascota.dueno_id != cliente.id:
-        errors.append("La mascota seleccionada no pertenece al cliente indicado.")
+            field_errors["cliente_id"] = "El cliente asociado a la mascota no es válido."
+    elif mascota_id:
+        field_errors["cliente_id"] = "El cliente asociado a la mascota no es válido."
 
     if veterinario_id:
         veterinario = (
@@ -250,11 +259,11 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
             .first()
         )
         if not veterinario:
-            errors.append("El veterinario seleccionado no es válido.")
+            field_errors["veterinario_id"] = "El veterinario seleccionado no es válido."
 
     if fecha_hora and veterinario_id:
         if not _is_veterinario_disponible(veterinario_id, fecha_hora, exclude_cita_id=editing_cita_id):
-            errors.append("El veterinario no está disponible en la fecha/hora indicada.")
+            field_errors["veterinario_id"] = "El veterinario no está disponible en la fecha/hora indicada."
 
     payload = {
         "fecha_hora": fecha_hora,
@@ -264,7 +273,8 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
         "veterinario_id": veterinario_id,
     }
 
-    return errors, payload
+    errors.extend(field_errors.values())
+    return errors, field_errors, payload
 
 
 def _default_form_data():
@@ -274,8 +284,33 @@ def _default_form_data():
         "motivo": "",
         "mascota_id": "",
         "cliente_id": "",
+        "cliente_nombre": "",
         "veterinario_id": "",
     }
+
+
+def _owner_lookup(mascotas):
+    # Crea un diccionario para resolver el dueño de una mascota en el formulario.
+    return {
+        str(mascota_id): {
+            "cliente_id": str(dueno_id),
+            "cliente_nombre": dueno_nombre,
+        }
+        for mascota_id, mascota_nombre, dueno_id, dueno_nombre in mascotas
+    }
+
+
+def _sync_form_client_from_pet(form_data, mascotas):
+    # Sincroniza el cliente mostrado a partir de la mascota seleccionada.
+    owner_lookup = _owner_lookup(mascotas)
+    owner = owner_lookup.get(str(form_data.get("mascota_id") or ""))
+    if owner:
+        form_data["cliente_id"] = owner["cliente_id"]
+        form_data["cliente_nombre"] = owner["cliente_nombre"]
+    else:
+        form_data["cliente_id"] = ""
+        form_data["cliente_nombre"] = ""
+    return form_data
 
 
 def _datetime_to_local_input(dt: datetime | None) -> str:
@@ -283,6 +318,20 @@ def _datetime_to_local_input(dt: datetime | None) -> str:
     if not dt:
         return ""
     return dt.strftime("%Y-%m-%dT%H:%M")
+
+
+def _validate_cita_filters(fecha_inicio, fecha_fin):
+    # Valida las fechas del filtro antes de ejecutar la búsqueda.
+    field_errors = {}
+    today = date.today()
+
+    if fecha_inicio and fecha_inicio > today:
+        field_errors["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
+
+    if fecha_fin and fecha_inicio and fecha_fin < fecha_inicio:
+        field_errors["fecha_fin"] = "La fecha de fin no puede ser previa a la fecha marcada como inicio."
+
+    return field_errors
 
 
 # --- RUTAS DE CITAS ---
@@ -312,18 +361,20 @@ def citas_index():
     if orden not in {"asc", "desc"}:
         orden = "asc"
 
+    field_errors = _validate_cita_filters(fecha_inicio, fecha_fin)
     q = _build_cita_list_query(me)
 
-    if estado in {"pendiente", "confirmada", "cancelada"}:
-        q = q.filter(Cita.estado == estado)
+    if not field_errors:
+        if estado in {"pendiente", "confirmada", "cancelada"}:
+            q = q.filter(Cita.estado == estado)
 
-    if fecha_inicio:
-        q = q.filter(Cita.fecha_hora >= datetime.combine(fecha_inicio, time.min))
-    if fecha_fin:
-        q = q.filter(Cita.fecha_hora <= datetime.combine(fecha_fin, time.max))
+        if fecha_inicio:
+            q = q.filter(Cita.fecha_hora >= datetime.combine(fecha_inicio, time.min))
+        if fecha_fin:
+            q = q.filter(Cita.fecha_hora <= datetime.combine(fecha_fin, time.max))
 
-    if veterinario_id:
-        q = q.filter(Cita.veterinario_id == veterinario_id)
+        if veterinario_id:
+            q = q.filter(Cita.veterinario_id == veterinario_id)
 
     if orden == "desc":
         q = q.order_by(Cita.fecha_hora.desc())
@@ -346,6 +397,7 @@ def citas_index():
             "veterinario_id": str(veterinario_id or ""),
             "orden": orden,
         },
+        field_errors=field_errors,
         can_create=_allowed(me, "hu005"),
         can_manage=_allowed(me, "hu006"),
         can_send_reminder=_allowed(me, "hu008"),
@@ -377,38 +429,39 @@ def citas_new():
 
     if request.method == "GET":
         form_data = _default_form_data()
-        if _role_name(me) == ROLE_CLIENTE:
-            form_data["cliente_id"] = str(me.get("id") or "")
+        form_data = _sync_form_client_from_pet(form_data, mascotas)
         return render_template(
             "cita_form.html",
             me=me,
             active_nav="citas",
             mode="create",
             form_data=form_data,
+            field_errors={},
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
         )
 
     # Validamos los datos antes de crear la cita.
-    errors, payload = _validate_and_normalize_form(me, request.form)
+    errors, field_errors, payload = _validate_and_normalize_form(me, request.form)
     form_data = {
         "fecha_hora": request.form.get("fecha_hora") or "",
         "motivo": request.form.get("motivo") or "",
         "mascota_id": request.form.get("mascota_id") or "",
         "cliente_id": str(payload.get("cliente_id") or ""),
+        "cliente_nombre": "",
         "veterinario_id": request.form.get("veterinario_id") or "",
     }
+    form_data = _sync_form_client_from_pet(form_data, mascotas)
 
     if errors:
-        for error in errors:
-            flash(error, "error")
         return render_template(
             "cita_form.html",
             me=me,
             active_nav="citas",
             mode="create",
             form_data=form_data,
+            field_errors=field_errors,
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
@@ -475,8 +528,10 @@ def citas_edit(cita_id: int):
             "motivo": cita.motivo or "",
             "mascota_id": str(cita.mascota_id),
             "cliente_id": str(cita.cliente_id),
+            "cliente_nombre": "",
             "veterinario_id": str(cita.veterinario_id),
         }
+        form_data = _sync_form_client_from_pet(form_data, mascotas)
         return render_template(
             "cita_form.html",
             me=me,
@@ -484,24 +539,25 @@ def citas_edit(cita_id: int):
             mode="edit",
             cita_id=cita.id,
             form_data=form_data,
+            field_errors={},
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
         )
 
     # Validamos los datos antes de actualizar la cita.
-    errors, payload = _validate_and_normalize_form(me, request.form, editing_cita_id=cita.id)
+    errors, field_errors, payload = _validate_and_normalize_form(me, request.form, editing_cita_id=cita.id)
     form_data = {
         "fecha_hora": request.form.get("fecha_hora") or "",
         "motivo": request.form.get("motivo") or "",
         "mascota_id": request.form.get("mascota_id") or "",
         "cliente_id": str(payload.get("cliente_id") or ""),
+        "cliente_nombre": "",
         "veterinario_id": request.form.get("veterinario_id") or "",
     }
+    form_data = _sync_form_client_from_pet(form_data, mascotas)
 
     if errors:
-        for error in errors:
-            flash(error, "error")
         return render_template(
             "cita_form.html",
             me=me,
@@ -509,6 +565,7 @@ def citas_edit(cita_id: int):
             mode="edit",
             cita_id=cita.id,
             form_data=form_data,
+            field_errors=field_errors,
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
@@ -568,8 +625,8 @@ def citas_cancel(cita_id: int):
 
 
 @citas_bp.post("/citas/<int:cita_id>/recordatorio")
-def citas_send_reminder(cita_id: int):
-    # Envía por correo el recordatorio de una cita.
+def citas_schedule_reminder(cita_id: int):
+    # Programa un recordatorio automático para una cita futura.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -590,50 +647,50 @@ def citas_send_reminder(cita_id: int):
         flash("La cita no existe.", "error")
         return redirect(url_for("citas.citas_index"))
 
+    if cita.cancelada or cita.estado == "cancelada":
+        flash("No se puede programar un recordatorio para una cita cancelada.", "error")
+        return redirect(url_for("citas.citas_index"))
+
+    if not _is_future_datetime(cita.fecha_hora):
+        flash("Solo se pueden programar recordatorios para citas futuras.", "error")
+        return redirect(url_for("citas.citas_index"))
+
+    anticipacion_horas = _parse_int(request.form.get("anticipacion_horas"))
+    if anticipacion_horas not in REMINDER_OFFSET_OPTIONS:
+        flash("Debes seleccionar una anticipación válida para el recordatorio.", "error")
+        return redirect(url_for("citas.citas_index"))
+
+    programado_para = cita.fecha_hora - timedelta(hours=anticipacion_horas)
+    if programado_para <= datetime.now():
+        flash("La anticipación elegida ya no es válida para esta cita. Selecciona una opción menor.", "error")
+        return redirect(url_for("citas.citas_index"))
+
     # Verificamos que el cliente tenga un correo disponible para el recordatorio.
     cliente = db.session.get(Usuario, cita.cliente_id)
     if not cliente or not (cliente.correo or "").strip():
-        flash("No se pudo enviar: el cliente no tiene correo registrado.", "error")
+        flash("No se puede programar: el cliente no tiene correo registrado.", "error")
         return redirect(url_for("citas.citas_index"))
 
-    # Buscamos o creamos el registro que controlara el estado del recordatorio.
+    # Buscamos o creamos el registro que controlará el estado del recordatorio.
     reminder = db.session.query(RecordatorioCita).filter(RecordatorioCita.cita_id == cita.id).first()
     if not reminder:
         reminder = RecordatorioCita(cita_id=cita.id, estado="programado", confirmado=False)
         db.session.add(reminder)
 
-    # Generamos el enlace que permitira confirmar la recepcion del correo.
-    token = secrets.token_urlsafe(32)
-    confirm_url = url_for("chat.chat_confirm_reminder", token=token, _external=True)
-
-    subject = "Recordatorio de cita - CIVE"
-    body = (
-        f"Hola {cliente.nombre or 'Cliente'},\n\n"
-        "Este es un recordatorio de tu cita en CIVE.\n"
-        f"Fecha y hora: {cita.fecha_hora}\n"
-        f"Motivo: {cita.motivo or 'Sin motivo especificado'}\n\n"
-        "Confirma recepción de este recordatorio en el siguiente enlace:\n"
-        f"{confirm_url}\n"
-    )
-
-    from app.routes.chat import _send_email_smtp  # Reutiliza la lógica SMTP existente.
-
-    # Enviamos el correo y detenemos el flujo si ocurre un error.
-    sent_ok, sent_error = _send_email_smtp((cliente.correo or "").strip(), subject, body)
-    if not sent_ok:
-        db.session.commit()
-        flash(f"No se pudo enviar el recordatorio: {sent_error}", "error")
-        return redirect(url_for("citas.citas_index"))
-
-    # Guardamos en la base de datos que el recordatorio ya fue enviado.
-    reminder.estado = "enviado"
-    reminder.enviado_en = datetime.now()
+    reminder.estado = "programado"
+    reminder.enviado_en = None
+    reminder.anticipacion_horas = anticipacion_horas
+    reminder.programado_para = programado_para
     reminder.confirmado = False
     reminder.confirmado_en = None
-    reminder.token_confirmacion = token
+    reminder.token_confirmacion = None
     db.session.commit()
 
-    flash("Recordatorio enviado correctamente.", "success")
+    flash(
+        f"Recordatorio programado correctamente para {programado_para.strftime('%Y-%m-%d %H:%M')} "
+        f"({anticipacion_horas} horas antes).",
+        "success",
+    )
     return redirect(url_for("citas.citas_index"))
 
 
@@ -800,36 +857,39 @@ def citas_reasignar():
         "cita_id": "",
         "veterinario_original_id": "",
         "veterinario_nuevo_id": "",
-        "ausencia_confirmada": False,
+        "motivo_ausencia": "",
     }
+    field_errors = {}
 
     if request.method == "POST":
         fecha = _parse_date(request.form.get("fecha") or "")
         cita_id = _parse_int(request.form.get("cita_id"))
         veterinario_original_id = _parse_int(request.form.get("veterinario_original_id"))
         veterinario_nuevo_id = _parse_int(request.form.get("veterinario_nuevo_id"))
-        ausencia_confirmada = request.form.get("ausencia_confirmada") == "on"
+        motivo_ausencia = (request.form.get("motivo_ausencia") or "").strip().lower()
 
         form_data = {
             "fecha": request.form.get("fecha") or "",
             "cita_id": str(cita_id or ""),
             "veterinario_original_id": str(veterinario_original_id or ""),
             "veterinario_nuevo_id": str(veterinario_nuevo_id or ""),
-            "ausencia_confirmada": ausencia_confirmada,
+            "motivo_ausencia": motivo_ausencia,
         }
 
         errors = []
 
-        if not ausencia_confirmada:
-            errors.append("Debes confirmar manualmente la ausencia del veterinario original.")
         if not fecha:
-            errors.append("La fecha es obligatoria y debe ser válida.")
+            field_errors["fecha"] = "Debes seleccionar la fecha de la cita."
         elif fecha <= date.today():
-            errors.append("La fecha debe ser futura.")
+            field_errors["fecha"] = "La fecha debe ser futura."
+        if not motivo_ausencia:
+            field_errors["motivo_ausencia"] = "Debes seleccionar un motivo de ausencia."
+        elif motivo_ausencia not in ABSENCE_REASON_OPTIONS:
+            field_errors["motivo_ausencia"] = "El motivo de ausencia seleccionado no es válido."
 
         cita = db.session.get(Cita, cita_id) if cita_id else None
         if not cita:
-            errors.append("La cita seleccionada no existe.")
+            field_errors["cita_id"] = "Debes seleccionar la cita por reasignar."
         else:
             if not _user_can_touch_cita(me, cita):
                 errors.append("No tienes permisos para reasignar esa cita.")
@@ -838,28 +898,47 @@ def citas_reasignar():
             if not _is_future_datetime(cita.fecha_hora):
                 errors.append("Solo se pueden reasignar citas futuras.")
             if fecha and cita.fecha_hora.date() != fecha:
-                errors.append("La fecha indicada no coincide con la fecha de la cita seleccionada.")
+                field_errors["cita_id"] = "La fecha indicada no coincide con la fecha de la cita seleccionada."
 
         if not veterinario_original_id:
-            errors.append("Debes seleccionar veterinario original.")
+            field_errors["veterinario_original_id"] = "Debes seleccionar el veterinario original."
         if not veterinario_nuevo_id:
-            errors.append("Debes seleccionar veterinario nuevo.")
+            field_errors["veterinario_nuevo_id"] = "Debes seleccionar el veterinario nuevo."
         if veterinario_original_id and veterinario_nuevo_id and veterinario_original_id == veterinario_nuevo_id:
-            errors.append("El veterinario nuevo debe ser diferente al veterinario original.")
+            field_errors["veterinario_nuevo_id"] = "El veterinario nuevo debe ser diferente al veterinario original."
 
         if cita and veterinario_original_id and cita.veterinario_id != veterinario_original_id:
-            errors.append("La cita no corresponde al veterinario original seleccionado.")
+            field_errors["veterinario_original_id"] = "La cita no corresponde al veterinario original seleccionado."
 
         if cita and veterinario_nuevo_id and not _is_veterinario_disponible(veterinario_nuevo_id, cita.fecha_hora, exclude_cita_id=cita.id):
-            errors.append("El veterinario nuevo no está disponible en la fecha/hora de la cita.")
+            field_errors["veterinario_nuevo_id"] = "El veterinario nuevo no está disponible en la fecha/hora de la cita."
 
+        filtered_q = citas_q
+        if fecha:
+            filtered_q = filtered_q.filter(
+                Cita.fecha_hora >= datetime.combine(fecha, time.min),
+                Cita.fecha_hora <= datetime.combine(fecha, time.max),
+            )
+        if veterinario_original_id:
+            filtered_q = filtered_q.filter(Cita.veterinario_id == veterinario_original_id)
+        citas_futuras = filtered_q.all()
+
+        errors.extend(field_errors.values())
         if errors:
             for e in errors:
                 flash(e, "error")
         else:
             cita.veterinario_id = veterinario_nuevo_id
             db.session.commit()
-            flash("Cita reasignada correctamente.", "success")
+            vet_original = db.session.get(Usuario, veterinario_original_id)
+            vet_nuevo = db.session.get(Usuario, veterinario_nuevo_id)
+            flash(
+                "Cita reasignada correctamente. "
+                f"La cita #{cita.id} pasó de "
+                f"{(vet_original.nombre if vet_original else 'Veterinario original')} a "
+                f"{(vet_nuevo.nombre if vet_nuevo else 'Veterinario nuevo')}.",
+                "success",
+            )
             return redirect(url_for("citas.citas_index"))
 
     return render_template(
@@ -869,4 +948,6 @@ def citas_reasignar():
         veterinarios=veterinarios,
         citas_futuras=citas_futuras,
         form_data=form_data,
+        field_errors=field_errors,
+        absence_reason_options=ABSENCE_REASON_OPTIONS,
     )

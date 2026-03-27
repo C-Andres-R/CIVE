@@ -106,6 +106,10 @@
   color: #1e4620;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .estado-pendiente {
   color: #8a6d3b;
 }
@@ -129,6 +133,62 @@
   width: auto;
 }
 
+.cive-btn--ghost {
+  background: #ffffff;
+  color: var(--color-primary);
+}
+
+.cive-btn--ghost:hover {
+  background: #f5f8ff;
+}
+
+.reminder-menu-wrap {
+  position: relative;
+}
+
+.reminder-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 260px;
+  padding: 12px;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(16, 24, 40, 0.16);
+}
+
+.reminder-menu.hidden {
+  display: none;
+}
+
+.reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminder-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.reminder-form select {
+  height: 40px;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.reminder-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .text-area-wrap {
   height: auto;
 }
@@ -136,6 +196,12 @@
 .text-area-wrap textarea {
   min-height: 90px;
   resize: vertical;
+}
+
+.field-error {
+  min-height: 18px;
+  color: #b42318;
+  font-size: 12px;
 }
 
 .result-card {

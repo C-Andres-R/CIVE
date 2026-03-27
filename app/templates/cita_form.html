@@ -26,65 +26,73 @@
     {% endif %}
     {% endwith %}
 
-    <form class="usuario-form" method="POST"
+    <form class="usuario-form" method="POST" novalidate
       action="{% if mode == 'edit' %}{{ url_for('citas.citas_edit', cita_id=cita_id) }}{% else %}{{ url_for('citas.citas_new') }}{% endif %}">
 
       <!-- --- DATOS BASE DE LA CITA --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha y hora *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="datetime-local" name="fecha_hora" value="{{ form_data.fecha_hora }}" required>
+          <input class="usuario-input" type="datetime-local" name="fecha_hora" value="{{ form_data.fecha_hora }}">
         </div>
+        <small class="field-error" data-field-error="fecha_hora">{{ field_errors.fecha_hora or "" }}</small>
       </div>
 
       <!-- --- RELACION DE LA CITA CON MASCOTA Y CLIENTE --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Motivo *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="motivo" required>{{ form_data.motivo }}</textarea>
+          <textarea class="usuario-input" name="motivo">{{ form_data.motivo }}</textarea>
         </div>
+        <small class="field-error" data-field-error="motivo">{{ field_errors.motivo or "" }}</small>
       </div>
 
       <!-- --- ASIGNACION DEL VETERINARIO RESPONSABLE --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Mascota *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="mascota_id" required>
+          <select class="usuario-select" name="mascota_id">
             <option value="">Seleccione mascota</option>
             {% for mascota_id, mascota_nombre, dueno_id, dueno_nombre in mascotas %}
-            <option value="{{ mascota_id }}" {% if form_data.mascota_id == mascota_id|string %}selected{% endif %}>
-              {{ mascota_nombre }} (dueño: {{ dueno_nombre }})
+            <option
+              value="{{ mascota_id }}"
+              data-cliente-id="{{ dueno_id }}"
+              data-cliente-nombre="{{ dueno_nombre }}"
+              {% if form_data.mascota_id == mascota_id|string %}selected{% endif %}
+            >
+              {{ mascota_nombre }}
             </option>
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="mascota_id">{{ field_errors.mascota_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Cliente *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="cliente_id" {% if (me.rol or '')|lower == 'cliente' %}disabled{% endif %} required>
-            <option value="">Seleccione cliente</option>
+          <select class="usuario-select" name="cliente_id_display" disabled>
+            <option value="">Cliente asociado</option>
             {% for cliente in clientes %}
             <option value="{{ cliente.id }}" {% if form_data.cliente_id == cliente.id|string %}selected{% endif %}>{{ cliente.nombre }}</option>
             {% endfor %}
           </select>
-          {% if (me.rol or '')|lower == 'cliente' %}
-          <input type="hidden" name="cliente_id" value="{{ form_data.cliente_id }}">
-          {% endif %}
         </div>
+        <input type="hidden" name="cliente_id" value="{{ form_data.cliente_id }}">
+        <small class="field-error" data-field-error="cliente_id">{{ field_errors.cliente_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Veterinario asignado *</label>
         <div class="usuario-input-wrap">
-          <select class="usuario-select" name="veterinario_id" required>
+          <select class="usuario-select" name="veterinario_id">
             <option value="">Seleccione veterinario</option>
             {% for vet in veterinarios %}
             <option value="{{ vet.id }}" {% if form_data.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="veterinario_id">{{ field_errors.veterinario_id or "" }}</small>
       </div>
 
       <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
@@ -95,4 +103,126 @@
     </form>
   </div>
 </div>
+<script>
+  (() => {
+    const form = document.querySelector('.usuario-form');
+    if (!form) return;
+
+    const today = new Date();
+    const fechaInput = form.querySelector('input[name="fecha_hora"]');
+    const motivoInput = form.querySelector('textarea[name="motivo"]');
+    const mascotaInput = form.querySelector('select[name="mascota_id"]');
+    const clienteDisplayInput = form.querySelector('select[name="cliente_id_display"]');
+    const clienteHiddenInput = form.querySelector('input[name="cliente_id"]');
+    const veterinarioInput = form.querySelector('select[name="veterinario_id"]');
+    let submitAttempted = {{ "true" if field_errors else "false" }};
+
+    const errorEls = {
+      fecha_hora: form.querySelector('[data-field-error="fecha_hora"]'),
+      motivo: form.querySelector('[data-field-error="motivo"]'),
+      mascota_id: form.querySelector('[data-field-error="mascota_id"]'),
+      cliente_id: form.querySelector('[data-field-error="cliente_id"]'),
+      veterinario_id: form.querySelector('[data-field-error="veterinario_id"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const syncClienteFromMascota = () => {
+      const selected = mascotaInput.options[mascotaInput.selectedIndex];
+      const clienteId = selected?.dataset?.clienteId || '';
+      clienteHiddenInput.value = clienteId;
+      clienteDisplayInput.value = clienteId;
+    };
+
+    const validateFechaHora = () => {
+      const value = fechaInput.value;
+      if (!value) {
+        setError('fecha_hora', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      const selectedDate = new Date(value);
+      if (Number.isNaN(selectedDate.getTime())) {
+        setError('fecha_hora', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      const currentYear = today.getFullYear();
+      const selectedYear = selectedDate.getFullYear();
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selectedDateOnly = new Date(selectedYear, selectedDate.getMonth(), selectedDate.getDate());
+
+      if (selectedDateOnly <= todayDateOnly) {
+        setError('fecha_hora', 'Debes seleccionar una fecha posterior a hoy.');
+        return false;
+      }
+      if (selectedYear !== currentYear) {
+        setError('fecha_hora', 'Solo puedes agendar citas dentro del año actual.');
+        return false;
+      }
+      setError('fecha_hora', '');
+      return true;
+    };
+
+    const validateMotivo = () => {
+      if (!(motivoInput.value || '').trim()) {
+        setError('motivo', 'Por favor ingresa el motivo de la cita para continuar.');
+        return false;
+      }
+      setError('motivo', '');
+      return true;
+    };
+
+    const validateMascota = () => {
+      if (!(mascotaInput.value || '').trim()) {
+        syncClienteFromMascota();
+        setError('mascota_id', 'Este campo no puede estar vacío.');
+        setError('cliente_id', '');
+        return false;
+      }
+      syncClienteFromMascota();
+      setError('mascota_id', '');
+      if (!(clienteHiddenInput.value || '').trim()) {
+        setError('cliente_id', 'El cliente asociado a la mascota no es válido.');
+        return false;
+      }
+      setError('cliente_id', '');
+      return true;
+    };
+
+    const validateVeterinario = () => {
+      if (!(veterinarioInput.value || '').trim()) {
+        setError('veterinario_id', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      setError('veterinario_id', '');
+      return true;
+    };
+
+    const validateForm = () => {
+      const checks = [
+        validateFechaHora(),
+        validateMotivo(),
+        validateMascota(),
+        validateVeterinario(),
+      ];
+      return checks.every(Boolean);
+    };
+
+    fechaInput.addEventListener('change', validateForm);
+    motivoInput.addEventListener('input', validateForm);
+    mascotaInput.addEventListener('change', validateForm);
+    veterinarioInput.addEventListener('change', validateForm);
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    syncClienteFromMascota();
+  })();
+</script>
 {% endblock %}

@@ -26,6 +26,9 @@
     {% if can_create %}
     <a class="cive-btn cive-btn--tool" href="{{ url_for('clientes.clientes_new') }}">Registrar cliente</a>
     {% endif %}
+    {% if can_generate_finance_report %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('clientes.clientes_finanzas_generar') }}">Generar historial financiero</a>
+    {% endif %}
   </div>
 </div>
 

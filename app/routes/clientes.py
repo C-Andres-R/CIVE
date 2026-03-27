@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from datetime import datetime, date
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func
@@ -35,6 +36,7 @@ PERMISSIONS = {
 PHONE_PATTERN = re.compile(r"^[0-9+\-()\s]{10,20}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CP_PATTERN = re.compile(r"^\d{5}$")
+FINANCIAL_STATES = {"pagado", "pendiente", "parcial"}
 
 
 # --- UTILIDADES DE ACCESO Y VALIDACION ---
@@ -306,6 +308,42 @@ def _client_financial_rows(client_id: int):
     )
 
 
+def _parse_datetime_date(value: str):
+    # Convierte un texto de fecha a objeto datetime para filtrar movimientos.
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _financial_methods():
+    # Obtiene los métodos de pago disponibles actualmente en la base.
+    rows = (
+        db.session.query(Facturacion.metodo_pago)
+        .filter(Facturacion.metodo_pago.isnot(None))
+        .distinct()
+        .order_by(Facturacion.metodo_pago.asc())
+        .all()
+    )
+    return [row[0] for row in rows if (row[0] or "").strip()]
+
+
+def _filtered_financial_rows(client_id: int, *, fecha_inicio=None, fecha_fin=None, estado="", metodo_pago=""):
+    # Filtra los movimientos financieros del cliente según los criterios capturados.
+    q = db.session.query(Facturacion).filter(Facturacion.cliente_id == client_id)
+    if fecha_inicio:
+        q = q.filter(Facturacion.fecha_pago >= fecha_inicio)
+    if fecha_fin:
+        q = q.filter(Facturacion.fecha_pago <= fecha_fin)
+    if estado in FINANCIAL_STATES:
+        q = q.filter(Facturacion.estado == estado)
+    if metodo_pago:
+        q = q.filter(func.lower(Facturacion.metodo_pago) == metodo_pago.lower())
+    return q.order_by(Facturacion.fecha_pago.desc(), Facturacion.id.desc()).all()
+
+
 def _financial_summary(rows: list[Facturacion]):
     # Resume los totales financieros de un cliente.
     total_pagado = sum((row.monto_pagado or Decimal("0")) for row in rows)
@@ -353,6 +391,101 @@ def clientes_index():
         can_notify=_allowed(me, "hu021"),
         can_view_pets=_allowed(me, "hu022"),
         can_view_finance=_allowed(me, "hu023"),
+        can_generate_finance_report=(role == ROLE_ADMIN),
+    )
+
+
+@clientes_bp.route("/clientes/finanzas/generar", methods=["GET", "POST"])
+def clientes_finanzas_generar():
+    # Genera el historial financiero filtrado de un cliente desde una vista dedicada para administración.
+    r = _require_login_or_redirect()
+    if r:
+        return r
+
+    me = _get_me_or_logout()
+    if not me:
+        return _redirect_to_login()
+
+    if _role_name(me) != ROLE_ADMIN:
+        return render_template("acceso_denegado.html", me=me)
+
+    clients = _clients_query().all()
+    payment_methods = _financial_methods()
+    field_errors = {}
+    selected_client = None
+    rows = []
+    summary = _financial_summary(rows)
+    filters = {
+        "client_id": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+        "estado": "",
+        "metodo_pago": "",
+    }
+
+    if request.method == "POST":
+        client_id = _parse_int(request.form.get("client_id"))
+        fecha_inicio_raw = request.form.get("fecha_inicio") or ""
+        fecha_fin_raw = request.form.get("fecha_fin") or ""
+        estado = (request.form.get("estado") or "").strip().lower()
+        metodo_pago = (request.form.get("metodo_pago") or "").strip()
+
+        filters = {
+            "client_id": str(client_id or ""),
+            "fecha_inicio": fecha_inicio_raw,
+            "fecha_fin": fecha_fin_raw,
+            "estado": estado,
+            "metodo_pago": metodo_pago,
+        }
+
+        fecha_inicio = _parse_datetime_date(fecha_inicio_raw)
+        fecha_fin = _parse_datetime_date(fecha_fin_raw)
+
+        if not client_id:
+            field_errors["client_id"] = "Debes seleccionar el cliente."
+        else:
+            selected_client = _client_exists_for_access(client_id)
+            if not selected_client:
+                field_errors["client_id"] = "El cliente seleccionado no existe."
+
+        if fecha_inicio_raw and not fecha_inicio:
+            field_errors["fecha_inicio"] = "Debes seleccionar una fecha de inicio válida."
+        elif fecha_inicio and fecha_inicio.date() > date.today():
+            field_errors["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
+        if fecha_fin_raw and not fecha_fin:
+            field_errors["fecha_fin"] = "Debes seleccionar una fecha de fin válida."
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            field_errors["fecha_fin"] = "La fecha de fin no puede ser anterior a la fecha de inicio."
+        if estado and estado not in FINANCIAL_STATES:
+            field_errors["estado"] = "Debes seleccionar un estado válido."
+        if metodo_pago and metodo_pago not in payment_methods:
+            field_errors["metodo_pago"] = "Debes seleccionar un método de pago válido."
+
+        if not field_errors and selected_client:
+            if fecha_inicio:
+                fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+            if fecha_fin:
+                fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59, microsecond=999999)
+            rows = _filtered_financial_rows(
+                selected_client.id,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                estado=estado,
+                metodo_pago=metodo_pago,
+            )
+            summary = _financial_summary(rows)
+
+    return render_template(
+        "clientes_finanzas_generar.html",
+        me=me,
+        active_nav="clientes",
+        clients=clients,
+        payment_methods=payment_methods,
+        field_errors=field_errors,
+        filters=filters,
+        selected_client=selected_client,
+        financial_rows=rows,
+        summary=summary,
     )
 
 

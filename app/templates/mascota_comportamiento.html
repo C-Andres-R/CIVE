@@ -38,8 +38,9 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Comportamiento *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="comportamiento" rows="6" required>{{ comportamiento }}</textarea>
+          <textarea class="usuario-input" name="comportamiento" rows="6">{{ form_data.comportamiento }}</textarea>
         </div>
+        <small class="field-error">{{ field_errors.comportamiento or "" }}</small>
       </div>
 
       <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->

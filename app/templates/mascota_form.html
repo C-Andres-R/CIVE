@@ -32,8 +32,9 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Nombre *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="text" name="nombre" value="{{ form_data.nombre }}" required>
+          <input class="usuario-input" type="text" name="nombre" value="{{ form_data.nombre }}" maxlength="60" autocomplete="off" required>
         </div>
+        <small class="field-error" data-field-error="nombre">{{ field_errors.nombre or "" }}</small>
       </div>
 
       <div class="split-row">
@@ -41,24 +42,39 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Fecha nacimiento *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="date" name="fecha_nacimiento" value="{{ form_data.fecha_nacimiento }}">
+            <input class="usuario-input" type="date" name="fecha_nacimiento" value="{{ form_data.fecha_nacimiento }}" {% if not form_data.usa_edad_aproximada %}required{% endif %}>
           </div>
+          <small class="field-error" data-field-error="fecha_nacimiento">{{ field_errors.fecha_nacimiento or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
-          <label class="usuario-form-label">Edad (años)</label>
+          <label class="usuario-form-label">Edad</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="number" name="edad" min="0" value="{{ form_data.edad }}">
+            <select class="usuario-select" name="edad" {% if not form_data.usa_edad_aproximada %}disabled{% endif %}>
+              <option value="">{% if form_data.usa_edad_aproximada %}Seleccione edad{% else %}Se calculará automáticamente{% endif %}</option>
+              {% for age in range(0, 31) %}
+              <option value="{{ age }}" {% if form_data.usa_edad_aproximada and form_data.edad == age|string %}selected{% endif %}>{{ age }}</option>
+              {% endfor %}
+            </select>
           </div>
+          <small class="field-error" data-field-error="edad">{{ field_errors.edad or "" }}</small>
         </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-check">
+          <input type="checkbox" name="usa_edad_aproximada" value="1" {% if form_data.usa_edad_aproximada %}checked{% endif %}>
+          <span>¿No conoces la fecha de nacimiento de tu mascota? Da clic aquí para ingresar su edad aproximada</span>
+        </label>
       </div>
 
       <div class="split-row">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Peso (kg) *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="number" name="peso" min="0.01" step="0.01" value="{{ form_data.peso }}" required>
+            <input class="usuario-input" type="text" name="peso" inputmode="decimal" value="{{ form_data.peso }}" required>
           </div>
+          <small class="field-error" data-field-error="peso">{{ field_errors.peso or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -66,6 +82,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="text" name="raza" value="{{ form_data.raza }}" required>
           </div>
+          <small class="field-error" data-field-error="raza">{{ field_errors.raza or "" }}</small>
         </div>
       </div>
 
@@ -80,6 +97,7 @@
               <option value="otro" {% if form_data.especie == 'otro' %}selected{% endif %}>Otro</option>
             </select>
           </div>
+          <small class="field-error" data-field-error="especie">{{ field_errors.especie or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -91,6 +109,7 @@
               <option value="hembra" {% if form_data.sexo == 'hembra' %}selected{% endif %}>Hembra</option>
             </select>
           </div>
+          <small class="field-error" data-field-error="sexo">{{ field_errors.sexo or "" }}</small>
         </div>
       </div>
 
@@ -106,6 +125,7 @@
             {% endfor %}
           </select>
         </div>
+        <small class="field-error" data-field-error="dueno_id">{{ field_errors.dueno_id or "" }}</small>
         {% if only_self_owner %}
         <input type="hidden" name="dueno_id" value="{{ me_id }}">
         <small class="field-note">Como cliente, la mascota queda vinculada a tu cuenta.</small>
@@ -117,14 +137,274 @@
         <div class="usuario-input-wrap text-area-wrap">
           <textarea class="usuario-input" name="datos_adicionales" rows="4">{{ form_data.datos_adicionales }}</textarea>
         </div>
+        <small class="field-error" data-field-error="datos_adicionales">{{ field_errors.datos_adicionales or "" }}</small>
+        <small class="field-note" data-word-counter>0 / 100 palabras</small>
       </div>
 
       <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
-        <button class="usuario-btn-primary" type="submit">{% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}</button>
+        <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  (() => {
+    const form = document.querySelector('.usuario-form');
+    if (!form) return;
+
+    const today = new Date();
+    const nameInput = form.querySelector('input[name="nombre"]');
+    const birthdateInput = form.querySelector('input[name="fecha_nacimiento"]');
+    const ageInput = form.querySelector('select[name="edad"]');
+    const weightInput = form.querySelector('input[name="peso"]');
+    const speciesInput = form.querySelector('select[name="especie"]');
+    const extraInput = form.querySelector('textarea[name="datos_adicionales"]');
+    const useApproxAgeInput = form.querySelector('input[name="usa_edad_aproximada"]');
+    const submitButton = form.querySelector('[data-submit-button]');
+    const wordCounter = form.querySelector('[data-word-counter]');
+    const ownerSelect = form.querySelector('select[name="dueno_id"]');
+    const ownerHiddenInput = form.querySelector('input[type="hidden"][name="dueno_id"]');
+    const ageLimits = { perro: 30, gato: 30, otro: 50 };
+    let submitAttempted = {{ "true" if field_errors else "false" }};
+
+    const errorEls = {
+      nombre: form.querySelector('[data-field-error="nombre"]'),
+      fecha_nacimiento: form.querySelector('[data-field-error="fecha_nacimiento"]'),
+      edad: form.querySelector('[data-field-error="edad"]'),
+      peso: form.querySelector('[data-field-error="peso"]'),
+      especie: form.querySelector('[data-field-error="especie"]'),
+      raza: form.querySelector('[data-field-error="raza"]'),
+      sexo: form.querySelector('[data-field-error="sexo"]'),
+      dueno_id: form.querySelector('[data-field-error="dueno_id"]'),
+      datos_adicionales: form.querySelector('[data-field-error="datos_adicionales"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const countWords = (value) => {
+      const words = (value || '').trim().match(/\S+/g);
+      return words ? words.length : 0;
+    };
+
+    const formatAge = (age) => {
+      if (age === null || age === undefined || Number.isNaN(age)) return '';
+      return `${age} ${age === 1 ? 'año' : 'años'}`;
+    };
+
+    const setDerivedAgeValue = () => {
+      const age = getAgeFromBirthdate(birthdateInput.value);
+      ageInput.value = age !== null && age >= 0 && age <= 30 ? String(age) : '';
+    };
+
+    const getAgeFromBirthdate = (value) => {
+      if (!value) return null;
+      const birthdate = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(birthdate.getTime())) return null;
+      let age = today.getFullYear() - birthdate.getFullYear();
+      const monthDiff = today.getMonth() - birthdate.getMonth();
+      const beforeBirthday = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdate.getDate());
+      if (beforeBirthday) age -= 1;
+      return Math.max(age, 0);
+    };
+
+    const getBirthdateFromAge = (value) => {
+      if (!/^\d+$/.test(value || '')) return '';
+      const age = Number(value);
+      const birthdate = new Date(today.getFullYear() - age, today.getMonth(), today.getDate());
+      if (Number.isNaN(birthdate.getTime())) return '';
+      const yyyy = birthdate.getFullYear();
+      const mm = String(birthdate.getMonth() + 1).padStart(2, '0');
+      const dd = String(birthdate.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const toggleAgeMode = () => {
+      const useApprox = useApproxAgeInput.checked;
+      birthdateInput.readOnly = useApprox;
+      birthdateInput.disabled = useApprox;
+      birthdateInput.required = !useApprox;
+      ageInput.disabled = !useApprox;
+      ageInput.required = false;
+      if (useApprox) {
+        if (/^\d+$/.test(ageInput.value)) {
+          birthdateInput.value = getBirthdateFromAge(ageInput.value);
+        }
+      } else {
+        setDerivedAgeValue();
+        setError('edad', '');
+      }
+    };
+
+    const validateName = () => {
+      nameInput.value = nameInput.value.trim();
+      const value = nameInput.value;
+      if (!value || value.length < 2 || value.length > 60 || /\s/.test(value)) {
+        setError('nombre', 'El nombre debe tener entre 2 y 60 letras y contener una sola palabra.');
+        return false;
+      }
+      if (![...value].every((char) => /\p{L}/u.test(char))) {
+        setError('nombre', 'El nombre no puede contener números, símbolos ni emojis.');
+        return false;
+      }
+      setError('nombre', '');
+      return true;
+    };
+
+    const validateBirthdate = () => {
+      if (useApproxAgeInput.checked) {
+        setError('fecha_nacimiento', '');
+        return true;
+      }
+      if (!birthdateInput.value) {
+        setError('fecha_nacimiento', 'Debes ingresar la fecha de nacimiento o la edad aproximada.');
+        ageInput.value = '';
+        return false;
+      }
+      if (birthdateInput.value > new Date().toISOString().slice(0, 10)) {
+        setError('fecha_nacimiento', 'La fecha de nacimiento no puede ser futura.');
+        ageInput.value = '';
+        return false;
+      }
+      setError('fecha_nacimiento', '');
+      setDerivedAgeValue();
+      return true;
+    };
+
+    const validateAge = () => {
+      if (!useApproxAgeInput.checked) {
+        setError('edad', '');
+        return true;
+      }
+      const value = (ageInput.value || '').trim();
+      if (!value) {
+        setError('edad', 'Debes ingresar la fecha de nacimiento o la edad aproximada.');
+        return false;
+      }
+      if (!/^\d+$/.test(value)) {
+        setError('edad', 'La edad aproximada debe ser un número entero mayor o igual a 0.');
+        return false;
+      }
+      const maxAge = ageLimits[speciesInput.value];
+      if (maxAge !== undefined && Number(value) > maxAge) {
+        setError('edad', 'La edad aproximada excede el máximo permitido para la especie seleccionada.');
+        return false;
+      }
+      birthdateInput.value = getBirthdateFromAge(value);
+      setError('edad', '');
+      return true;
+    };
+
+    const validateWeight = () => {
+      const value = weightInput.value.trim();
+      if (!value) {
+        setError('peso', 'El peso es obligatorio.');
+        return false;
+      }
+      if (value.includes(',')) {
+        setError('peso', 'Para indicar decimales, usa punto en lugar de coma.');
+        return false;
+      }
+      if (!/^\d+(\.\d+)?$/.test(value)) {
+        setError('peso', 'El peso debe ser un número mayor a 0.');
+        return false;
+      }
+      if (value.includes('.') && value.split('.')[1].length > 2) {
+        setError('peso', 'El peso solo puede tener hasta 2 decimales.');
+        return false;
+      }
+      const numericValue = Number(value);
+      if (!(numericValue > 0)) {
+        setError('peso', 'El peso debe ser un número mayor a 0.');
+        return false;
+      }
+      if (numericValue > 100) {
+        setError('peso', 'El peso no puede ser mayor a 100 kg.');
+        return false;
+      }
+      setError('peso', '');
+      return true;
+    };
+
+    const validateAdditionalData = () => {
+      const words = countWords(extraInput.value);
+      if (wordCounter) wordCounter.textContent = `${words} / 100 palabras`;
+      if (words > 100) {
+        setError('datos_adicionales', 'Los datos adicionales no pueden exceder 100 palabras.');
+        return false;
+      }
+      setError('datos_adicionales', '');
+      return true;
+    };
+
+    const validateOwner = () => {
+      const value = ownerHiddenInput ? ownerHiddenInput.value.trim() : ((ownerSelect && ownerSelect.value) || '').trim();
+      if (!value) {
+        setError('dueno_id', 'Debes asociar un dueño.');
+        return false;
+      }
+      setError('dueno_id', '');
+      return true;
+    };
+
+    const validateSimpleRequired = (selector, field, message) => {
+      const input = form.querySelector(selector);
+      if (!input) return true;
+      if (!(input.value || '').trim()) {
+        setError(field, message);
+        return false;
+      }
+      setError(field, '');
+      return true;
+    };
+
+    const validateForm = () => {
+      const checks = [
+        validateName(),
+        validateBirthdate(),
+        validateAge(),
+        validateWeight(),
+        validateAdditionalData(),
+        validateSimpleRequired('select[name="especie"]', 'especie', 'La especie es obligatoria y debe ser válida.'),
+        validateSimpleRequired('input[name="raza"]', 'raza', 'La raza es obligatoria.'),
+        validateSimpleRequired('select[name="sexo"]', 'sexo', 'El sexo es obligatorio y debe ser válido.'),
+        validateOwner(),
+      ];
+      return checks.every(Boolean);
+    };
+
+    useApproxAgeInput.addEventListener('change', () => {
+      toggleAgeMode();
+      validateForm();
+    });
+
+    nameInput.addEventListener('blur', validateName);
+    birthdateInput.addEventListener('change', () => {
+      validateBirthdate();
+      validateForm();
+    });
+    ageInput.addEventListener('change', validateForm);
+    weightInput.addEventListener('input', validateWeight);
+    speciesInput.addEventListener('change', validateForm);
+    extraInput.addEventListener('input', validateAdditionalData);
+    if (ownerSelect) ownerSelect.addEventListener('change', validateForm);
+
+    form.addEventListener('input', validateForm);
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    toggleAgeMode();
+    validateAdditionalData();
+    validateForm();
+  })();
+</script>
 {% endblock %}

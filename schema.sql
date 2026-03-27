@@ -1,20 +1,3 @@
--- Esquema de referencia para CIVE.
--- La via recomendada para construir la base sigue siendo Alembic.
--- Este archivo refleja el estado estructural vigente del proyecto.
-
-DROP TABLE IF EXISTS documentos_mascota;
-DROP TABLE IF EXISTS fotos_mascota;
-DROP TABLE IF EXISTS encuestas_satisfaccion;
-DROP TABLE IF EXISTS chatbot_faq;
-DROP TABLE IF EXISTS facturacion;
-DROP TABLE IF EXISTS recordatorios_citas;
-DROP TABLE IF EXISTS citas;
-DROP TABLE IF EXISTS mascotas;
-DROP TABLE IF EXISTS roles_permisos;
-DROP TABLE IF EXISTS usuarios;
-DROP TABLE IF EXISTS permisos;
-DROP TABLE IF EXISTS roles;
-
 CREATE TABLE roles (
   id INT NOT NULL AUTO_INCREMENT,
   nombre VARCHAR(50) NOT NULL,
@@ -108,6 +91,8 @@ CREATE TABLE recordatorios_citas (
   cita_id INT NOT NULL,
   estado ENUM('programado', 'enviado') NOT NULL DEFAULT 'programado',
   enviado_en DATETIME DEFAULT NULL,
+  anticipacion_horas INT DEFAULT NULL,
+  programado_para DATETIME DEFAULT NULL,
   confirmado TINYINT(1) NOT NULL DEFAULT 0,
   confirmado_en DATETIME DEFAULT NULL,
   token_confirmacion VARCHAR(128) DEFAULT NULL,

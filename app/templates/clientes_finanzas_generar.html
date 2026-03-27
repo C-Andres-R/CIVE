@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Generar historial financiero | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">Generar historial financiero</div>
+  <div class="section-subtitle">Consulta administrativa con filtros por cliente y movimientos.</div>
+</div>
+
+<div class="content-stack">
+  <form class="filters" method="post" action="{{ url_for('clientes.clientes_finanzas_generar') }}" novalidate>
+    <div class="filter-field">
+      <label>Cliente</label>
+      <select name="client_id">
+        <option value="">Seleccione un cliente</option>
+        {% for client, mascotas_count in clients %}
+        <option value="{{ client.id }}" {% if filters.client_id == client.id|string %}selected{% endif %}>{{ client.nombre }}</option>
+        {% endfor %}
+      </select>
+      <small class="field-error">{{ field_errors.client_id or "" }}</small>
+    </div>
+
+    <div class="filter-field">
+      <label>Fecha inicio</label>
+      <input type="date" name="fecha_inicio" value="{{ filters.fecha_inicio }}">
+      <small class="field-error">{{ field_errors.fecha_inicio or "" }}</small>
+    </div>
+
+    <div class="filter-field">
+      <label>Fecha fin</label>
+      <input type="date" name="fecha_fin" value="{{ filters.fecha_fin }}">
+      <small class="field-error">{{ field_errors.fecha_fin or "" }}</small>
+    </div>
+
+    <div class="filter-field">
+      <label>Estado</label>
+      <select name="estado">
+        <option value="">Todos</option>
+        <option value="pagado" {% if filters.estado == 'pagado' %}selected{% endif %}>Pagado</option>
+        <option value="pendiente" {% if filters.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+        <option value="parcial" {% if filters.estado == 'parcial' %}selected{% endif %}>Parcial</option>
+      </select>
+      <small class="field-error">{{ field_errors.estado or "" }}</small>
+    </div>
+
+    <div class="filter-field">
+      <label>Método de pago</label>
+      <select name="metodo_pago">
+        <option value="">Todos</option>
+        {% for metodo in payment_methods %}
+        <option value="{{ metodo }}" {% if filters.metodo_pago == metodo %}selected{% endif %}>{{ metodo }}</option>
+        {% endfor %}
+      </select>
+      <small class="field-error">{{ field_errors.metodo_pago or "" }}</small>
+    </div>
+
+    <div class="filter-actions">
+      <button class="cive-btn cive-btn--filter" type="submit">Generar</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('clientes.clientes_finanzas_generar') }}">Limpiar</a>
+    </div>
+  </form>
+
+  {% if selected_client %}
+  <div class="info-card">
+    <h3>Cliente seleccionado</h3>
+    <p><strong>Nombre:</strong> {{ selected_client.nombre }}</p>
+    <p><strong>Correo:</strong> {{ selected_client.correo }}</p>
+    <p><strong>Teléfono:</strong> {{ selected_client.telefono or '-' }}</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Facturado</span>
+      <strong>${{ '%.2f'|format(summary.total_facturado) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pagado</span>
+      <strong>${{ '%.2f'|format(summary.total_pagado) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Descuentos</span>
+      <strong>${{ '%.2f'|format(summary.total_descuento) }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Adeudo</span>
+      <strong>${{ '%.2f'|format(summary.total_adeudo) }}</strong>
+    </div>
+  </div>
+
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th>Total</th>
+          <th>Descuento</th>
+          <th>Pagado</th>
+          <th>Adeudo</th>
+          <th>Estado</th>
+          <th>Método de pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in financial_rows %}
+        <tr>
+          <td>{{ row.fecha_pago.strftime('%Y-%m-%d %H:%M') if row.fecha_pago else '-' }}</td>
+          <td>{{ row.descripcion or '-' }}</td>
+          <td>${{ '%.2f'|format(row.monto_total) }}</td>
+          <td>${{ '%.2f'|format(row.descuento or 0) }}</td>
+          <td>${{ '%.2f'|format(row.monto_pagado) }}</td>
+          <td>${{ '%.2f'|format(row.adeudo or 0) }}</td>
+          <td>
+            {% if row.estado == 'pagado' %}
+            <span class="estado-activo">Pagado</span>
+            {% elif row.estado == 'parcial' %}
+            <span class="estado-pendiente">Parcial</span>
+            {% else %}
+            <span class="estado-cancelada">Pendiente</span>
+            {% endif %}
+          </td>
+          <td>{{ row.metodo_pago }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">No hay movimientos para los filtros seleccionados.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -24,9 +24,17 @@ DEFAULT_FAQS = {
 }
 
 SCHEDULE_OPTION_LABEL = "Quiero agendar una cita"
+PENDING_APPTS_OPTION_LABEL = "Dime qué citas tengo agendadas"
+APPOINTMENT_REASON_OPTIONS = {
+    "1": "Consulta general",
+    "2": "Seguimiento",
+    "3": "Servicio de estetica",
+    "4": "Otro",
+}
 
 APPT_SESSION_KEY = "chat_appt_state"
 EVAL_SESSION_KEY = "chat_eval_state"
+PENDING_APPTS_SESSION_KEY = "chat_pending_appts_state"
 
 
 # --- ACCESO DINAMICO A TABLAS ---
@@ -168,6 +176,7 @@ def _chat_quick_options():
         options.append(question)
 
     options.append(SCHEDULE_OPTION_LABEL)
+    options.append(PENDING_APPTS_OPTION_LABEL)
     return options
 
 
@@ -245,6 +254,23 @@ def _set_eval_state(state: dict) -> None:
 def _get_eval_state() -> dict | None:
     # Recupera el estado de la evaluación de servicio desde la sesión.
     state = session.get(EVAL_SESSION_KEY)
+    return state if isinstance(state, dict) else None
+
+
+def _reset_pending_appts_state() -> None:
+    # Limpia el estado del flujo de citas pendientes en la sesión.
+    session.pop(PENDING_APPTS_SESSION_KEY, None)
+
+
+def _set_pending_appts_state(state: dict) -> None:
+    # Guarda el estado actual del flujo de citas pendientes en la sesión.
+    session[PENDING_APPTS_SESSION_KEY] = state
+    session.modified = True
+
+
+def _get_pending_appts_state() -> dict | None:
+    # Recupera el estado del flujo de citas pendientes desde la sesión.
+    state = session.get(PENDING_APPTS_SESSION_KEY)
     return state if isinstance(state, dict) else None
 
 
@@ -406,6 +432,182 @@ def _handle_evaluation_step(me, question: str):
     return jsonify({"ok": True, "answer": "Reiniciamos la evaluación. Escribe una calificación del 1 al 5."})
 
 
+# --- FLUJO DE CONSULTA DE CITAS PENDIENTES ---
+def _pending_appointments_for_cliente(cliente_id: int):
+    # Obtiene las citas futuras no canceladas asociadas al cliente autenticado.
+    citas = _citas_table()
+    usuarios = _usuarios_table()
+    mascotas = _mascotas_table()
+
+    cita_id_col = _find_col(citas, ["id"])
+    cita_fecha_col = _find_col(citas, ["fecha_hora"])
+    cita_motivo_col = _find_col(citas, ["motivo"])
+    cita_cliente_col = _find_col(citas, ["cliente_id"])
+    cita_mascota_col = _find_col(citas, ["mascota_id"])
+    cita_vet_col = _find_col(citas, ["veterinario_id"])
+    cita_estado_col = _find_col(citas, ["estado", "estatus"])
+
+    user_id_col = _find_col(usuarios, ["id"])
+    user_name_col = _find_col(usuarios, ["nombre"])
+    pet_id_col = _find_col(mascotas, ["id"])
+    pet_name_col = _find_col(mascotas, ["nombre"])
+
+    required = [
+        cita_id_col,
+        cita_fecha_col,
+        cita_cliente_col,
+        cita_mascota_col,
+        cita_vet_col,
+        user_id_col,
+        user_name_col,
+        pet_id_col,
+        pet_name_col,
+    ]
+    if any(col is None for col in required):
+        raise ValueError("La base de datos no tiene el esquema necesario para consultar citas pendientes.")
+
+    stmt = (
+        select(
+            cita_id_col,
+            cita_fecha_col,
+            cita_motivo_col,
+            pet_name_col,
+            user_name_col,
+            cita_estado_col if cita_estado_col is not None else cita_id_col,
+        )
+        .select_from(
+            citas.join(mascotas, cita_mascota_col == pet_id_col).join(usuarios, cita_vet_col == user_id_col)
+        )
+        .where(
+            and_(
+                cita_cliente_col == cliente_id,
+                cita_fecha_col >= datetime.now(),
+                _not_canceled_clause(citas),
+            )
+        )
+        .order_by(cita_fecha_col.asc())
+    )
+    rows = db.session.execute(stmt).all()
+    data = []
+    for row in rows:
+        data.append(
+            {
+                "id": int(row[0]),
+                "fecha_hora": row[1],
+                "motivo": row[2] or "Sin motivo especificado",
+                "mascota": row[3] or "Mascota",
+                "veterinario": row[4] or "Veterinario",
+                "estado": row[5] if cita_estado_col is not None else "pendiente",
+            }
+        )
+    return data
+
+
+def _format_pending_appointments(rows: list[dict]) -> str:
+    # Convierte las citas futuras en un bloque de texto legible para chat y correo.
+    lines = ["Estas son tus citas pendientes:"]
+    for idx, row in enumerate(rows, start=1):
+        fecha_hora = row["fecha_hora"]
+        fecha_label = fecha_hora.strftime("%Y-%m-%d %H:%M") if isinstance(fecha_hora, datetime) else str(fecha_hora)
+        lines.append(
+            f"{idx}. {fecha_label} | Mascota: {row['mascota']} | Vet: {row['veterinario']} | Motivo: {row['motivo']}"
+        )
+    return "\n".join(lines)
+
+
+def _pending_appts_confirmation_prompt() -> str:
+    # Devuelve el texto que guía la confirmación de envío por correo.
+    return "¿Quieres que te envíe esta lista por correo?\n1. Sí\n2. No"
+
+
+def _start_pending_appts_flow(me):
+    # Inicia el flujo para consultar y opcionalmente enviar por correo las citas pendientes.
+    try:
+        cliente_id = int(me.get("id"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "message": "No se pudo validar tu sesión para consultar citas."}), 401
+
+    rows = _pending_appointments_for_cliente(cliente_id)
+    if not rows:
+        _reset_pending_appts_state()
+        return jsonify({"ok": True, "answer": "No tienes citas pendientes por el momento."})
+
+    _set_pending_appts_state({"step": "awaiting_email_confirmation", "cliente_id": cliente_id})
+    return jsonify(
+        {
+            "ok": True,
+            "answer": _format_pending_appointments(rows) + "\n\n" + _pending_appts_confirmation_prompt(),
+            "choice_options": [
+                {"value": "1", "label": "Sí"},
+                {"value": "2", "label": "No"},
+            ],
+        }
+    )
+
+
+def _handle_pending_appts_step(me, question: str):
+    # Procesa la confirmación del usuario para enviar por correo la lista de citas pendientes.
+    state = _get_pending_appts_state()
+    if not state:
+        return None
+
+    if not me:
+        _reset_pending_appts_state()
+        return jsonify({"ok": True, "answer": "Se canceló la consulta de citas pendientes por falta de sesión."})
+
+    answer = _normalize_question_text(question)
+    if answer in {"1", "si", "sí"}:
+        cliente_email = (me.get("correo") or "").strip()
+        if not cliente_email:
+            _reset_pending_appts_state()
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": "No pude enviarte la lista porque tu cuenta no tiene un correo registrado.",
+                }
+            )
+
+        rows = _pending_appointments_for_cliente(int(state["cliente_id"]))
+        if not rows:
+            _reset_pending_appts_state()
+            return jsonify({"ok": True, "answer": "Tus citas pendientes cambiaron y ahora no hay ninguna por enviar."})
+
+        subject = "Listado de citas pendientes - CIVE"
+        body = _format_pending_appointments(rows)
+        sent_ok, sent_error = _send_email_smtp(cliente_email, subject, body)
+        _reset_pending_appts_state()
+
+        if not sent_ok:
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": f"No pude enviarte el correo en este momento: {sent_error}",
+                }
+            )
+
+        return jsonify(
+            {
+                "ok": True,
+                "answer": f"Listo. Envié el listado de tus citas pendientes al correo {cliente_email}.",
+            }
+        )
+
+    if answer in {"2", "no"}:
+        _reset_pending_appts_state()
+        return jsonify({"ok": True, "answer": "De acuerdo. No enviaré la lista por correo."})
+
+    return jsonify(
+        {
+            "ok": True,
+            "answer": "Selecciona una de las opciones indicadas:\n¿Quieres que te envíe esta lista por correo?\n1. Sí\n2. No",
+            "choice_options": [
+                {"value": "1", "label": "Sí"},
+                {"value": "2", "label": "No"},
+            ],
+        }
+    )
+
+
 # --- FLUJO DE AGENDADO DE CITAS ---
 def _user_pets(user_id: int):
     # Obtiene las mascotas activas asociadas al usuario actual.
@@ -427,6 +629,19 @@ def _user_pets(user_id: int):
     ).all()
 
     return [{"id": int(r[0]), "nombre": r[1]} for r in rows]
+
+
+def _normalize_pet_name(value: str) -> str:
+    # Normaliza nombres de mascota para compararlos sin depender de mayúsculas o espacios extra.
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def _appointment_reason_prompt() -> str:
+    # Devuelve el catalogo de motivos permitidos para el flujo de agendado.
+    lines = ["Selecciona el motivo de la cita escribiendo el numero de una opcion:"]
+    for key, label in APPOINTMENT_REASON_OPTIONS.items():
+        lines.append(f"{key}. {label}")
+    return "\n".join(lines)
 
 
 def _not_canceled_clause(citas_table: Table):
@@ -584,6 +799,14 @@ def _finalize_appointment(me, state):
 
     # Convertimos la fecha y la hora capturadas en un solo valor de cita.
     fecha_hora = datetime.strptime(f"{state['fecha']} {state['hora']}", "%Y-%m-%d %H:%M")
+    if fecha_hora <= datetime.now():
+        _reset_appt_state()
+        return jsonify(
+            {
+                "ok": True,
+                "answer": "La fecha y hora seleccionadas ya pasaron. Inicia de nuevo y elige un horario futuro.",
+            }
+        )
 
     # Buscamos un veterinario disponible para el horario solicitado.
     vet_id = _resolve_veterinario_id(fecha_hora)
@@ -731,6 +954,13 @@ def _handle_appointment_step(me, question: str):
     if step == "awaiting_date":
         try:
             parsed = datetime.strptime(q, "%Y-%m-%d")
+            if parsed.date() < datetime.now().date():
+                return jsonify(
+                    {
+                        "ok": True,
+                        "answer": "La fecha indicada ya pasó. Elige una fecha de hoy en adelante.",
+                    }
+                )
             state["fecha"] = parsed.strftime("%Y-%m-%d")
             state["step"] = "awaiting_time"
             _set_appt_state(state)
@@ -742,6 +972,14 @@ def _handle_appointment_step(me, question: str):
     if step == "awaiting_time":
         try:
             parsed = datetime.strptime(q, "%H:%M")
+            requested_dt = datetime.strptime(f"{state['fecha']} {parsed.strftime('%H:%M')}", "%Y-%m-%d %H:%M")
+            if requested_dt <= datetime.now():
+                return jsonify(
+                    {
+                        "ok": True,
+                        "answer": "La fecha y hora indicadas ya pasaron. Escribe una hora futura.",
+                    }
+                )
             state["hora"] = parsed.strftime("%H:%M")
             state["step"] = "awaiting_pet"
             _set_appt_state(state)
@@ -751,11 +989,15 @@ def _handle_appointment_step(me, question: str):
                 _reset_appt_state()
                 return jsonify({"ok": True, "answer": "No encontramos mascotas activas asociadas a tu cuenta."})
 
-            pet_lines = [f"{p['id']}: {p['nombre']}" for p in pets]
+            pet_lines = [f"- {p['nombre']}" for p in pets]
             return jsonify(
                 {
                     "ok": True,
-                    "answer": "Selecciona la mascota escribiendo su ID:\n" + "\n".join(pet_lines),
+                    "answer": (
+                        "Estas son tus mascotas registradas:\n"
+                        + "\n".join(pet_lines)
+                        + "\n\nEscribe el nombre de la mascota para continuar."
+                    ),
                 }
             )
         except ValueError:
@@ -763,27 +1005,51 @@ def _handle_appointment_step(me, question: str):
 
     # Confirmamos que la mascota seleccionada pertenezca al cliente.
     if step == "awaiting_pet":
-        try:
-            pet_id = int(q)
-        except ValueError:
-            return jsonify({"ok": True, "answer": "Debes escribir un ID numérico de mascota."})
-
         pets = _user_pets(int(state["cliente_id"]))
-        pet_ids = {p["id"] for p in pets}
-        if pet_id not in pet_ids:
-            return jsonify({"ok": True, "answer": "La mascota indicada no pertenece a tu cuenta o no está activa."})
+        requested_name = _normalize_pet_name(q)
+        matches = [p for p in pets if _normalize_pet_name(p["nombre"]) == requested_name]
+        if not matches:
+            pet_lines = [f"- {p['nombre']}" for p in pets]
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": (
+                        "No encontré una mascota activa con ese nombre en tu cuenta.\n"
+                        + "\n".join(pet_lines)
+                        + "\n\nEscribe uno de esos nombres para continuar."
+                    ),
+                }
+            )
+        if len(matches) > 1:
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": (
+                        "Encontré varias mascotas con ese nombre en tu cuenta. "
+                        "Por favor agenda la cita desde el módulo de citas para seleccionar la mascota correcta."
+                    ),
+                }
+            )
 
-        state["mascota_id"] = pet_id
+        state["mascota_id"] = matches[0]["id"]
         state["step"] = "awaiting_reason"
         _set_appt_state(state)
-        return jsonify({"ok": True, "answer": "Indica el motivo de la cita (obligatorio)."})
+        return jsonify({"ok": True, "answer": _appointment_reason_prompt()})
 
     # Guardamos el motivo y cerramos el agendado.
     if step == "awaiting_reason":
-        if not q:
-            return jsonify({"ok": True, "answer": "El motivo es obligatorio. Escríbelo para continuar."})
+        if q not in APPOINTMENT_REASON_OPTIONS:
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": (
+                        "Por favor, elige una de las opciones proporcionadas:\n"
+                        + _appointment_reason_prompt()
+                    ),
+                }
+            )
 
-        state["motivo"] = q
+        state["motivo"] = APPOINTMENT_REASON_OPTIONS[q]
         return _finalize_appointment(me, state)
 
     _reset_appt_state()
@@ -817,7 +1083,7 @@ def chat_page():
         quick_options = _chat_quick_options()
     except SQLAlchemyError:
         db.session.rollback()
-        quick_options = list(DEFAULT_FAQS.keys()) + [SCHEDULE_OPTION_LABEL]
+        quick_options = list(DEFAULT_FAQS.keys()) + [SCHEDULE_OPTION_LABEL, PENDING_APPTS_OPTION_LABEL]
 
     return render_template(
         "chat.html",
@@ -836,11 +1102,11 @@ def chat_ask():
     raw_question = (request.get_json(silent=True) or {}).get("question", "")
     question = raw_question.strip()
     me = _get_current_user()
+    normalized_question = _normalize_question_text(question)
 
     # Si el usuario cambia de opcion, reiniciamos la evaluacion para no mezclar flujos.
     eval_state = _get_eval_state()
     if eval_state and question:
-        target = _normalize_question_text(question)
         faq_chip_selected = False
         try:
             table = _faq_table()
@@ -848,13 +1114,14 @@ def chat_ask():
             if question_col is not None:
                 rows = db.session.execute(select(question_col)).all()
                 faq_chip_selected = any(
-                    _normalize_question_text((row[0] or "")) == target for row in rows
+                    _normalize_question_text((row[0] or "")) == normalized_question for row in rows
                 )
         except SQLAlchemyError:
             db.session.rollback()
 
-        schedule_chip_selected = target == _normalize_question_text(SCHEDULE_OPTION_LABEL)
-        if faq_chip_selected or schedule_chip_selected:
+        schedule_chip_selected = normalized_question == _normalize_question_text(SCHEDULE_OPTION_LABEL)
+        pending_chip_selected = normalized_question == _normalize_question_text(PENDING_APPTS_OPTION_LABEL)
+        if faq_chip_selected or schedule_chip_selected or pending_chip_selected:
             _reset_eval_state()
 
     eval_response = _handle_evaluation_step(me, raw_question)
@@ -864,11 +1131,15 @@ def chat_ask():
     if not question:
         return jsonify({"ok": False, "message": "Pregunta vacía."}), 400
 
+    pending_appts_response = _handle_pending_appts_step(me, raw_question)
+    if pending_appts_response is not None:
+        return pending_appts_response
+
     in_flow_response = _handle_appointment_step(me, question)
     if in_flow_response is not None:
         return in_flow_response
 
-    if _normalize_question_text(question) == _normalize_question_text(SCHEDULE_OPTION_LABEL):
+    if normalized_question == _normalize_question_text(SCHEDULE_OPTION_LABEL):
         if not me:
             return jsonify(
                 {
@@ -892,6 +1163,28 @@ def chat_ask():
 
         return _start_appointment_flow(me)
 
+    if normalized_question == _normalize_question_text(PENDING_APPTS_OPTION_LABEL):
+        if not me:
+            return jsonify(
+                {
+                    "ok": True,
+                    "answer": (
+                        "Para consultar tus citas pendientes necesitas iniciar sesión. "
+                        f"También puedes hacerlo por llamada/WhatsApp al {_clinic_phone()}."
+                    ),
+                }
+            )
+        try:
+            _citas_table()
+        except Exception:
+            return jsonify(
+                {
+                    "ok": False,
+                    "message": "No se pudo consultar las citas porque la tabla citas no existe en esta base de datos.",
+                }
+            ), 500
+        return _start_pending_appts_flow(me)
+
     try:
         table = _faq_table()
         question_col = _find_col(table, ["pregunta", "question"])
@@ -899,12 +1192,11 @@ def chat_ask():
         if question_col is None or answer_col is None:
             return jsonify({"ok": False, "message": "No fue posible consultar las FAQs."}), 500
 
-        target = _normalize_question_text(question)
         faq_answer = None
         rows = db.session.execute(select(question_col, answer_col)).all()
         for row in rows:
             normalized_question = _normalize_question_text(row[0] or "")
-            if normalized_question == target:
+            if normalized_question == _normalize_question_text(question):
                 faq_answer = row[1]
                 break
 

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import secrets
+import re
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import MetaData, Table, func, insert, inspect, select
@@ -36,6 +38,11 @@ ALLOWED_SPECIES = {"perro", "gato", "otro"}
 ALLOWED_SEX = {"macho", "hembra"}
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "pdf"}
 MAX_FILE_SIZE = 2 * 1024 * 1024
+MAX_AGE_BY_SPECIES = {
+    "perro": 30,
+    "gato": 30,
+    "otro": 50,
+}
 
 
 # --- UTILIDADES DE ACCESO Y VALIDACION ---
@@ -112,6 +119,120 @@ def _birthdate_from_age(age: int):
         return date(today.year - age, today.month, 1)
 
 
+def _age_from_birthdate(birthdate: date | None):
+    # Calcula la edad completa en años a partir de la fecha de nacimiento.
+    if not birthdate:
+        return None
+    today = date.today()
+    years = today.year - birthdate.year
+    if (today.month, today.day) < (birthdate.month, birthdate.day):
+        years -= 1
+    return max(years, 0)
+
+
+def _format_age_label(age: int | None):
+    # Convierte una edad numérica a una etiqueta legible.
+    if age is None:
+        return ""
+    suffix = "año" if age == 1 else "años"
+    return f"{age} {suffix}"
+
+
+def _word_count(value: str) -> int:
+    # Cuenta palabras ignorando espacios consecutivos.
+    return len(re.findall(r"\S+", value or ""))
+
+
+def _validate_pet_name(raw_value: str):
+    # Valida que el nombre sea una sola palabra formada solo por letras.
+    value = (raw_value or "").strip()
+    if not value:
+        return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
+    if len(value) < 2 or len(value) > 60 or any(ch.isspace() for ch in value):
+        return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
+    if not all(ch.isalpha() for ch in value):
+        return value, "El nombre no puede contener números, símbolos ni emojis."
+    return value, None
+
+
+def _validate_weight(raw_value: str):
+    # Valida el peso con un maximo de dos decimales y rango permitido.
+    value = (raw_value or "").strip()
+    if not value:
+        return None, "El peso es obligatorio."
+    if "," in value:
+        return None, "Para indicar decimales, usa punto en lugar de coma."
+    if not re.fullmatch(r"\d+(?:\.\d+)?", value):
+        return None, "El peso debe ser un número mayor a 0."
+    if "." in value and len(value.split(".", 1)[1]) > 2:
+        return None, "El peso solo puede tener hasta 2 decimales."
+    try:
+        weight = Decimal(value)
+    except InvalidOperation:
+        return None, "El peso debe ser un número mayor a 0."
+    if weight <= 0:
+        return None, "El peso debe ser un número mayor a 0."
+    if weight > Decimal("100"):
+        return None, "El peso no puede ser mayor a 100 kg."
+    return float(weight), None
+
+
+def _validate_approx_age(raw_value: str, especie: str):
+    # Valida la edad aproximada y el máximo permitido por especie.
+    value = (raw_value or "").strip()
+    if not value:
+        return None, "Debes ingresar la fecha de nacimiento o la edad aproximada."
+    if not re.fullmatch(r"\d+", value):
+        return None, "La edad aproximada debe ser un número entero mayor o igual a 0."
+    age = int(value)
+    max_age = MAX_AGE_BY_SPECIES.get(especie)
+    if max_age is not None and age > max_age:
+        return None, "La edad aproximada excede el máximo permitido para la especie seleccionada."
+    return age, None
+
+
+def _build_pet_form_data(form=None, mascota: Mascota | None = None):
+    # Construye los valores del formulario para altas, errores y edición.
+    form = form or {}
+    if mascota is not None and not form:
+        edad_mostrada = _format_age_label(_age_from_birthdate(mascota.fecha_nacimiento))
+        return {
+            "nombre": mascota.nombre or "",
+            "fecha_nacimiento": mascota.fecha_nacimiento.isoformat() if mascota.fecha_nacimiento else "",
+            "usa_edad_aproximada": False,
+            "edad": "",
+            "edad_mostrada": edad_mostrada,
+            "peso": f"{mascota.peso:.2f}" if mascota.peso is not None else "",
+            "raza": mascota.raza or "",
+            "especie": mascota.especie or "",
+            "sexo": mascota.sexo or "",
+            "datos_adicionales": mascota.datos_adicionales or "",
+            "dueno_id": str(mascota.dueno_id or ""),
+        }
+
+    fecha_nacimiento = (form.get("fecha_nacimiento") or "").strip()
+    usa_edad_aproximada = (form.get("usa_edad_aproximada") or "").strip().lower() in {"1", "true", "on", "yes"}
+    edad = (form.get("edad") or "").strip()
+    edad_mostrada = ""
+
+    if not usa_edad_aproximada:
+        edad_mostrada = _format_age_label(_age_from_birthdate(_parse_date(fecha_nacimiento)))
+
+    return {
+        "nombre": ((form.get("nombre") or "").strip()),
+        "fecha_nacimiento": fecha_nacimiento,
+        "usa_edad_aproximada": usa_edad_aproximada,
+        "edad": edad,
+        "edad_mostrada": edad_mostrada,
+        "peso": (form.get("peso") or "").strip(),
+        "raza": (form.get("raza") or "").strip(),
+        "especie": ((form.get("especie") or "").strip().lower()),
+        "sexo": ((form.get("sexo") or "").strip().lower()),
+        "datos_adicionales": (form.get("datos_adicionales") or "").strip(),
+        "dueno_id": str(_parse_int(form.get("dueno_id")) or ""),
+    }
+
+
 def _is_active_client(user: Usuario | None) -> bool:
     # Verifica que un usuario sea un cliente activo y disponible.
     if not user:
@@ -164,9 +285,11 @@ def _user_can_view_pet(me, mascota: Mascota) -> bool:
 def _validate_pet_form(form, *, for_update: bool = False):
     # Valida y normaliza los datos capturados en el formulario de mascotas.
     errors = []
+    field_errors = {}
 
-    nombre = (form.get("nombre") or "").strip()
+    nombre, nombre_error = _validate_pet_name(form.get("nombre") or "")
     fecha_nacimiento_raw = (form.get("fecha_nacimiento") or "").strip()
+    usa_edad_aproximada = (form.get("usa_edad_aproximada") or "").strip().lower() in {"1", "true", "on", "yes"}
     edad_raw = (form.get("edad") or "").strip()
     peso_raw = (form.get("peso") or "").strip()
     raza = (form.get("raza") or "").strip()
@@ -176,45 +299,52 @@ def _validate_pet_form(form, *, for_update: bool = False):
     dueno_id = _parse_int(form.get("dueno_id"))
 
     fecha_nacimiento = _parse_date(fecha_nacimiento_raw)
-    edad = _parse_int(edad_raw)
+    peso, peso_error = _validate_weight(peso_raw)
+    edad_aproximada = None
 
-    if not fecha_nacimiento and edad is not None and edad >= 0:
-        fecha_nacimiento = _birthdate_from_age(edad)
+    if nombre_error:
+        field_errors["nombre"] = nombre_error
 
-    peso = _parse_float(peso_raw) if peso_raw else None
+    if usa_edad_aproximada:
+        edad_aproximada, edad_error = _validate_approx_age(edad_raw, especie)
+        if edad_error:
+            field_errors["edad"] = edad_error
+        elif edad_aproximada is not None:
+            fecha_nacimiento = _birthdate_from_age(edad_aproximada)
+    else:
+        if not fecha_nacimiento:
+            field_errors["fecha_nacimiento"] = "Debes ingresar la fecha de nacimiento o la edad aproximada."
+        elif fecha_nacimiento > date.today():
+            field_errors["fecha_nacimiento"] = "La fecha de nacimiento no puede ser futura."
 
-    if not nombre:
-        errors.append("El nombre de la mascota es obligatorio.")
-
-    if not fecha_nacimiento:
-        errors.append("Debes capturar fecha de nacimiento válida o edad válida.")
-    elif fecha_nacimiento > date.today():
-        errors.append("La fecha de nacimiento no puede ser futura.")
-
-    if peso is None:
-        errors.append("El peso es obligatorio.")
-    elif peso <= 0:
-        errors.append("El peso debe ser un valor positivo.")
+    if peso_error:
+        field_errors["peso"] = peso_error
 
     if not especie or especie not in ALLOWED_SPECIES:
-        errors.append("La especie es obligatoria y debe ser válida.")
+        field_errors["especie"] = "La especie es obligatoria y debe ser válida."
 
     if not sexo or sexo not in ALLOWED_SEX:
-        errors.append("El sexo es obligatorio y debe ser válido.")
+        field_errors["sexo"] = "El sexo es obligatorio y debe ser válido."
 
     if not dueno_id:
-        errors.append("Debes asociar un dueño.")
+        field_errors["dueno_id"] = "Debes asociar un dueño."
 
     if not raza:
-        errors.append("La raza es obligatoria.")
+        field_errors["raza"] = "La raza es obligatoria."
+
+    if datos_adicionales and _word_count(datos_adicionales) > 100:
+        field_errors["datos_adicionales"] = "Los datos adicionales no pueden exceder 100 palabras."
 
     dueno = db.session.get(Usuario, dueno_id) if dueno_id else None
     if dueno_id and not _is_active_client(dueno):
-        errors.append("El dueño seleccionado no existe o no está activo.")
+        field_errors["dueno_id"] = "El dueño seleccionado no existe o no está activo."
+
+    errors.extend(field_errors.values())
 
     payload = {
         "nombre": nombre,
         "fecha_nacimiento": fecha_nacimiento,
+        "edad_aproximada": edad_aproximada,
         "peso": peso,
         "raza": raza,
         "especie": especie,
@@ -224,7 +354,7 @@ def _validate_pet_form(form, *, for_update: bool = False):
         "razon_inactivacion": None,
     }
 
-    return errors, payload
+    return errors, field_errors, payload
 
 
 # --- CONSULTAS Y APOYO PARA MULTIMEDIA ---
@@ -429,54 +559,37 @@ def mascotas_new():
     me_id = _parse_int(me.get("id"))
 
     if request.method == "GET":
-        form_data = {
-            "nombre": "",
-            "fecha_nacimiento": "",
-            "edad": "",
-            "peso": "",
-            "raza": "",
-            "especie": "",
-            "sexo": "",
-            "datos_adicionales": "",
-            "dueno_id": str(me_id or "") if role == ROLE_CLIENTE else "",
-        }
+        form_data = _build_pet_form_data()
+        if role == ROLE_CLIENTE:
+            form_data["dueno_id"] = str(me_id or "")
         return render_template(
             "mascota_form.html",
             me=me,
             active_nav="mascotas",
             mode="create",
             form_data=form_data,
+            field_errors={},
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
         )
 
-    errors, payload = _validate_pet_form(request.form)
+    errors, field_errors, payload = _validate_pet_form(request.form)
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
 
-    form_data = {
-        "nombre": request.form.get("nombre") or "",
-        "fecha_nacimiento": request.form.get("fecha_nacimiento") or "",
-        "edad": request.form.get("edad") or "",
-        "peso": request.form.get("peso") or "",
-        "raza": request.form.get("raza") or "",
-        "especie": request.form.get("especie") or "",
-        "sexo": request.form.get("sexo") or "",
-        "datos_adicionales": request.form.get("datos_adicionales") or "",
-        "dueno_id": str(payload.get("dueno_id") or ""),
-    }
+    form_data = _build_pet_form_data(request.form)
+    form_data["dueno_id"] = str(payload.get("dueno_id") or "")
 
     if errors:
-        for err in errors:
-            flash(err, "error")
         return render_template(
             "mascota_form.html",
             me=me,
             active_nav="mascotas",
             mode="create",
             form_data=form_data,
+            field_errors=field_errors,
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
@@ -533,17 +646,7 @@ def mascotas_edit(mascota_id: int):
     clientes = _get_clientes_activos()
 
     if request.method == "GET":
-        form_data = {
-            "nombre": mascota.nombre or "",
-            "fecha_nacimiento": mascota.fecha_nacimiento.isoformat() if mascota.fecha_nacimiento else "",
-            "edad": "",
-            "peso": str(mascota.peso or ""),
-            "raza": mascota.raza or "",
-            "especie": mascota.especie or "",
-            "sexo": mascota.sexo or "",
-            "datos_adicionales": mascota.datos_adicionales or "",
-            "dueno_id": str(mascota.dueno_id or ""),
-        }
+        form_data = _build_pet_form_data(mascota=mascota)
 
         return render_template(
             "mascota_form.html",
@@ -552,31 +655,21 @@ def mascotas_edit(mascota_id: int):
             mode="edit",
             mascota_id=mascota.id,
             form_data=form_data,
+            field_errors={},
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
         )
 
-    errors, payload = _validate_pet_form(request.form, for_update=True)
+    errors, field_errors, payload = _validate_pet_form(request.form, for_update=True)
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
 
-    form_data = {
-        "nombre": request.form.get("nombre") or "",
-        "fecha_nacimiento": request.form.get("fecha_nacimiento") or "",
-        "edad": request.form.get("edad") or "",
-        "peso": request.form.get("peso") or "",
-        "raza": request.form.get("raza") or "",
-        "especie": request.form.get("especie") or "",
-        "sexo": request.form.get("sexo") or "",
-        "datos_adicionales": request.form.get("datos_adicionales") or "",
-        "dueno_id": str(payload.get("dueno_id") or ""),
-    }
+    form_data = _build_pet_form_data(request.form)
+    form_data["dueno_id"] = str(payload.get("dueno_id") or "")
 
     if errors:
-        for err in errors:
-            flash(err, "error")
         return render_template(
             "mascota_form.html",
             me=me,
@@ -584,6 +677,7 @@ def mascotas_edit(mascota_id: int):
             mode="edit",
             mascota_id=mascota.id,
             form_data=form_data,
+            field_errors=field_errors,
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
@@ -636,25 +730,36 @@ def mascotas_inactivar(mascota_id: int):
             me=me,
             active_nav="mascotas",
             mascota=mascota,
+            form_data={"razon_inactivacion": "", "confirmar": False},
+            field_errors={},
         )
 
     razon = (request.form.get("razon_inactivacion") or "").strip()
     confirmacion = request.form.get("confirmar") == "si"
 
     errors = []
+    general_errors = []
+    field_errors = {}
     if not razon:
-        errors.append("La razón de inactivación es obligatoria.")
+        field_errors["razon_inactivacion"] = (
+            "Este campo no puede estar vacío. Por favor indica la razón de desactivación."
+        )
     if not confirmacion:
-        errors.append("Debes confirmar la inactivación.")
+        general_errors.append("Debes confirmar la inactivación.")
+
+    errors.extend(general_errors)
+    errors.extend(field_errors.values())
 
     if errors:
-        for err in errors:
+        for err in general_errors:
             flash(err, "error")
         return render_template(
             "mascota_inactivar.html",
             me=me,
             active_nav="mascotas",
             mascota=mascota,
+            form_data={"razon_inactivacion": razon, "confirmar": confirmacion},
+            field_errors=field_errors,
         )
 
     mascota.estado = "inactiva"
@@ -764,18 +869,21 @@ def mascotas_comportamiento(mascota_id: int):
             me=me,
             active_nav="mascotas",
             mascota=mascota,
-            comportamiento=mascota.comportamiento or "",
+            form_data={"comportamiento": mascota.comportamiento or ""},
+            field_errors={},
         )
 
     comportamiento = (request.form.get("comportamiento") or "").strip()
     if not comportamiento:
-        flash("El comportamiento es obligatorio.", "error")
         return render_template(
             "mascota_comportamiento.html",
             me=me,
             active_nav="mascotas",
             mascota=mascota,
-            comportamiento="",
+            form_data={"comportamiento": ""},
+            field_errors={
+                "comportamiento": "Debes describir el comportamiento especial observado para continuar.",
+            },
         )
 
     mascota.comportamiento = comportamiento

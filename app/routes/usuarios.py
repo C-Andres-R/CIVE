@@ -51,6 +51,13 @@ def is_valid_cp(cp: str) -> bool:
     return bool(re.match(r"^\d{5}$", cp))
 
 
+def is_valid_person_name(value: str) -> bool:
+    # Valida nombres y apellidos permitiendo letras, espacios y acentos.
+    if not value:
+        return False
+    return bool(re.match(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$", value))
+
+
 def full_name(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
     # Construye el nombre completo a partir de componentes atomicos.
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
@@ -107,6 +114,84 @@ def user_form_data(form=None, user: Usuario | None = None):
         "rol_id": (form.get("rol_id") if form else None) or (str(user.rol_id) if user and user.rol_id else ""),
         "activo": (form.get("activo") == "on") if form else bool(user.activo if user else True),
     }
+
+
+def validate_user_form(
+    *,
+    nombres: str,
+    apellido_paterno: str,
+    apellido_materno: str,
+    codigo_postal: str,
+    correo: str,
+    telefono: str,
+    contrasena: str,
+    rol_id_raw: str,
+    activo: bool,
+    nombre_completo: str,
+    current_user_id: int | None = None,
+    editing_user_id: int | None = None,
+):
+    # Valida el formulario de usuario y devuelve errores por campo.
+    field_errors = {}
+    rol = None
+
+    if not nombres:
+        field_errors["nombres"] = "El nombre es obligatorio."
+    elif not is_valid_person_name(nombres):
+        field_errors["nombres"] = "El campo no puede contener números."
+
+    if not apellido_paterno:
+        field_errors["apellido_paterno"] = "Este campo no puede estar vacío."
+    elif not is_valid_person_name(apellido_paterno):
+        field_errors["apellido_paterno"] = "El campo no puede contener números."
+
+    if not apellido_materno:
+        field_errors["apellido_materno"] = "Este campo no puede estar vacío."
+    elif not is_valid_person_name(apellido_materno):
+        field_errors["apellido_materno"] = "El campo no puede contener números."
+
+    if not correo:
+        field_errors["correo"] = "El correo es obligatorio."
+    elif not is_valid_email(correo):
+        field_errors["correo"] = "El correo no tiene un formato válido."
+
+    if codigo_postal and not is_valid_cp(codigo_postal):
+        field_errors["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
+
+    if not telefono:
+        field_errors["telefono"] = "El teléfono es obligatorio."
+    elif not is_valid_phone(telefono):
+        field_errors["telefono"] = "El teléfono debe tener un formato válido."
+
+    if editing_user_id is None and not contrasena:
+        field_errors["contrasena"] = "La contraseña es obligatoria."
+    elif contrasena:
+        password_errors = validate_password(contrasena, correo=correo, nombre=nombre_completo)
+        if password_errors:
+            field_errors["contrasena"] = " ".join(password_errors)
+
+    if not rol_id_raw:
+        field_errors["rol_id"] = "El rol es obligatorio."
+    else:
+        try:
+            rol = db.session.get(Rol, int(rol_id_raw))
+            if not rol:
+                field_errors["rol_id"] = "El rol seleccionado no existe."
+        except ValueError:
+            field_errors["rol_id"] = "Rol inválido."
+
+    if current_user_id is not None and editing_user_id is not None and current_user_id == editing_user_id and not activo:
+        field_errors["activo"] = "No puedes desactivarte a ti mismo."
+
+    if correo:
+        correo_duplicado_query = db.session.query(Usuario.id).filter(func.lower(Usuario.correo) == correo.lower())
+        if editing_user_id is not None:
+            correo_duplicado_query = correo_duplicado_query.filter(Usuario.id != editing_user_id)
+        correo_duplicado = correo_duplicado_query.first()
+        if correo_duplicado:
+            field_errors["correo"] = "Ya existe un usuario con ese correo."
+
+    return field_errors, rol
 
 def tab_for_role_name(role_name: str) -> str:
     # Convierte el nombre del rol en la pestaña usada por la interfaz.
@@ -189,7 +274,14 @@ def usuarios_new():
 
     if request.method == "GET":
         form_data = user_form_data()
-        return render_template("usuario_form.html", me=me, roles=roles, form_data=form_data, mode="create")
+        return render_template(
+            "usuario_form.html",
+            me=me,
+            roles=roles,
+            form_data=form_data,
+            field_errors={},
+            mode="create",
+        )
 
     # Leemos y validamos los datos enviados por el formulario.
     nombres = (request.form.get("nombres") or "").strip()
@@ -211,49 +303,28 @@ def usuarios_new():
     domicilio = full_address(calle, numero, colonia, codigo_postal, estado, entidad)
     form_data = user_form_data(request.form)
 
-    errors = []
+    field_errors, rol = validate_user_form(
+        nombres=nombres,
+        apellido_paterno=apellido_paterno,
+        apellido_materno=apellido_materno,
+        codigo_postal=codigo_postal,
+        correo=correo,
+        telefono=telefono,
+        contrasena=contrasena,
+        rol_id_raw=rol_id_raw,
+        activo=activo,
+        nombre_completo=nombre,
+    )
 
-    if not nombres:
-        errors.append("El nombre es obligatorio.")
-    if not correo:
-        errors.append("El correo es obligatorio.")
-    elif not is_valid_email(correo):
-        errors.append("El correo no tiene un formato válido.")
-    if codigo_postal and not is_valid_cp(codigo_postal):
-        errors.append("El C.P. debe tener exactamente 5 dígitos.")
-    if not telefono:
-        errors.append("El teléfono es obligatorio.")
-    elif not is_valid_phone(telefono):
-        errors.append("El teléfono debe tener un formato válido.")
-    if not contrasena:
-        errors.append("La contraseña es obligatoria.")
-    if not rol_id_raw:
-        errors.append("El rol es obligatorio.")
-    if contrasena:
-        errors.extend(validate_password(contrasena, correo=correo, nombre=nombre))
-
-    rol = None
-    if rol_id_raw:
-        try:
-            rol = db.session.get(Rol, int(rol_id_raw))
-            if not rol:
-                errors.append("El rol seleccionado no existe.")
-        except ValueError:
-            errors.append("Rol inválido.")
-
-    if correo:
-        correo_duplicado = (
-            db.session.query(Usuario.id)
-            .filter(func.lower(Usuario.correo) == correo.lower())
-            .first()
+    if field_errors:
+        return render_template(
+            "usuario_form.html",
+            me=me,
+            roles=roles,
+            form_data=form_data,
+            field_errors=field_errors,
+            mode="create",
         )
-        if correo_duplicado:
-            errors.append("Ya existe un usuario con ese correo.")
-
-    if errors:
-        for err in errors:
-            flash(err, "error")
-        return render_template("usuario_form.html", me=me, roles=roles, form_data=form_data, mode="create")
 
     nuevo = Usuario(
         nombres=nombres,
@@ -279,8 +350,14 @@ def usuarios_new():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash("Ya existe un usuario con ese correo.", "error")
-        return render_template("usuario_form.html", me=me, roles=roles, form_data=form_data, mode="create")
+        return render_template(
+            "usuario_form.html",
+            me=me,
+            roles=roles,
+            form_data=form_data,
+            field_errors={"correo": "Ya existe un usuario con ese correo."},
+            mode="create",
+        )
 
     flash("Usuario creado correctamente.", "success")
     return redirect(url_for("usuarios.usuarios_index", rol=tab_for_role_name(rol.nombre)))
@@ -314,6 +391,7 @@ def usuarios_edit(user_id: int):
             me=me,
             roles=roles,
             form_data=form_data,
+            field_errors={},
             mode="edit",
             user_id=user.id,
         )
@@ -338,68 +416,34 @@ def usuarios_edit(user_id: int):
     domicilio = full_address(calle, numero, colonia, codigo_postal, estado, entidad)
     form_data = user_form_data(request.form)
 
-    errors = []
-
-    if not nombres:
-        errors.append("El nombre es obligatorio.")
-    if not correo:
-        errors.append("El correo es obligatorio.")
-    elif not is_valid_email(correo):
-        errors.append("El correo no tiene un formato válido.")
-    if codigo_postal and not is_valid_cp(codigo_postal):
-        errors.append("El C.P. debe tener exactamente 5 dígitos.")
-    if not telefono:
-        errors.append("El teléfono es obligatorio.")
-    elif not is_valid_phone(telefono):
-        errors.append("El teléfono debe tener un formato válido.")
-    if not rol_id_raw:
-        errors.append("El rol es obligatorio.")
-
-    rol = None
-    if rol_id_raw:
-        try:
-            rol = db.session.get(Rol, int(rol_id_raw))
-            if not rol:
-                errors.append("El rol seleccionado no existe.")
-        except ValueError:
-            errors.append("Rol inválido.")
-
     # Evitamos que el administrador se desactive a sí mismo.
     try:
         me_id = int(me.get("id"))
     except (TypeError, ValueError):
         me_id = None
 
-    if me_id == user.id and not activo:
-        errors.append("No puedes desactivarte a ti mismo.")
+    field_errors, rol = validate_user_form(
+        nombres=nombres,
+        apellido_paterno=apellido_paterno,
+        apellido_materno=apellido_materno,
+        codigo_postal=codigo_postal,
+        correo=correo,
+        telefono=telefono,
+        contrasena=contrasena_nueva.strip(),
+        rol_id_raw=rol_id_raw,
+        activo=activo,
+        nombre_completo=nombre,
+        current_user_id=me_id,
+        editing_user_id=user.id,
+    )
 
-    if correo:
-        correo_duplicado = (
-            db.session.query(Usuario.id)
-            .filter(func.lower(Usuario.correo) == correo.lower())
-            .filter(Usuario.id != user.id)
-            .first()
-        )
-        if correo_duplicado:
-            errors.append("Ya existe un usuario con ese correo.")
-
-    if contrasena_nueva.strip():
-        errors.extend(
-            validate_password(
-                contrasena_nueva.strip(),
-                correo=correo,
-                nombre=nombre,
-            )
-        )
-
-    if errors:
-        for err in errors:
-            flash(err, "error")
+    if field_errors:
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
             form_data=form_data,
+            field_errors=field_errors,
             mode="edit",
             user_id=user.id,
         )
@@ -427,12 +471,12 @@ def usuarios_edit(user_id: int):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash("Ya existe un usuario con ese correo.", "error")
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
             form_data=form_data,
+            field_errors={"correo": "Ya existe un usuario con ese correo."},
             mode="edit",
             user_id=user.id,
         )

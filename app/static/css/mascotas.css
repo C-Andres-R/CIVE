@@ -18,6 +18,17 @@
   font-size: 12px;
 }
 
+.field-error {
+  min-height: 18px;
+  color: #b42318;
+  font-size: 12px;
+}
+
+.usuario-btn-primary[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .info-card {
   background: #ffffff;
   border: 1px solid var(--border-dashboard);
