@@ -1,7 +1,7 @@
 """hu008 programacion recordatorios
 
 Revision ID: c8a4b3d9e2f1
-Revises: 7cfd9d3c7a21
+Revises: a5b9f7c2d1e3
 Create Date: 2026-03-23 16:10:00.000000
 
 """

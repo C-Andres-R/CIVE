@@ -29,3 +29,5 @@ build/
 dump.sql
 *.dump
 *.bak
+
+app/static/uploads/
