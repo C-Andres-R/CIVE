@@ -1,29 +1,28 @@
 :root {
-  /* === VARIABLES DEL LOGIN (Tu diseño original) === */
-  --color-primary: #0f62fe;       /* Azul brillante del botón login */
-  --color-primary-dark: #001d6c;  /* Azul oscuro (Hover y Títulos Dashboard) */
-  --color-teal: #02a9b9;          /* Color Teal del lado izquierdo */
+  /* === VARIABLES DEL LOGIN === */
+  --color-primary: #0f62fe;       
+  --color-primary-dark: #001d6c;  
+  --color-teal: #02a9b9;          
   --color-link: #001d6c;
   
-  /* Textos y Bordes compartidos */
+  /* Textos y bordes */
   --color-text-dark: #21272a;
   --color-text-light: #697077;
   --color-white: #ffffff;
   
-  /* Fondos y Bordes Específicos */
-  --bg-login: #f2f4f8;            /* Fondo gris del login */
-  --bg-dashboard: #f8f9fa;        /* Fondo gris del dashboard (ligeramente distinto) */
+  /* Fondos y bordes */
+  --bg-login: #f2f4f8;            
+  --bg-dashboard: #f8f9fa;        
   --border-login: #c1c7cd;
   --border-dashboard: #dde1e6;
 
-  /* Configuración de Fuente */
+  
   --font-family-base: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-bold: 700;
 }
 
-/* === RESET GLOBAL === */
 * {
   margin: 0;
   padding: 0;

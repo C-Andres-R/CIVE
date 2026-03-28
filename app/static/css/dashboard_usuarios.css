@@ -1,5 +1,4 @@
-/* Dashboard Styles */
-/* Nota: Las variables vienen de main.css */
+/* Dashboard */
 
 body {
     background-color: var(--bg-dashboard);
@@ -106,7 +105,6 @@ body {
     text-decoration: none;
 }
 
-/* Azul oscuro para la tab activa */
 .tab.active {
     color: var(--color-primary-dark);
 }
@@ -246,7 +244,7 @@ body {
     border-color: var(--color-primary-dark);
 }
 
-/* === HAMBURGER === */
+/* === MENU HAMBURGUESA === */
 .hamburger {
     display: none;
     position: fixed;
@@ -296,7 +294,7 @@ body {
     visibility: visible;
 }
 
-/* === RESPONSIVE === */
+/* === DISEÑO RESOPNSIVO === */
 @media (max-width: 768px) {
     .hamburger { display: flex; }
 

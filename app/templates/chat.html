@@ -88,7 +88,7 @@
   let evaluationStep = null;
 
   function appendBubble(text, who) {
-    // Agrega un nuevo mensaje al historial de la conversacion.
+    // Agrega nuevo mensaje al historial de la conversacion.
     const bubble = document.createElement("div");
     bubble.className = `bubble ${who}`;
     bubble.textContent = text;
@@ -97,7 +97,7 @@
   }
 
   async function askBot(question) {
-    // Envia la pregunta al servidor y actualiza la interfaz con la respuesta.
+    // Enviar pregunta al servidor y actualizar interfaz con la respuesta.
     appendBubble(question, "user");
     try {
       const resp = await fetch("{{ url_for('chat.chat_ask') }}", {
@@ -114,13 +114,13 @@
   }
 
   function clearDynamicActions() {
-    // Limpia las acciones auxiliares cuando cambia el flujo del chat.
+    // Limpiar las acciones auxiliares cuando cambia el flujo del chat.
     dynamicActionsEl.innerHTML = "";
     dynamicActionsEl.classList.add("hidden");
   }
 
   function renderQuickOptions(options) {
-    // Dibuja los snippets del chat a partir de una lista de preguntas.
+    // Dibujar los capsulas del chat a partir de una lista de preguntas.
     if (!quickOptionsEl) return;
     quickOptionsEl.innerHTML = "";
     (options || []).forEach((question) => {
@@ -136,7 +136,7 @@
   }
 
   function buildQuickOptionsFromFaqAdmin() {
-    // En vista admin sincroniza snippets con las FAQs visibles en el panel.
+    // En vista admin: sincroniza capsulas con las FAQs visibles en el panel.
     if (!isAdmin) return null;
     const faqInputs = document.querySelectorAll(".faq-list .faq-item input[name='pregunta']");
     const seen = new Set();
@@ -170,7 +170,7 @@
   }
 
   function showChoiceOptions(options) {
-    // Muestra botones rápidos para respuestas cerradas como Si/No.
+    // Muestra botones rápidos para respuestas cerradas Si/No.
     dynamicActionsEl.innerHTML = "";
     (options || []).forEach((option) => {
       const btn = document.createElement("button");
@@ -217,7 +217,7 @@
     });
   }
 
-  // Cuando el historial llega al limite, propagamos wheel al contenedor padre.
+  // Cuando el historial llega al limite, propagamos al contenedor padre.
   if (messagesEl) {
     messagesEl.addEventListener("wheel", (event) => {
       const atTop = messagesEl.scrollTop <= 0;
@@ -232,7 +232,7 @@
     }, { passive: false });
   }
 
-  // Refuerza consistencia de snippets para admins usando la misma fuente visible.
+  // Refuerza consistencia de capsulas para admins usando la misma fuente visible.
   const adminOptions = buildQuickOptionsFromFaqAdmin();
   if (adminOptions) {
     renderQuickOptions(adminOptions);
@@ -243,14 +243,14 @@
     e.preventDefault();
     const question = inputEl.value;
     if (!question.trim()) return;
-    // En el paso de comentario no aceptamos textos vacios.
+    // Evita textos vacios en el paso de comentarios.
     if (evaluationStep === "comment" && !question.trim()) return;
     askBot(question);
     inputEl.value = "";
   });
 
   if (toggleCreateFaqBtn && createFaqForm) {
-    // Permite mostrar u ocultar el formulario para registrar nuevas FAQs.
+    // Muestra/oculta el formulario para registrar nuevas FAQs.
     toggleCreateFaqBtn.addEventListener("click", () => {
       createFaqForm.classList.toggle("hidden");
     });
