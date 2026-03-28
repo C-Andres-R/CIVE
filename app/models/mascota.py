@@ -1,7 +1,6 @@
 from app.extensions import db
 
 
-# --- MODELOS DE DATOS ---
 class Mascota(db.Model):
     # Representa a una mascota registrada junto con su dueño y datos clínicos.
     __tablename__ = "mascotas"

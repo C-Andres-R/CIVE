@@ -55,7 +55,6 @@ body {
     background-color: #f9fafb;
 }
 
-/* Aquí usamos el azul oscuro del Dashboard */
 .nav-item.active {
     background-color: #f2f4f8;
     border-left: 2px solid var(--color-primary-dark); 

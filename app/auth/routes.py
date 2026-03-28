@@ -7,7 +7,6 @@ from app.auth.service import authenticate_user
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-# --- RUTAS DE AUTENTICACION ---
 @auth_bp.post("/login")
 def login():
     # Autentica al usuario y devuelve un token JWT si las credenciales son válidas.
@@ -56,7 +55,6 @@ def me():
     }), 200
 
 
-# --- RUTA DE EJEMPLO ---
 @auth_bp.get("/admin-only")
 @jwt_required()
 def admin_only():

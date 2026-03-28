@@ -8,7 +8,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO Y MENSAJES DEL PORTAL --- -->
 <div class="page-header">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -24,10 +23,8 @@
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
-<!-- --- RESUMEN GENERAL DEL CLIENTE --- -->
 <div class="content-stack portal-stack">
   <div class="detail-grid">
-    <!-- --- DATOS PERSONALES DEL CLIENTE --- -->
     <div class="info-card">
       <h3>Datos personales</h3>
       <p><strong>Nombre:</strong> {{ client.nombre }}</p>
@@ -36,7 +33,6 @@
       <p><strong>Domicilio:</strong> {{ client.domicilio or '-' }}</p>
     </div>
 
-    <!-- --- RESUMEN FINANCIERO GENERAL --- -->
     <div class="info-card">
       <h3>Resumen financiero</h3>
       <p><strong>Facturado:</strong> ${{ '%.2f'|format(summary.total_facturado) }}</p>
@@ -46,7 +42,6 @@
     </div>
   </div>
 
-  <!-- --- RESUMEN RAPIDO DE MASCOTAS ASOCIADAS --- -->
   <div class="section-card">
     <div class="section-card__head">
       <h3>Mascotas asociadas</h3>
@@ -61,7 +56,6 @@
     </div>
   </div>
 
-  <!-- --- HISTORIAL BASICO DE CITAS DEL CLIENTE --- -->
   <div class="section-card">
     <div class="section-card__head">
       <h3>Citas del cliente</h3>
@@ -94,7 +88,6 @@
     </div>
   </div>
 
-  <!-- --- RESUMEN DE ADEUDOS E HISTORIAL FINANCIERO --- -->
   <div class="section-card">
     <div class="section-card__head">
       <h3>Facturación pendiente / historial financiero</h3>

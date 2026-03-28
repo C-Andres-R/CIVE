@@ -8,15 +8,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">{% if mode == "edit" %}Editar cliente{% else %}Registrar cliente{% endif %}</div>
 </div>
 
-<!-- --- FORMULARIO PRINCIPAL DE CLIENTES --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DE VALIDACION --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-wrap">
@@ -29,7 +26,6 @@
 
     <form class="usuario-form" method="POST"
       action="{% if mode == 'edit' %}{{ url_for('clientes.clientes_edit', client_id=client_id) }}{% else %}{{ url_for('clientes.clientes_new') }}{% endif %}">
-      <!-- --- DATOS PERSONALES Y DE CONTACTO DEL CLIENTE --- -->
       <div class="cliente-form-grid cliente-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
@@ -125,7 +121,6 @@
         </div>
       </div>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">
           {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}

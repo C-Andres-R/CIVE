@@ -16,7 +16,6 @@ from utils.auth_ui import get_current_user_from_api
 
 chat_bp = Blueprint("chat", __name__)
 
-# --- CONFIGURACION DEL CHAT ---
 DEFAULT_FAQS = {
     "¿Cuál es el precio de la consulta?": "La consulta general tiene un costo base de $350 MXN.",
     "¿Cuáles son los horarios de la clínica?": "Nuestro horario es de lunes a sábado de 9:00 a 19:00 hrs.",
@@ -37,65 +36,53 @@ EVAL_SESSION_KEY = "chat_eval_state"
 PENDING_APPTS_SESSION_KEY = "chat_pending_appts_state"
 
 
-# --- ACCESO DINAMICO A TABLAS ---
 def _faq_table() -> Table:
-    # Carga la tabla de preguntas frecuentes desde la base de datos.
     metadata = MetaData()
     return Table("chatbot_faq", metadata, autoload_with=db.engine)
 
 
 def _citas_table() -> Table:
-    # Carga la tabla de citas desde la base de datos.
     metadata = MetaData()
     return Table("citas", metadata, autoload_with=db.engine)
 
 
 def _usuarios_table() -> Table:
-    # Carga la tabla de usuarios desde la base de datos.
     metadata = MetaData()
     return Table("usuarios", metadata, autoload_with=db.engine)
 
 
 def _recordatorios_table() -> Table:
-    # Carga la tabla de recordatorios de citas desde la base de datos.
     metadata = MetaData()
     return Table("recordatorios_citas", metadata, autoload_with=db.engine)
 
 
 def _encuestas_table() -> Table:
-    # Carga la tabla de encuestas de satisfacción desde la base de datos.
     metadata = MetaData()
     return Table("encuestas_satisfaccion", metadata, autoload_with=db.engine)
 
 
 def _roles_table() -> Table:
-    # Carga la tabla de roles desde la base de datos.
     metadata = MetaData()
     return Table("roles", metadata, autoload_with=db.engine)
 
 
 def _mascotas_table() -> Table:
-    # Carga la tabla de mascotas desde la base de datos.
     metadata = MetaData()
     return Table("mascotas", metadata, autoload_with=db.engine)
 
 
-# --- UTILIDADES DEL CHAT ---
 
 def _get_current_user():
-    # Obtiene al usuario autenticado desde la sesión actual.
     if not session.get("access_token"):
         return None
     return get_current_user_from_api()
 
 
 def _is_admin(user_info) -> bool:
-    # Verifica si el usuario actual tiene rol de administrador.
     return bool(user_info and (user_info.get("rol") or "").strip().lower() == "administrador")
 
 
 def _find_col(table: Table, candidates: list[str]):
-    # Busca la primera columna existente entre varios nombres posibles.
     for name in candidates:
         if name in table.c:
             return table.c[name]
@@ -103,7 +90,6 @@ def _find_col(table: Table, candidates: list[str]):
 
 
 def _required_columns_without_default(table: Table):
-    # Obtiene las columnas obligatorias que requieren valor al insertar.
     required = []
     for col in table.columns:
         if col.primary_key and col.autoincrement:
@@ -117,7 +103,6 @@ def _required_columns_without_default(table: Table):
 
 
 def _build_insert_payload(table: Table, question: str, answer: str):
-    # Prepara los datos mínimos para guardar una pregunta frecuente.
     payload: dict[str, object] = {}
     question_col = _find_col(table, ["pregunta", "question"])
     answer_col = _find_col(table, ["respuesta", "answer"])
@@ -148,7 +133,6 @@ def _normalize_question_text(value: str) -> str:
 
 
 def _faq_pairs():
-    # Obtiene las preguntas frecuentes disponibles para el chat.
     table = _faq_table()
     question_col = _find_col(table, ["pregunta", "question"])
     answer_col = _find_col(table, ["respuesta", "answer"])
@@ -162,7 +146,6 @@ def _faq_pairs():
 
 
 def _chat_quick_options():
-    # Construye las opciones rápidas que se muestran en la interfaz del chat.
     options = []
     seen = set()
     for row in _faq_pairs():
@@ -201,7 +184,6 @@ def _ensure_default_faqs():
 
 
 def _faq_rows():
-    # Obtiene las preguntas frecuentes para su administración en pantalla.
     table = _faq_table()
     id_col = _find_col(table, ["id"])
     question_col = _find_col(table, ["pregunta", "question"])
@@ -219,7 +201,6 @@ def _faq_rows():
 
 
 def _clinic_phone() -> str:
-    # Obtiene el teléfono configurado de la clínica.
     return os.getenv("CLINIC_PHONE", "No disponible")
 
 
@@ -274,10 +255,8 @@ def _get_pending_appts_state() -> dict | None:
     return state if isinstance(state, dict) else None
 
 
-# --- FLUJO DE EVALUACION DE SERVICIO ---
 
 def _latest_cita_id_for_cliente(cliente_id: int):
-    # Obtiene la cita más reciente de un cliente.
     citas = _citas_table()
     cita_id_col = _find_col(citas, ["id"])
     cita_cliente_col = _find_col(citas, ["cliente_id"])
@@ -360,8 +339,6 @@ def _handle_evaluation_step(me, question: str):
 
     step = state.get("step")
     q = question.strip()
-
-    # Validamos que la calificacion tenga un valor permitido.
     if step == "awaiting_rating":
         try:
             rating = int(q)
@@ -396,8 +373,6 @@ def _handle_evaluation_step(me, question: str):
                 "show_send_button": True,
             }
         )
-
-    # Validamos y guardamos el comentario final de la encuesta.
     if step == "awaiting_comment":
         if not q:
             return jsonify(
@@ -432,9 +407,7 @@ def _handle_evaluation_step(me, question: str):
     return jsonify({"ok": True, "answer": "Reiniciamos la evaluación. Escribe una calificación del 1 al 5."})
 
 
-# --- FLUJO DE CONSULTA DE CITAS PENDIENTES ---
 def _pending_appointments_for_cliente(cliente_id: int):
-    # Obtiene las citas futuras no canceladas asociadas al cliente autenticado.
     citas = _citas_table()
     usuarios = _usuarios_table()
     mascotas = _mascotas_table()
@@ -504,7 +477,6 @@ def _pending_appointments_for_cliente(cliente_id: int):
 
 
 def _format_pending_appointments(rows: list[dict]) -> str:
-    # Convierte las citas futuras en un bloque de texto legible para chat y correo.
     lines = ["Estas son tus citas pendientes:"]
     for idx, row in enumerate(rows, start=1):
         fecha_hora = row["fecha_hora"]
@@ -608,9 +580,7 @@ def _handle_pending_appts_step(me, question: str):
     )
 
 
-# --- FLUJO DE AGENDADO DE CITAS ---
 def _user_pets(user_id: int):
-    # Obtiene las mascotas activas asociadas al usuario actual.
     mascotas = _mascotas_table()
     id_col = _find_col(mascotas, ["id"])
     name_col = _find_col(mascotas, ["nombre"])
@@ -645,7 +615,6 @@ def _appointment_reason_prompt() -> str:
 
 
 def _not_canceled_clause(citas_table: Table):
-    # Construye la condición para excluir citas canceladas.
     status_col = _find_col(citas_table, ["estado", "estatus"])
     canceled_col = _find_col(citas_table, ["cancelada"])
 
@@ -839,8 +808,6 @@ def _finalize_appointment(me, state):
                     "message": "No se pudo crear la cita porque faltan columnas requeridas: " + ", ".join(missing),
                 }
             ), 500
-
-        # Guardamos la cita y recuperamos su identificador.
         result = db.session.execute(insert(citas).values(**payload))
         db.session.commit()
         cita_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
@@ -949,8 +916,6 @@ def _handle_appointment_step(me, question: str):
     if q.lower() in {"cancelar", "cancelar cita", "salir"}:
         _reset_appt_state()
         return jsonify({"ok": True, "answer": "Flujo de agendado cancelado."})
-
-    # Validamos la fecha que el cliente quiere reservar.
     if step == "awaiting_date":
         try:
             parsed = datetime.strptime(q, "%Y-%m-%d")
@@ -967,8 +932,6 @@ def _handle_appointment_step(me, question: str):
             return jsonify({"ok": True, "answer": "Ahora indica la hora en formato HH:MM (24 horas)."})
         except ValueError:
             return jsonify({"ok": True, "answer": "Fecha inválida. Usa formato YYYY-MM-DD."})
-
-    # Validamos la hora y despues mostramos las mascotas disponibles.
     if step == "awaiting_time":
         try:
             parsed = datetime.strptime(q, "%H:%M")
@@ -1035,8 +998,6 @@ def _handle_appointment_step(me, question: str):
         state["step"] = "awaiting_reason"
         _set_appt_state(state)
         return jsonify({"ok": True, "answer": _appointment_reason_prompt()})
-
-    # Guardamos el motivo y cerramos el agendado.
     if step == "awaiting_reason":
         if q not in APPOINTMENT_REASON_OPTIONS:
             return jsonify(
@@ -1056,10 +1017,8 @@ def _handle_appointment_step(me, question: str):
     return jsonify({"ok": True, "answer": "Reiniciamos el flujo. Escribe: Quiero agendar una cita"})
 
 
-# --- RUTAS DEL CHAT ---
 @chat_bp.get("/chat")
 def chat_page():
-    # Muestra la interfaz principal del chat y sus opciones rápidas.
     me = _get_current_user()
     is_admin = _is_admin(me)
 
@@ -1252,7 +1211,6 @@ def chat_faq_create():
 
 @chat_bp.post("/chat/faqs/<int:faq_id>/editar")
 def chat_faq_edit(faq_id: int):
-    # Actualiza una pregunta frecuente existente.
     me = _get_current_user()
     if not _is_admin(me):
         return render_template("acceso_denegado.html", me=me), 403

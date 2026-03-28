@@ -1,7 +1,6 @@
 from app.extensions import db
 
 
-# --- MODELOS DE DATOS ---
 class Facturacion(db.Model):
     # Representa un registro de facturración asociado a un cliente.
     __tablename__ = "facturacion"

@@ -7,15 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">{% if mode == "edit" %}Editar usuario{% else %}Nuevo usuario{% endif %}</div>
 </div>
 
-<!-- --- FORMULARIO PRINCIPAL DE USUARIOS --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DE VALIDACION --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div>
@@ -29,7 +26,6 @@
     <form class="usuario-form" method="POST" novalidate
       action="{% if mode == 'edit' %}{{ url_for('usuarios.usuarios_edit', user_id=user_id) }}{% else %}{{ url_for('usuarios.usuarios_new') }}{% endif %}">
 
-      <!-- --- DATOS PERSONALES Y DE CONTACTO DEL USUARIO --- -->
       <div class="usuario-form-grid usuario-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
@@ -121,7 +117,6 @@
         </div>
       </div>
 
-      <!-- --- CONFIGURACION DE ACCESO Y ROL --- -->
       <div class="usuario-form-grid usuario-form-grid--2">
         <div class="usuario-form-row">
           <label class="usuario-form-label">
@@ -157,7 +152,6 @@
       </label>
       <small class="field-error" data-field-error="activo">{{ field_errors.activo or "" }}</small>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">
           {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}

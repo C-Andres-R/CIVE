@@ -1,7 +1,6 @@
 from app.extensions import db
 
 
-# --- MODELOS DE DATOS ---
 class Cita(db.Model):
     # Representa una cita médica entre un cliente, su mascota y un veterinario.
     __tablename__ = "citas"

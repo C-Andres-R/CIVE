@@ -7,14 +7,11 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- CONTENEDOR PRINCIPAL DEL CHAT --- -->
 <div class="chat-page">
-  <!-- --- ENCABEZADO DE LA VISTA --- -->
   <div class="chat-page-header">
     <div class="page-title">Chatbot</div>
   </div>
 
-  <!-- --- MENSAJES DEL SISTEMA --- -->
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   <div class="flash-wrap">
@@ -25,11 +22,9 @@
   {% endif %}
   {% endwith %}
 
-  <!-- --- AREA DE CONVERSACION Y ENTRADA DE MENSAJES --- -->
   <section class="chat-card">
     <div id="chat-messages" class="chat-messages">
       <div class="bubble bot">¿Cómo podemos ayudarte hoy?</div>
-      <!-- --- OPCIONES RAPIDAS PARA INICIAR LA CONVERSACION --- -->
       <div id="chat-quick-options" class="quick-options" data-schedule-label="{{ schedule_option_label }}">
         {% for option in quick_options %}
         <button type="button" class="chip" data-question="{{ option }}">{{ option }}</button>
@@ -46,7 +41,6 @@
   </section>
 
   {% if is_admin %}
-  <!-- --- PANEL DE ADMINISTRACION DE PREGUNTAS FRECUENTES --- -->
   <section class="faq-admin">
     <div class="faq-admin-header">
       <h2>Gestión de FAQs</h2>

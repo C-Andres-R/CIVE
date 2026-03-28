@@ -2,7 +2,6 @@ from app.extensions import db
 
 
 class FotoMascota(db.Model):
-    # Registra una foto asociada a una mascota.
     __tablename__ = "fotos_mascota"
 
     id = db.Column(db.Integer, primary_key=True)

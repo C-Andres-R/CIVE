@@ -10,32 +10,26 @@ from utils.auth_ui import get_current_user_from_api
 
 usuarios_bp = Blueprint("usuarios", __name__)
 
-# --- UTILIDADES DE ACCESO Y VALIDACION ---
 LOGIN_GET_ENDPOINT = "pages.login_page"
 
 def redirect_to_login():
-    # Redirige al formulario de inicio de sesión.
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 def require_login_or_redirect():
-    # Verifica que exista una sesión activa antes de continuar.
     if not session.get("access_token"):
         return redirect_to_login()
     return None
 
 def require_admin_or_denied(me):
-    # Permite el acceso solo a usuarios con rol de administrador.
     if (me.get("rol") or "").lower() != "administrador":
         return render_template("acceso_denegado.html", me=me)
     return None
 
 def is_valid_email(email: str) -> bool:
-    # Valida que el correo tenga un formato básico correcto.
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email or ""))
 
 
 def is_valid_phone(phone: str) -> bool:
-    # Valida que el telefono tenga un formato y longitud correctos.
     if not phone:
         return False
     if not re.match(r"^[0-9+\-()\s]{10,20}$", phone):
@@ -45,27 +39,23 @@ def is_valid_phone(phone: str) -> bool:
 
 
 def is_valid_cp(cp: str) -> bool:
-    # Valida que el codigo postal tenga exactamente 5 digitos.
     if not cp:
         return True
     return bool(re.match(r"^\d{5}$", cp))
 
 
 def is_valid_person_name(value: str) -> bool:
-    # Valida nombres y apellidos permitiendo letras, espacios y acentos.
     if not value:
         return False
     return bool(re.match(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$", value))
 
 
 def full_name(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
-    # Construye el nombre completo a partir de componentes atomicos.
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
     return " ".join(part for part in parts if part)
 
 
 def full_address(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
-    # Construye el domicilio legible para compatibilidad hacia atras.
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -86,7 +76,6 @@ def full_address(calle: str, numero: str, colonia: str, codigo_postal: str, esta
 
 
 def user_form_data(form=None, user: Usuario | None = None):
-    # Prepara datos de formulario de usuario para crear/editar sin perder capturas.
     form = form or {}
     user_nombres = (user.nombres if user else "") or ""
     user_apellido_paterno = (user.apellido_paterno if user else "") or ""
@@ -131,7 +120,6 @@ def validate_user_form(
     current_user_id: int | None = None,
     editing_user_id: int | None = None,
 ):
-    # Valida el formulario de usuario y devuelve errores por campo.
     field_errors = {}
     rol = None
 
@@ -194,7 +182,6 @@ def validate_user_form(
     return field_errors, rol
 
 def tab_for_role_name(role_name: str) -> str:
-    # Convierte el nombre del rol en la pestaña usada por la interfaz.
     role = (role_name or "").strip().lower()
     if role == "veterinario":
         return "veterinarios"
@@ -202,16 +189,12 @@ def tab_for_role_name(role_name: str) -> str:
         return "clientes"
     return "administradores"
 
-# --- RUTAS DE USUARIOS ---
 @usuarios_bp.get("/usuarios")
 def usuarios_index():
-    # Muestra el listado de usuarios agrupado por tipo de rol.
     # Verificamos la sesión antes de consultar cualquier dato.
     r = require_login_or_redirect()
     if r:
         return r
-
-    # Cargamos al usuario autenticado desde la API interna.
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -230,8 +213,6 @@ def usuarios_index():
         "clientes": "cliente",
     }
     role_name = tab_to_role_name.get(tab, "administrador")
-
-    # Consultamos los usuarios del rol seleccionado y su cantidad de mascotas.
     usuarios_rows = (
         db.session.query(
             Usuario,
@@ -364,7 +345,6 @@ def usuarios_new():
 
 @usuarios_bp.route("/usuarios/<int:user_id>/editar", methods=["GET", "POST"])
 def usuarios_edit(user_id: int):
-    # Actualiza los datos de un usuario existente.
     r = require_login_or_redirect()
     if r:
         return r
@@ -486,7 +466,6 @@ def usuarios_edit(user_id: int):
 
 @usuarios_bp.get("/usuarios/<int:user_id>")
 def usuarios_detail(user_id: int):
-    # Muestra el detalle de un usuario específico.
     r = require_login_or_redirect()
     if r:
         return r

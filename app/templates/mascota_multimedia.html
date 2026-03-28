@@ -8,7 +8,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO Y MENSAJES DE LA VISTA --- -->
 <div class="page-header">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -22,7 +21,6 @@
 
   <div class="page-title">Multimedia de {{ mascota.nombre }}</div>
 
-  <!-- --- FORMULARIO PARA SUBIR NUEVO MATERIAL --- -->
   <div class="history-grid single">
     <div class="info-card">
       <h3>Subir archivo</h3>
@@ -34,7 +32,6 @@
         {% if not docs_table_exists %}No existe <strong>documentos_mascota</strong>.{% endif %}
       </p>
       {% endif %}
-      <!-- --- FORMULARIO DE CARGA DE ARCHIVOS --- -->
       <form class="usuario-form" method="POST" enctype="multipart/form-data" action="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">
         <div class="usuario-form-row">
           <div class="usuario-input-wrap">
@@ -50,7 +47,6 @@
     </div>
   </div>
 
-  <!-- --- LISTADO DE FOTOS Y DOCUMENTOS REGISTRADOS --- -->
   <div class="history-grid">
     <div class="info-card">
       <h3>Fotos</h3>

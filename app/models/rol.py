@@ -1,6 +1,5 @@
 from app.extensions import db
 
-# --- MODELOS DE DATOS ---
 class Rol(db.Model):
     # Representa un tipo de rol disponible dentro del sistema.
     __tablename__ = 'roles'

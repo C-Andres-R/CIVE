@@ -2,7 +2,6 @@ import re
 import unicodedata
 
 
-# --- VALIDACIONES DE CONTRASENAS ---
 COMMON_PASSWORDS = {
     "123456",
     "123456789",
@@ -15,7 +14,6 @@ COMMON_PASSWORDS = {
 
 
 def validate_password(password: str, *, correo: str = "", nombre: str = "") -> list[str]:
-    # Valida que una contraseña cumpla las reglas de seguridad del sistema.
     errors: list[str] = []
     pwd = (password or "").strip()
     pwd_norm = _normalize(pwd)

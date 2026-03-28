@@ -16,7 +16,6 @@ from utils.auth_ui import get_current_user_from_api
 
 clientes_bp = Blueprint("clientes", __name__)
 
-# --- CONFIGURACION DE CLIENTES ---
 LOGIN_GET_ENDPOINT = "pages.login_page"
 
 ROLE_ADMIN = "administrador"
@@ -39,21 +38,17 @@ CP_PATTERN = re.compile(r"^\d{5}$")
 FINANCIAL_STATES = {"pagado", "pendiente", "parcial"}
 
 
-# --- UTILIDADES DE ACCESO Y VALIDACION ---
 def _redirect_to_login():
-    # Redirige al formulario de inicio de sesión.
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _require_login_or_redirect():
-    # Verifica que exista una sesión activa antes de continuar.
     if not session.get("access_token"):
         return _redirect_to_login()
     return None
 
 
 def _get_me_or_logout():
-    # Obtiene al usuario autenticado y limpia la sesión si ya no es válida.
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -62,17 +57,14 @@ def _get_me_or_logout():
 
 
 def _role_name(me) -> str:
-    # Obtiene el nombre del rol actual en formato uniforme.
     return (me.get("rol") or "").strip().lower()
 
 
 def _allowed(me, hu_code: str) -> bool:
-    # Indica si el rol actual puede usar la historia de usuario solicitada.
     return _role_name(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _parse_int(value):
-    # Convierte un valor a entero y regresa None si no es válido.
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -80,12 +72,10 @@ def _parse_int(value):
 
 
 def _is_valid_email(email: str) -> bool:
-    # Valida que el correo tenga un formato aceptable.
     return bool(EMAIL_PATTERN.match(email or ""))
 
 
 def _is_valid_phone(phone: str) -> bool:
-    # Valida que el teléfono tenga un formato y longitud correctos.
     if not PHONE_PATTERN.match(phone or ""):
         return False
     digits = re.sub(r"\D", "", phone or "")
@@ -99,7 +89,6 @@ def _full_name(nombres: str, apellido_paterno: str, apellido_materno: str) -> st
 
 
 def _full_address(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
-    # Construye una representación legible del domicilio para compatibilidad.
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -120,7 +109,6 @@ def _full_address(calle: str, numero: str, colonia: str, codigo_postal: str, est
 
 
 def _get_client_role():
-    # Busca el rol de cliente en la base de datos.
     return (
         db.session.query(Rol)
         .filter(func.lower(Rol.nombre) == ROLE_CLIENTE)
@@ -129,7 +117,6 @@ def _get_client_role():
 
 
 def _get_client(client_id: int) -> Usuario | None:
-    # Obtiene un usuario que pertenezca al rol de cliente.
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -140,7 +127,6 @@ def _get_client(client_id: int) -> Usuario | None:
 
 
 def _client_exists_for_access(client_id: int) -> Usuario | None:
-    # Verifica que el cliente exista y no esté marcado como eliminado.
     client = _get_client(client_id)
     if not client or client.eliminado:
         return None
@@ -158,7 +144,6 @@ def _can_access_client_resource(me, client_id: int, hu_code: str) -> bool:
 
 
 def _client_form_data(form=None, client: Usuario | None = None):
-    # Prepara los datos del formulario de cliente para mostrar o reutilizar.
     form = form or {}
     client_nombres = (client.nombres if client else "") or ""
     client_apellido_paterno = (client.apellido_paterno if client else "") or ""
@@ -188,7 +173,6 @@ def _client_form_data(form=None, client: Usuario | None = None):
 
 
 def _validate_client_form(form, *, client_id: int | None = None, require_password: bool = True):
-    # Valida y normaliza los datos capturados en el formulario de clientes.
     errors = []
 
     nombres = (form.get("nombres") or "").strip()
@@ -252,9 +236,7 @@ def _validate_client_form(form, *, client_id: int | None = None, require_passwor
     return errors, payload
 
 
-# --- CONSULTAS Y TRANSFORMACIONES DE DATOS ---
 def _clients_query():
-    # Construye la consulta base del listado de clientes con conteo de mascotas.
     pet_counts = (
         db.session.query(
             Mascota.dueno_id.label("cliente_id"),
@@ -278,7 +260,6 @@ def _clients_query():
 
 
 def _client_pets(client_id: int):
-    # Obtiene las mascotas asociadas a un cliente.
     return (
         db.session.query(Mascota)
         .filter(Mascota.dueno_id == client_id)
@@ -288,7 +269,6 @@ def _client_pets(client_id: int):
 
 
 def _client_appointments(client_id: int):
-    # Obtiene las citas registradas para un cliente.
     return (
         db.session.query(Cita, Mascota.nombre.label("mascota_nombre"))
         .join(Mascota, Mascota.id == Cita.mascota_id)
@@ -299,7 +279,6 @@ def _client_appointments(client_id: int):
 
 
 def _client_financial_rows(client_id: int):
-    # Obtiene los movimientos de facturación de un cliente.
     return (
         db.session.query(Facturacion)
         .filter(Facturacion.cliente_id == client_id)
@@ -309,7 +288,6 @@ def _client_financial_rows(client_id: int):
 
 
 def _parse_datetime_date(value: str):
-    # Convierte un texto de fecha a objeto datetime para filtrar movimientos.
     if not value:
         return None
     try:
@@ -319,7 +297,6 @@ def _parse_datetime_date(value: str):
 
 
 def _financial_methods():
-    # Obtiene los métodos de pago disponibles actualmente en la base.
     rows = (
         db.session.query(Facturacion.metodo_pago)
         .filter(Facturacion.metodo_pago.isnot(None))
@@ -360,10 +337,8 @@ def _financial_summary(rows: list[Facturacion]):
     }
 
 
-# --- RUTAS DE CLIENTES ---
 @clientes_bp.get("/clientes")
 def clientes_index():
-    # Muestra el listado general de clientes.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -397,7 +372,6 @@ def clientes_index():
 
 @clientes_bp.route("/clientes/finanzas/generar", methods=["GET", "POST"])
 def clientes_finanzas_generar():
-    # Genera el historial financiero filtrado de un cliente desde una vista dedicada para administración.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -491,7 +465,6 @@ def clientes_finanzas_generar():
 
 @clientes_bp.route("/clientes/nuevo", methods=["GET", "POST"])
 def clientes_new():
-    # Registra un nuevo cliente en el sistema.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -578,7 +551,6 @@ def clientes_new():
 
 @clientes_bp.route("/clientes/<int:client_id>/editar", methods=["GET", "POST"])
 def clientes_edit(client_id: int):
-    # Actualiza la información de un cliente existente.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -788,7 +760,6 @@ def clientes_notificar(client_id: int):
 
 @clientes_bp.get("/clientes/<int:client_id>/mascotas")
 def clientes_mascotas(client_id: int):
-    # Muestra las mascotas asociadas a un cliente.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -816,7 +787,6 @@ def clientes_mascotas(client_id: int):
 
 @clientes_bp.get("/clientes/<int:client_id>/finanzas")
 def clientes_finanzas(client_id: int):
-    # Muestra el resumen financiero de un cliente.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -845,7 +815,6 @@ def clientes_finanzas(client_id: int):
 
 @clientes_bp.get("/portal-cliente")
 def clientes_portal():
-    # Muestra el portal de autoservicio para clientes.
     r = _require_login_or_redirect()
     if r:
         return r

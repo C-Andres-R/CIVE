@@ -8,15 +8,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DEL HISTORIAL FINANCIERO --- -->
 <div class="page-header">
   <div class="page-title">Historial financiero del cliente</div>
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
-<!-- --- RESUMEN Y TABLA DE MOVIMIENTOS --- -->
 <div class="content-stack">
-  <!-- --- TARJETAS DE TOTALES FINANCIEROS --- -->
   <div class="stat-grid">
     <div class="stat-card">
       <span class="stat-label">Facturado</span>
@@ -36,7 +33,6 @@
     </div>
   </div>
 
-  <!-- --- DETALLE COMPLETO DE MOVIMIENTOS DEL CLIENTE --- -->
   <div class="table-container table-container--card">
     <table class="table">
       <thead>

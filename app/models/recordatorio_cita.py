@@ -1,7 +1,6 @@
 from app.extensions import db
 
 
-# --- MODELOS DE DATOS ---
 class RecordatorioCita(db.Model):
     # Representa el estado de envío y confirmación de un recordatorio de cita.
     __tablename__ = "recordatorios_citas"

@@ -12,7 +12,6 @@ from utils.auth_ui import get_current_user_from_api
 
 citas_bp = Blueprint("citas", __name__)
 
-# --- CONFIGURACION DE CITAS ---
 LOGIN_GET_ENDPOINT = "pages.login_page"
 
 ROLE_ADMIN = "administrador"
@@ -36,21 +35,17 @@ ABSENCE_REASON_OPTIONS = {
 }
 
 
-# --- UTILIDADES DE ACCESO Y VALIDACION ---
 def _redirect_to_login():
-    # Redirige al formulario de inicio de sesión.
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _require_login_or_redirect():
-    # Verifica que exista una sesión activa antes de continuar.
     if not session.get("access_token"):
         return _redirect_to_login()
     return None
 
 
 def _get_me_or_logout():
-    # Obtiene al usuario autenticado y limpia la sesión si ya no es válida.
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -59,24 +54,20 @@ def _get_me_or_logout():
 
 
 def _role_name(me) -> str:
-    # Obtiene el nombre del rol actual en formato uniforme.
     return (me.get("rol") or "").strip().lower()
 
 
 def _allowed(me, hu_code: str) -> bool:
-    # Indica si el rol actual puede usar la historia de usuario solicitada.
     return _role_name(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _redirect_client_to_portal(me):
-    # Redirige al cliente a su portal cuando la ruta no le corresponde.
     if _role_name(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
 def _parse_int(value):
-    # Convierte un valor a entero y regresa None si no es válido.
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -84,7 +75,6 @@ def _parse_int(value):
 
 
 def _parse_datetime_local(value: str):
-    # Convierte un texto a fecha y hora local con el formato del formulario.
     if not value:
         return None
     try:
@@ -94,7 +84,6 @@ def _parse_datetime_local(value: str):
 
 
 def _parse_date(value: str):
-    # Convierte un texto a fecha con el formato esperado.
     if not value:
         return None
     try:
@@ -104,16 +93,13 @@ def _parse_date(value: str):
 
 
 def _is_future_datetime(value: datetime) -> bool:
-    # Verifica que una fecha y hora sean futuras.
     return value > datetime.now()
 
 
 def _not_canceled_clause():
-    # Construye la condición para excluir citas canceladas.
     return and_(Cita.cancelada.is_(False), Cita.estado != "cancelada")
 
 
-# --- CONSULTAS Y REGLAS DE NEGOCIO ---
 def _is_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclude_cita_id: int | None = None) -> bool:
     # Revisa si un veterinario está libre en una fecha y hora específicas.
     q = db.session.query(Cita.id).filter(
@@ -127,7 +113,6 @@ def _is_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclud
 
 
 def _get_usuarios_por_rol(nombre_rol: str):
-    # Obtiene los usuarios activos de un rol específico.
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -139,7 +124,6 @@ def _get_usuarios_por_rol(nombre_rol: str):
 
 
 def _get_mascotas_con_dueno_for_form(me):
-    # Obtiene las mascotas disponibles para el formulario de citas.
     role = _role_name(me)
     q = (
         db.session.query(Mascota.id, Mascota.nombre, Mascota.dueno_id, Usuario.nombre.label("dueno_nombre"))
@@ -152,7 +136,6 @@ def _get_mascotas_con_dueno_for_form(me):
 
 
 def _user_can_touch_cita(me, cita: Cita) -> bool:
-    # Verifica si el usuario actual puede modificar la cita indicada.
     role = _role_name(me)
     me_id = _parse_int(me.get("id"))
     if role == ROLE_ADMIN:
@@ -165,7 +148,6 @@ def _user_can_touch_cita(me, cita: Cita) -> bool:
 
 
 def _build_cita_list_query(me):
-    # Construye la consulta base del listado de citas según el rol.
     cliente = aliased(Usuario)
     veterinario = aliased(Usuario)
 
@@ -198,7 +180,6 @@ def _build_cita_list_query(me):
 
 
 def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None):
-    # Valida y normaliza los datos capturados en el formulario de citas.
     errors = []
     field_errors = {}
 
@@ -278,7 +259,6 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
 
 
 def _default_form_data():
-    # Genera los valores iniciales del formulario de citas.
     return {
         "fecha_hora": "",
         "motivo": "",
@@ -301,7 +281,6 @@ def _owner_lookup(mascotas):
 
 
 def _sync_form_client_from_pet(form_data, mascotas):
-    # Sincroniza el cliente mostrado a partir de la mascota seleccionada.
     owner_lookup = _owner_lookup(mascotas)
     owner = owner_lookup.get(str(form_data.get("mascota_id") or ""))
     if owner:
@@ -314,14 +293,12 @@ def _sync_form_client_from_pet(form_data, mascotas):
 
 
 def _datetime_to_local_input(dt: datetime | None) -> str:
-    # Convierte una fecha al formato usado por el campo datetime-local.
     if not dt:
         return ""
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
 def _validate_cita_filters(fecha_inicio, fecha_fin):
-    # Valida las fechas del filtro antes de ejecutar la búsqueda.
     field_errors = {}
     today = date.today()
 
@@ -334,10 +311,8 @@ def _validate_cita_filters(fecha_inicio, fecha_fin):
     return field_errors
 
 
-# --- RUTAS DE CITAS ---
 @citas_bp.get("/citas")
 def citas_index():
-    # Muestra el listado general de citas.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -407,7 +382,6 @@ def citas_index():
 
 @citas_bp.route("/citas/nueva", methods=["GET", "POST"])
 def citas_new():
-    # Registra una nueva cita desde el formulario.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -441,8 +415,6 @@ def citas_new():
             clientes=clientes,
             mascotas=mascotas,
         )
-
-    # Validamos los datos antes de crear la cita.
     errors, field_errors, payload = _validate_and_normalize_form(me, request.form)
     form_data = {
         "fecha_hora": request.form.get("fecha_hora") or "",
@@ -466,8 +438,6 @@ def citas_new():
             clientes=clientes,
             mascotas=mascotas,
         )
-
-    # Guardamos la cita en la base de datos cuando el formulario es valido.
     cita = Cita(
         fecha_hora=payload["fecha_hora"],
         motivo=payload["motivo"],
@@ -486,7 +456,6 @@ def citas_new():
 
 @citas_bp.route("/citas/<int:cita_id>/editar", methods=["GET", "POST"])
 def citas_edit(cita_id: int):
-    # Actualiza una cita existente.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -544,8 +513,6 @@ def citas_edit(cita_id: int):
             clientes=clientes,
             mascotas=mascotas,
         )
-
-    # Validamos los datos antes de actualizar la cita.
     errors, field_errors, payload = _validate_and_normalize_form(me, request.form, editing_cita_id=cita.id)
     form_data = {
         "fecha_hora": request.form.get("fecha_hora") or "",
@@ -588,7 +555,6 @@ def citas_edit(cita_id: int):
 
 @citas_bp.post("/citas/<int:cita_id>/cancelar")
 def citas_cancel(cita_id: int):
-    # Cancela una cita futura autorizada.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -626,7 +592,6 @@ def citas_cancel(cita_id: int):
 
 @citas_bp.post("/citas/<int:cita_id>/recordatorio")
 def citas_schedule_reminder(cita_id: int):
-    # Programa un recordatorio automático para una cita futura.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -694,9 +659,7 @@ def citas_schedule_reminder(cita_id: int):
     return redirect(url_for("citas.citas_index"))
 
 
-# --- APOYO PARA DISPONIBILIDAD ---
 def _daily_slots(target_date: date):
-    # Genera los horarios base disponibles para un día.
     slots = []
     for hour in range(9, 19):
         slots.append(datetime.combine(target_date, time(hour=hour, minute=0)))
@@ -704,12 +667,10 @@ def _daily_slots(target_date: date):
 
 
 def _slot_label(dt: datetime) -> str:
-    # Convierte un horario a texto legible para la interfaz.
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
 def _next_available_suggestions(veterinario_id: int, base_dt: datetime, count: int = 5):
-    # Busca los siguientes horarios libres para un veterinario.
     suggestions = []
     cursor_date = base_dt.date()
 
@@ -731,7 +692,6 @@ def _next_available_suggestions(veterinario_id: int, base_dt: datetime, count: i
 
 @citas_bp.route("/citas/disponibilidad", methods=["GET", "POST"])
 def citas_disponibilidad():
-    # Consulta la disponibilidad de un veterinario en una fecha.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -824,7 +784,6 @@ def citas_disponibilidad():
 
 @citas_bp.route("/citas/reasignar", methods=["GET", "POST"])
 def citas_reasignar():
-    # Reasigna una cita futura a otro veterinario disponible.
     r = _require_login_or_redirect()
     if r:
         return r

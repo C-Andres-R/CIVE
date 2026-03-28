@@ -8,22 +8,18 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">Mascotas asociadas</div>
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
-<!-- --- DATOS DEL CLIENTE Y LISTADO DE MASCOTAS --- -->
 <div class="content-stack">
-  <!-- --- RESUMEN DEL CLIENTE SELECCIONADO --- -->
   <div class="info-card">
     <p><strong>Cliente:</strong> {{ client.nombre }}</p>
     <p><strong>Correo:</strong> {{ client.correo }}</p>
     <p><strong>Teléfono:</strong> {{ client.telefono or '-' }}</p>
   </div>
 
-  <!-- --- TABLA DE MASCOTAS ASOCIADAS --- -->
   <div class="table-container table-container--card">
     <table class="table">
       <thead>

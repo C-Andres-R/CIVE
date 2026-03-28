@@ -3,9 +3,7 @@
 {% block title %}Usuarios | CIVE{% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO, MENSAJES Y ACCIONES PRINCIPALES --- -->
 <div class="page-header">
-    <!-- --- MENSAJES DE VALIDACION O CONFIRMACION --- -->
         {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div style="margin: 12px 0;">
@@ -25,13 +23,11 @@
     <div class="page-title">Usuarios</div>
 
     {% if (me.rol or '')|lower == 'administrador' %}
-    <!-- --- ACCION PARA REGISTRAR NUEVOS USUARIOS --- -->
     <div>
         <a class="usuario-btn-primary" href="{{ url_for('usuarios.usuarios_new') }}">Nuevo usuario</a>
     </div>
     {% endif %}
 
-    <!-- --- PESTANAS PARA CAMBIAR EL TIPO DE USUARIO LISTADO --- -->
     <div class="tabs">
         <a class="tab {% if active_tab == 'administradores' %}active{% endif %}"
             href="{{ url_for('usuarios.usuarios_index', rol='administradores') }}">Administradores</a>
@@ -45,7 +41,6 @@
 
 </div>
 
-<!-- --- TABLA PRINCIPAL DE USUARIOS --- -->
 <div class="table-container">
     <table class="table">
         <thead>
@@ -92,7 +87,6 @@
                 <td><span class="badge">{{ mascotas_count }}</span></td>
 
                 <td class="actions">
-                    <!-- --- MENU DE ACCIONES DISPONIBLES PARA CADA USUARIO --- -->
                     <details class="actions-dropdown">
                         <summary class="actions-summary">
                             <div class="more-icon"></div>

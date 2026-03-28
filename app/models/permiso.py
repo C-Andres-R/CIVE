@@ -1,6 +1,5 @@
 from app.extensions import db
 
-# --- MODELOS DE DATOS ---
 class Permiso(db.Model):
     # Representa un permiso que puede asignarse a los roles.
     __tablename__ = 'permisos'

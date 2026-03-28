@@ -7,15 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">{% if mode == 'edit' %}Editar cita{% else %}Crear cita{% endif %}</div>
 </div>
 
-<!-- --- FORMULARIO PRINCIPAL DE CITAS --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DE VALIDACION --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div>
@@ -29,7 +26,6 @@
     <form class="usuario-form" method="POST" novalidate
       action="{% if mode == 'edit' %}{{ url_for('citas.citas_edit', cita_id=cita_id) }}{% else %}{{ url_for('citas.citas_new') }}{% endif %}">
 
-      <!-- --- DATOS BASE DE LA CITA --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha y hora *</label>
         <div class="usuario-input-wrap">
@@ -38,7 +34,6 @@
         <small class="field-error" data-field-error="fecha_hora">{{ field_errors.fecha_hora or "" }}</small>
       </div>
 
-      <!-- --- RELACION DE LA CITA CON MASCOTA Y CLIENTE --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Motivo *</label>
         <div class="usuario-input-wrap text-area-wrap">
@@ -47,7 +42,6 @@
         <small class="field-error" data-field-error="motivo">{{ field_errors.motivo or "" }}</small>
       </div>
 
-      <!-- --- ASIGNACION DEL VETERINARIO RESPONSABLE --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Mascota *</label>
         <div class="usuario-input-wrap">
@@ -95,7 +89,6 @@
         <small class="field-error" data-field-error="veterinario_id">{{ field_errors.veterinario_id or "" }}</small>
       </div>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Cancelar</a>

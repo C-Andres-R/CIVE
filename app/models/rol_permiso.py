@@ -1,6 +1,5 @@
 from app.extensions import db
 
-# --- MODELOS DE DATOS ---
 class RolPermiso(db.Model):
     # Relaciona cada rol con los permisos que tiene asignados.
     __tablename__ = 'roles_permisos'

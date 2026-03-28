@@ -8,15 +8,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">{% if mode == "edit" %}Editar mascota{% else %}Registrar mascota{% endif %}</div>
 </div>
 
-<!-- --- FORMULARIO PRINCIPAL DE MASCOTAS --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DE VALIDACION --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-wrap">
@@ -28,7 +25,6 @@
     {% endwith %}
 
     <form class="usuario-form" method="POST" action="{% if mode == 'edit' %}{{ url_for('mascotas.mascotas_edit', mascota_id=mascota_id) }}{% else %}{{ url_for('mascotas.mascotas_new') }}{% endif %}">
-      <!-- --- DATOS GENERALES DE LA MASCOTA --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Nombre *</label>
         <div class="usuario-input-wrap">
@@ -38,7 +34,6 @@
       </div>
 
       <div class="split-row">
-        <!-- --- DATOS FISICOS Y DE CLASIFICACION --- -->
         <div class="usuario-form-row">
           <label class="usuario-form-label">Fecha nacimiento *</label>
           <div class="usuario-input-wrap">
@@ -114,7 +109,6 @@
       </div>
 
       <div class="usuario-form-row">
-        <!-- --- ASIGNACION DEL DUENO DE LA MASCOTA --- -->
         <label class="usuario-form-label">Dueño asociado *</label>
         <div class="usuario-input-wrap">
           <select class="usuario-select" name="dueno_id" {% if only_self_owner %}disabled{% else %}required{% endif %}>
@@ -141,7 +135,6 @@
         <small class="field-note" data-word-counter>0 / 100 palabras</small>
       </div>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>

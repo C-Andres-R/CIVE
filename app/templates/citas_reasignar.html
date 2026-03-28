@@ -7,15 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA REASIGNACION --- -->
 <div class="page-header">
   <div class="page-title">Reasignar citas por ausencia</div>
 </div>
 
-<!-- --- FORMULARIO PARA CAMBIAR EL VETERINARIO DE UNA CITA --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DEL SISTEMA --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div>
@@ -27,7 +24,6 @@
     {% endwith %}
 
     <form class="usuario-form" method="post" action="{{ url_for('citas.citas_reasignar') }}" novalidate id="reasignar-form">
-      <!-- --- SELECCION DE LA CITA Y SUS VETERINARIOS --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha de la cita *</label>
         <div class="usuario-input-wrap">
@@ -94,7 +90,6 @@
         <small class="field-error" data-field-error="veterinario_nuevo_id">{{ field_errors.veterinario_nuevo_id or "" }}</small>
       </div>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Reasignar cita</button>
         <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Volver a citas</a>

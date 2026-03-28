@@ -2,7 +2,6 @@ from app.extensions import db
 
 
 class DocumentoMascota(db.Model):
-    # Registra un documento asociado a una mascota.
     __tablename__ = "documentos_mascota"
 
     id = db.Column(db.Integer, primary_key=True)

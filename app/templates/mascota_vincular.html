@@ -8,15 +8,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA VISTA --- -->
 <div class="page-header">
   <div class="page-title">Vincular dueño a mascota</div>
 </div>
 
-<!-- --- FORMULARIO PARA CAMBIAR EL DUENO DE LA MASCOTA --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DEL SISTEMA --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-wrap">
@@ -27,12 +24,10 @@
     {% endif %}
     {% endwith %}
 
-    <!-- --- DATOS BASICOS DE LA MASCOTA --- -->
     <div class="info-card">
       <strong>Mascota:</strong> {{ mascota.nombre }}
     </div>
 
-    <!-- --- SELECCION DEL NUEVO DUENO --- -->
     <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_vincular_dueno', mascota_id=mascota.id) }}">
       <div class="usuario-form-row">
         <label class="usuario-form-label">Dueño asociado *</label>
@@ -46,7 +41,6 @@
         </div>
       </div>
 
-      <!-- --- ACCIONES FINALES DEL FORMULARIO --- -->
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Guardar vinculación</button>
         <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>

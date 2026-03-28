@@ -7,15 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO DE LA CONSULTA --- -->
 <div class="page-header">
   <div class="page-title">Consultar disponibilidad</div>
 </div>
 
-<!-- --- FORMULARIO Y RESULTADO DE DISPONIBILIDAD --- -->
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
-    <!-- --- MENSAJES DEL SISTEMA --- -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div>
@@ -27,7 +24,6 @@
     {% endwith %}
 
     <form class="usuario-form" method="post" action="{{ url_for('citas.citas_disponibilidad') }}">
-      <!-- --- DATOS NECESARIOS PARA LA CONSULTA --- -->
       <div class="usuario-form-row">
         <label class="usuario-form-label">Veterinario *</label>
         <div class="usuario-input-wrap">
@@ -54,7 +50,6 @@
     </form>
 
     {% if result %}
-    <!-- --- RESULTADO Y HORARIOS SUGERIDOS --- -->
     <div class="result-card">
       <p><strong>Veterinario:</strong> {{ result.veterinario.nombre }}</p>
       <p><strong>Fecha:</strong> {{ result.fecha.strftime('%Y-%m-%d') }}</p>

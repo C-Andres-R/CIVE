@@ -1,6 +1,5 @@
 from app.extensions import db
 
-# --- MODELOS DE DATOS ---
 class Usuario(db.Model):
     # Representa a un usuario del sistema con sus datos de acceso y rol.
     __tablename__ = "usuarios"

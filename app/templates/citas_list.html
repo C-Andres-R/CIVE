@@ -7,7 +7,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO, MENSAJES Y ACCIONES RAPIDAS --- -->
 <div class="page-header">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -29,7 +28,6 @@
     <a class="cive-btn cive-btn--tool" href="{{ url_for('citas.citas_reasignar') }}">Reasignar citas</a>
   </div>
 
-  <!-- --- FILTROS DEL LISTADO DE CITAS --- -->
   <form class="filters" method="get" action="{{ url_for('citas.citas_index') }}" novalidate>
     <div class="filter-field">
       <label>Estado</label>
@@ -132,7 +130,6 @@
   })();
 </script>
 
-<!-- --- TABLA PRINCIPAL DE CITAS --- -->
 <div class="table-container">
   <table class="table">
     <thead>
@@ -177,7 +174,6 @@
           {% endif %}
         </td>
         <td>
-          <!-- --- ACCIONES DISPONIBLES SEGUN PERMISOS Y ESTADO DE LA CITA --- -->
           <div class="row-actions">
             {% if can_manage and cita.fecha_hora > now and not cita.cancelada and cita.estado != 'cancelada' %}
             <a class="cive-btn cive-btn--action" href="{{ url_for('citas.citas_edit', cita_id=cita.id) }}">Editar</a>

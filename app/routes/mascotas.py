@@ -17,7 +17,6 @@ from utils.auth_ui import get_current_user_from_api
 
 mascotas_bp = Blueprint("mascotas", __name__)
 
-# --- CONFIGURACION DE MASCOTAS ---
 LOGIN_GET_ENDPOINT = "pages.login_page"
 
 ROLE_ADMIN = "administrador"
@@ -45,21 +44,17 @@ MAX_AGE_BY_SPECIES = {
 }
 
 
-# --- UTILIDADES DE ACCESO Y VALIDACION ---
 def _redirect_to_login():
-    # Redirige al formulario de inicio de sesión.
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _require_login_or_redirect():
-    # Verifica que exista una sesión activa antes de continuar.
     if not session.get("access_token"):
         return _redirect_to_login()
     return None
 
 
 def _get_me_or_logout():
-    # Obtiene al usuario autenticado y limpia la sesión si ya no es válida.
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -68,24 +63,20 @@ def _get_me_or_logout():
 
 
 def _role_name(me) -> str:
-    # Obtiene el nombre del rol actual en formato uniforme.
     return (me.get("rol") or "").strip().lower()
 
 
 def _allowed(me, hu_code: str) -> bool:
-    # Indica si el rol actual puede usar la historia de usuario solicitada.
     return _role_name(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _redirect_client_to_portal(me):
-    # Redirige al cliente a su portal cuando la ruta no le corresponde.
     if _role_name(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
 def _parse_int(value):
-    # Convierte un valor a entero y regresa None si no es válido.
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -93,7 +84,6 @@ def _parse_int(value):
 
 
 def _parse_float(value):
-    # Convierte un valor a decimal y regresa None si no es válido.
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -101,7 +91,6 @@ def _parse_float(value):
 
 
 def _parse_date(value: str):
-    # Convierte un texto a fecha con el formato esperado.
     if not value:
         return None
     try:
@@ -111,7 +100,6 @@ def _parse_date(value: str):
 
 
 def _birthdate_from_age(age: int):
-    # Calcula una fecha de nacimiento aproximada a partir de la edad.
     today = date.today()
     try:
         return date(today.year - age, today.month, today.day)
@@ -120,7 +108,6 @@ def _birthdate_from_age(age: int):
 
 
 def _age_from_birthdate(birthdate: date | None):
-    # Calcula la edad completa en años a partir de la fecha de nacimiento.
     if not birthdate:
         return None
     today = date.today()
@@ -131,7 +118,6 @@ def _age_from_birthdate(birthdate: date | None):
 
 
 def _format_age_label(age: int | None):
-    # Convierte una edad numérica a una etiqueta legible.
     if age is None:
         return ""
     suffix = "año" if age == 1 else "años"
@@ -139,12 +125,10 @@ def _format_age_label(age: int | None):
 
 
 def _word_count(value: str) -> int:
-    # Cuenta palabras ignorando espacios consecutivos.
     return len(re.findall(r"\S+", value or ""))
 
 
 def _validate_pet_name(raw_value: str):
-    # Valida que el nombre sea una sola palabra formada solo por letras.
     value = (raw_value or "").strip()
     if not value:
         return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
@@ -156,7 +140,6 @@ def _validate_pet_name(raw_value: str):
 
 
 def _validate_weight(raw_value: str):
-    # Valida el peso con un maximo de dos decimales y rango permitido.
     value = (raw_value or "").strip()
     if not value:
         return None, "El peso es obligatorio."
@@ -178,7 +161,6 @@ def _validate_weight(raw_value: str):
 
 
 def _validate_approx_age(raw_value: str, especie: str):
-    # Valida la edad aproximada y el máximo permitido por especie.
     value = (raw_value or "").strip()
     if not value:
         return None, "Debes ingresar la fecha de nacimiento o la edad aproximada."
@@ -192,7 +174,6 @@ def _validate_approx_age(raw_value: str, especie: str):
 
 
 def _build_pet_form_data(form=None, mascota: Mascota | None = None):
-    # Construye los valores del formulario para altas, errores y edición.
     form = form or {}
     if mascota is not None and not form:
         edad_mostrada = _format_age_label(_age_from_birthdate(mascota.fecha_nacimiento))
@@ -234,7 +215,6 @@ def _build_pet_form_data(form=None, mascota: Mascota | None = None):
 
 
 def _is_active_client(user: Usuario | None) -> bool:
-    # Verifica que un usuario sea un cliente activo y disponible.
     if not user:
         return False
     if user.eliminado or not user.activo:
@@ -245,7 +225,6 @@ def _is_active_client(user: Usuario | None) -> bool:
 
 
 def _get_clientes_activos():
-    # Obtiene los clientes activos para los formularios de mascotas.
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -257,7 +236,6 @@ def _get_clientes_activos():
 
 
 def _build_mascotas_query(me):
-    # Construye la consulta base del listado de mascotas según el rol.
     q = (
         db.session.query(Mascota, Usuario.nombre.label("dueno_nombre"), Usuario.activo.label("dueno_activo"))
         .join(Usuario, Mascota.dueno_id == Usuario.id)
@@ -283,7 +261,6 @@ def _user_can_view_pet(me, mascota: Mascota) -> bool:
 
 
 def _validate_pet_form(form, *, for_update: bool = False):
-    # Valida y normaliza los datos capturados en el formulario de mascotas.
     errors = []
     field_errors = {}
 
@@ -357,9 +334,7 @@ def _validate_pet_form(form, *, for_update: bool = False):
     return errors, field_errors, payload
 
 
-# --- CONSULTAS Y APOYO PARA MULTIMEDIA ---
 def _reflect_table(table_name: str) -> Table | None:
-    # Carga una tabla existente de la base de datos para usarla dinámicamente.
     if not inspect(db.engine).has_table(table_name):
         return None
     metadata = MetaData()
@@ -367,7 +342,6 @@ def _reflect_table(table_name: str) -> Table | None:
 
 
 def _find_col(table: Table, candidates: list[str]):
-    # Busca la primera columna existente entre varios nombres posibles.
     for name in candidates:
         if name in table.c:
             return table.c[name]
@@ -375,7 +349,6 @@ def _find_col(table: Table, candidates: list[str]):
 
 
 def _required_columns_without_default(table: Table):
-    # Obtiene las columnas obligatorias que requieren valor al insertar.
     required = []
     for col in table.columns:
         if col.primary_key and col.autoincrement:
@@ -389,7 +362,6 @@ def _required_columns_without_default(table: Table):
 
 
 def _build_media_payload(table: Table, *, mascota_id: int, rel_file_path: str, filename: str):
-    # Prepara los datos mínimos para guardar un archivo de mascota en la base de datos.
     payload: dict[str, object] = {}
 
     mascota_col = _find_col(table, ["mascota_id", "id_mascota"])
@@ -432,7 +404,6 @@ def _build_media_payload(table: Table, *, mascota_id: int, rel_file_path: str, f
 
 
 def _media_rows(table: Table | None, *, mascota_id: int):
-    # Obtiene los archivos multimedia registrados para una mascota.
     if table is None:
         return []
 
@@ -487,10 +458,8 @@ def _media_rows(table: Table | None, *, mascota_id: int):
     return data
 
 
-# --- RUTAS DE MASCOTAS ---
 @mascotas_bp.get("/mascotas")
 def mascotas_index():
-    # Muestra el listado general de mascotas.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -538,7 +507,6 @@ def mascotas_index():
 
 @mascotas_bp.route("/mascotas/nueva", methods=["GET", "POST"])
 def mascotas_new():
-    # Registra una nueva mascota en el sistema.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -617,7 +585,6 @@ def mascotas_new():
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/editar", methods=["GET", "POST"])
 def mascotas_edit(mascota_id: int):
-    # Actualiza la información de una mascota existente.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -772,7 +739,6 @@ def mascotas_inactivar(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/vincular", methods=["GET", "POST"])
 def mascotas_vincular_dueno(mascota_id: int):
-    # Reasigna el dueño de una mascota.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -895,7 +861,6 @@ def mascotas_comportamiento(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/multimedia", methods=["GET", "POST"])
 def mascotas_multimedia(mascota_id: int):
-    # Permite subir y consultar archivos multimedia de una mascota.
     r = _require_login_or_redirect()
     if r:
         return r
@@ -927,8 +892,6 @@ def mascotas_multimedia(mascota_id: int):
         if not uploaded or not uploaded.filename:
             flash("Debes seleccionar un archivo.", "error")
             return redirect(url_for("mascotas.mascotas_multimedia", mascota_id=mascota.id))
-
-        # Validamos el archivo recibido antes de guardarlo.
         filename = secure_filename(uploaded.filename)
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
@@ -950,8 +913,6 @@ def mascotas_multimedia(mascota_id: int):
             missing_name = "documentos_mascota" if is_pdf else "fotos_mascota"
             flash(f"No existe la tabla {missing_name} en la base de datos.", "error")
             return redirect(url_for("mascotas.mascotas_multimedia", mascota_id=mascota.id))
-
-        # Guardamos el archivo en la carpeta correspondiente de la mascota.
         upload_dir = os.path.join(current_app.root_path, "static", "uploads", "mascotas", str(mascota.id))
         os.makedirs(upload_dir, exist_ok=True)
 
@@ -963,7 +924,6 @@ def mascotas_multimedia(mascota_id: int):
         uploaded.save(abs_path)
 
         try:
-            # Registramos el archivo en la base de datos despues de guardarlo.
             payload = _build_media_payload(
                 target_table,
                 mascota_id=mascota.id,
@@ -1003,7 +963,6 @@ def mascotas_multimedia(mascota_id: int):
 
 @mascotas_bp.get("/mascotas/<int:mascota_id>/historial")
 def mascotas_historial(mascota_id: int):
-    # Muestra el historial general de una mascota.
     r = _require_login_or_redirect()
     if r:
         return r

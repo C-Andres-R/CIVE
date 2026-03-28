@@ -8,7 +8,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- --- ENCABEZADO, MENSAJES Y ACCION PRINCIPAL --- -->
 <div class="page-header">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -28,7 +27,6 @@
     {% endif %}
   </div>
 
-  <!-- --- FILTROS DEL LISTADO DE MASCOTAS --- -->
   <form class="filters" method="get" action="{{ url_for('mascotas.mascotas_index') }}">
     <div class="filter-field">
       <label>Estado</label>
@@ -54,7 +52,6 @@
   </form>
 </div>
 
-<!-- --- TABLA PRINCIPAL DE MASCOTAS --- -->
 <div class="table-container">
   <table class="table">
     <thead>
@@ -91,7 +88,6 @@
           {% endif %}
         </td>
         <td>
-          <!-- --- MENU DE ACCIONES DISPONIBLES PARA CADA MASCOTA --- -->
           <details class="actions-dropdown">
             <summary class="actions-summary">
               <div class="more-icon"></div>

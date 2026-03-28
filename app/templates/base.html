@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CIVE{% endblock %}</title>
 
-    <!-- --- HOJAS DE ESTILO COMPARTIDAS --- -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_usuarios.css') }}">
 
@@ -14,7 +13,6 @@
 </head>
 
 <body>
-    <!-- --- ACCESO RAPIDO PARA MOVIL --- -->
     <button class="hamburger" aria-label="Abrir menú" aria-expanded="false" type="button">
         <span></span>
         <span></span>
@@ -22,13 +20,11 @@
     </button>
 
     <div class="dashboard">
-        <!-- --- BARRA LATERAL DE NAVEGACION --- -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 Bienvenido
             </div>
 
-            <!-- --- ENLACES PRINCIPALES SEGUN EL ROL DEL USUARIO --- -->
             <div class="nav-list">
                 {% set is_cliente = ((me.rol if me is defined and me else '') or '')|lower == 'cliente' %}
                 {% if is_cliente %}
@@ -54,7 +50,6 @@
                 class="sidebar-logo">
         </aside>
 
-        <!-- --- CONTENIDO DINAMICO DE CADA VISTA --- -->
         <main class="main">
             {% block content %}{% endblock %}
         </main>

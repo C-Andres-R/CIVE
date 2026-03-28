@@ -11,25 +11,19 @@
 </head>
 
 <body>
-    <!-- --- CONTENEDOR PRINCIPAL DEL INICIO DE SESION --- -->
     <div class="login-container">
-        <!-- --- BLOQUE VISUAL DE IDENTIDAD --- -->
         <div class="login-left">
             <div class="login-logo">
                 <img src="{{ url_for('static', filename='images/logo-cive.png') }}" alt="CIVE Medical Pets Ecatepec">
             </div>
         </div>
 
-        <!-- --- BLOQUE DEL FORMULARIO DE ACCESO --- -->
         <div class="login-right">
             <div class="login-header">
                 <h1 class="login-title">Inicia sesión</h1>
             </div>
 
-            <!-- --- MENSAJES DE VALIDACION O ERROR --- -->
-            <!-- --- FORMULARIO PRINCIPAL DE AUTENTICACION --- -->
             <form class="login-form" method="POST" action="{{ url_for('pages.login_post')}}" novalidate>
-                <!-- --- CAPTURA DEL CORREO --- -->
                 <div class="form-group">
                     <label class="form-label" for="email">email</label>
                     <div class="form-input-wrapper">
@@ -38,7 +32,6 @@
                     <small class="field-error" data-field-error="correo">{{ field_errors.correo or "" }}</small>
                 </div>
 
-                <!-- --- CAPTURA DE LA CONTRASENA --- -->
                 <div class="form-group">
                     <label class="form-label" for="password">Password</label>
                     <div class="form-input-wrapper">
@@ -59,19 +52,15 @@
                     <small class="field-error" data-field-error="contrasena">{{ field_errors.contrasena or "" }}</small>
                 </div>
 
-                <!-- --- ENLACE DE APOYO PARA RECUPERACION --- -->
                 <div class="form-footer">
                     <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
                 </div>
 
-                <!-- --- ACCION PRINCIPAL DEL FORMULARIO --- -->
                 <button type="submit" class="login-button">Iniciar sesión</button>
             </form>
 
-            <!-- --- SEPARADOR VISUAL ENTRE ACCIONES --- -->
             <div class="separator"></div>
 
-            <!-- --- ENLACE INFORMATIVO DE REGISTRO --- -->
             <div class="signup-text">
                 ¿Aún no tienes una cuenta? <a href="#">Regístrate aquí.</a>
             </div>
