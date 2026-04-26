@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar registro clínico{% else %}Registrar vacuna o alergia{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == 'edit' %}Editar vacuna o alergia{% else %}Registrar vacuna o alergia{% endif %}</div>
+  <div class="section-subtitle">{{ mascota.nombre }}</div>
+</div>
+
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <form class="usuario-form" method="POST" novalidate>
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Tipo de registro *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="tipo_registro">
+            <option value="">Seleccione opción</option>
+            <option value="vacuna" {% if datos_formulario.tipo_registro == 'vacuna' %}selected{% endif %}>Vacuna</option>
+            <option value="alergia" {% if datos_formulario.tipo_registro == 'alergia' %}selected{% endif %}>Alergia</option>
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.tipo_registro or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha_registro" value="{{ datos_formulario.fecha_registro }}">
+        </div>
+        <small class="field-error">{{ errores_campo.fecha_registro or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_id">
+            <option value="">Seleccione veterinario</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row vacuna-only-wrap">
+        <label class="usuario-form-label">Vacuna *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="insumo_clinico_id">
+            <option value="">Seleccione vacuna</option>
+            {% for vacuna in vacunas_catalogo %}
+            <option value="{{ vacuna.id }}" {% if datos_formulario.insumo_clinico_id == vacuna.id|string %}selected{% endif %}>{{ vacuna.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.insumo_clinico_id or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row vacuna-only-wrap">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="tiene_reaccion" {% if datos_formulario.tiene_reaccion %}checked{% endif %}>
+          ¿Se identificaron reacciones con la vacuna?
+        </label>
+      </div>
+
+      <div class="usuario-form-row alergia-only-wrap">
+        <label class="usuario-form-label">Nombre de la alergia *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="nombre" value="{{ datos_formulario.nombre }}">
+        </div>
+        <small class="field-error">{{ errores_campo.nombre or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row reaccion-wrap">
+        <label class="usuario-form-label reaccion-label">Reacción identificada</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="reaccion_identificada">{{ datos_formulario.reaccion_identificada }}</textarea>
+        </div>
+        <small class="field-error">{{ errores_campo.reaccion_identificada or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Notas adicionales</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="notas_adicionales">{{ datos_formulario.notas_adicionales }}</textarea>
+        </div>
+      </div>
+
+      {% if can_schedule_followup %}
+      <div class="usuario-form-row vacuna-followup-wrap">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="vacuna_requiere_seguimiento" {% if datos_formulario.vacuna_requiere_seguimiento %}checked{% endif %}>
+          ¿Esta vacuna requiere seguimiento?
+        </label>
+      </div>
+
+      <div class="usuario-form-row vacuna-followup-date-wrap">
+        <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="datetime-local" name="vacuna_seguimiento_programado_para" value="{{ datos_formulario.vacuna_seguimiento_programado_para }}">
+        </div>
+        <small class="field-error">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
+      </div>
+      {% endif %}
+
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  (() => {
+    const tipoSelect = document.querySelector('select[name="tipo_registro"]');
+    const tieneReaccionInput = document.querySelector('input[name="tiene_reaccion"]');
+    const vacunaRows = document.querySelectorAll('.vacuna-only-wrap');
+    const alergiaRows = document.querySelectorAll('.alergia-only-wrap');
+    const reaccionWrap = document.querySelector('.reaccion-wrap');
+    const reaccionLabel = document.querySelector('.reaccion-label');
+    const followupWrap = document.querySelector('.vacuna-followup-wrap');
+    const followupDateWrap = document.querySelector('.vacuna-followup-date-wrap');
+    const followupInput = document.querySelector('input[name="vacuna_requiere_seguimiento"]');
+    if (!tipoSelect || !reaccionWrap || !reaccionLabel) return;
+
+    const setHidden = (rows, hidden) => rows.forEach((row) => row.classList.toggle('hidden', hidden));
+
+    const syncUi = () => {
+      const tipo = tipoSelect.value;
+      const vacunaConReaccion = !!(tieneReaccionInput && tieneReaccionInput.checked);
+
+      setHidden(vacunaRows, tipo !== 'vacuna');
+      setHidden(alergiaRows, tipo !== 'alergia');
+
+      if (tipo === 'vacuna') {
+        reaccionLabel.textContent = 'Reacción identificada';
+        reaccionWrap.classList.toggle('hidden', !vacunaConReaccion);
+        if (followupWrap) followupWrap.classList.remove('hidden');
+        if (followupDateWrap) followupDateWrap.classList.toggle('hidden', !(followupInput && followupInput.checked));
+      } else if (tipo === 'alergia') {
+        reaccionLabel.textContent = 'Describe la reacción alérgica';
+        reaccionWrap.classList.remove('hidden');
+        if (followupWrap) followupWrap.classList.add('hidden');
+        if (followupDateWrap) followupDateWrap.classList.add('hidden');
+      } else {
+        reaccionLabel.textContent = 'Reacción identificada';
+        reaccionWrap.classList.add('hidden');
+        if (followupWrap) followupWrap.classList.add('hidden');
+        if (followupDateWrap) followupDateWrap.classList.add('hidden');
+      }
+    };
+
+    tipoSelect.addEventListener('change', syncUi);
+    if (tieneReaccionInput) tieneReaccionInput.addEventListener('change', syncUi);
+    if (followupInput) followupInput.addEventListener('change', syncUi);
+    syncUi();
+  })();
+</script>
+{% endblock %}

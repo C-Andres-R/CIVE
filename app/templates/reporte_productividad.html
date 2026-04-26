@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de productividad | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reportes.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reportes_filters.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Reporte de productividad</div>
+  <div class="section-subtitle">Consulta las actividades realizadas por cada veterinario.</div>
+</div>
+
+{% include "_reportes_tabs.html" %}
+
+<div class="content-stack">
+  <form class="filters filters--overlay-errors" method="get" action="{{ url_for('reportes.reportes_productividad') }}" novalidate data-report-filter="date-range">
+    <div class="campo-filtro">
+      <label>Fecha inicial</label>
+      <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}">
+      <small class="field-error" data-field-error="fecha_inicio">{{ errores_campo.fecha_inicio or "" }}</small>
+    </div>
+    <div class="campo-filtro">
+      <label>Fecha final</label>
+      <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}">
+      <small class="field-error" data-field-error="fecha_fin">{{ errores_campo.fecha_fin or "" }}</small>
+    </div>
+    {% if role == 'administrador' %}
+    <div class="campo-filtro">
+      <label>Veterinario</label>
+      <select name="veterinario_id">
+        <option value="">Todos</option>
+        {% for vet in veterinarios %}
+        <option value="{{ vet.id }}" {% if filtros.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+        {% endfor %}
+      </select>
+      <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+    </div>
+    {% endif %}
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Generar reporte</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('reportes.reportes_productividad') }}">Limpiar</a>
+    </div>
+  </form>
+
+  {% if rows %}
+  <div class="stat-grid">
+    <div class="stat-card"><span class="etiqueta-estadistica">Consultas</span><strong>{{ summary.consultas }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Medicamentos</span><strong>{{ summary.medicamentos }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Vacunas</span><strong>{{ summary.vacunas }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Análisis</span><strong>{{ summary.analisis }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Total</span><strong>{{ summary.total }}</strong></div>
+  </div>
+
+  <div class="citas-tools">
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.pdf }}">Exportar PDF</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.xlsx }}">Exportar Excel</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.csv }}">Exportar CSV</a>
+  </div>
+
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Veterinario</th>
+          <th>Consultas</th>
+          <th>Medicamentos</th>
+          <th>Vacunas</th>
+          <th>Análisis</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.veterinario }}</td>
+          <td>{{ row.consultas }}</td>
+          <td>{{ row.medicamentos }}</td>
+          <td>{{ row.vacunas }}</td>
+          <td>{{ row.analisis }}</td>
+          <td>{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -8,8 +8,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Vincular dueño a mascota</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Vincular dueño a mascota</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -28,7 +28,7 @@
       <strong>Mascota:</strong> {{ mascota.nombre }}
     </div>
 
-    <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_vincular_dueno', mascota_id=mascota.id) }}">
+    <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_vincular_duenio', mascota_id=mascota.id) }}">
       <div class="usuario-form-row">
         <label class="usuario-form-label">Dueño asociado *</label>
         <div class="usuario-input-wrap">
@@ -43,7 +43,7 @@
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Guardar vinculación</button>
-        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_lista') }}">Cancelar</a>
       </div>
     </form>
   </div>

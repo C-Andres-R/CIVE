@@ -7,6 +7,12 @@ from .rol_permiso import RolPermiso
 from .recordatorio_cita import RecordatorioCita
 from .facturacion import Facturacion
 from .chatbot_faq import ChatbotFaq
+from .encuesta_pregunta import EncuestaPregunta
 from .encuesta_satisfaccion import EncuestaSatisfaccion
 from .foto_mascota import FotoMascota
 from .documento_mascota import DocumentoMascota
+from .consulta_medica import ConsultaMedica
+from .vacuna_alergia import VacunaAlergia
+from .analisis_clinico import AnalisisClinico
+from .insumo_clinico import InsumoClinico
+from .seguimiento_tratamiento import SeguimientoTratamiento

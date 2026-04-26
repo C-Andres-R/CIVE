@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Encuestas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/encuestas.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Encuestas de satisfacción</div>
+  <div class="section-subtitle">Panel de seguimiento para respuestas, promedio y clasificación de experiencias.</div>
+
+  <form class="filters filters--overlay-errors" method="get" action="{{ url_for('encuestas.encuestas_home') }}" novalidate data-encuestas-filter="date-range">
+    <div class="campo-filtro">
+      <label>Fecha inicial</label>
+      <input type="date" name="fecha_inicio" value="{{ filters.fecha_inicio }}">
+      <small class="field-error" data-field-error="fecha_inicio">{{ errores_campo.fecha_inicio or '' }}</small>
+    </div>
+    <div class="campo-filtro">
+      <label>Fecha final</label>
+      <input type="date" name="fecha_fin" value="{{ filters.fecha_fin }}">
+      <small class="field-error" data-field-error="fecha_fin">{{ errores_campo.fecha_fin or '' }}</small>
+    </div>
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Actualizar panel</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('encuestas.encuestas_home') }}">Restablecer</a>
+    </div>
+  </form>
+</div>
+
+<div class="content-stack encuestas-stack">
+<section class="encuestas-summary">
+  <article class="datos-kpi">
+    <span>Total</span>
+    <strong>{{ dashboard.total }}</strong>
+  </article>
+  <article class="datos-kpi">
+    <span>Pendientes</span>
+    <strong>{{ dashboard.pendientes }}</strong>
+  </article>
+  <article class="datos-kpi">
+    <span>Respondidas</span>
+    <strong>{{ dashboard.respondidas }}</strong>
+  </article>
+  <article class="datos-kpi datos-kpi--accent">
+    <span>Promedio</span>
+    <strong>{{ dashboard.promedio if dashboard.promedio is not none else '-' }}</strong>
+  </article>
+</section>
+
+<section class="encuestas-grid">
+  <article class="section-card">
+    <div class="section-card__head">
+      <h3>Distribución de calificaciones</h3>
+    </div>
+    <div class="bar-chart" aria-label="Distribución de calificaciones">
+      {% for bar in dashboard.barras %}
+      <div class="bar-chart__item">
+        <div class="bar-chart__track">
+          <div class="bar-chart__fill" style="height: {{ bar.height_pct }}%"></div>
+        </div>
+        <strong>{{ bar.value }}</strong>
+        <span>{{ bar.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="section-card">
+    <div class="section-card__head">
+      <h3>Clasificación de experiencias</h3>
+    </div>
+    <div class="sentiment-list">
+      {% for item in dashboard.sentimientos %}
+      <div class="sentiment-row">
+        <div class="sentiment-row__head">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+        <div class="sentiment-row__track">
+          <div class="sentiment-row__fill" style="width: {{ item.width_pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+{% if can_edit_questions %}
+<section class="section-card">
+  <div class="section-card__head">
+    <h3>Preguntas base</h3>
+  </div>
+  <form class="encuestas-config-form" method="post" action="{{ url_for('encuestas.encuestas_actualizar_preguntas') }}">
+    {% for row in preguntas_rows %}
+    <label for="pregunta_{{ row.clave }}">{{ row.clave|replace('_', ' ')|capitalize }}</label>
+    <input id="pregunta_{{ row.clave }}" type="text" name="pregunta_{{ row.clave }}" maxlength="255" value="{{ row.texto }}" required>
+    {% endfor %}
+    <div class="encuestas-config-actions">
+      <button class="cive-btn cive-btn--tool" type="submit">Guardar preguntas</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Mascota</th>
+        <th>Cita</th>
+        <th>Estado</th>
+        <th>Calificación</th>
+        <th>Clasificación</th>
+        <th>Detalle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for encuesta, cita, mascota_nombre, cliente_nombre in rows %}
+      <tr>
+        <td>{{ cliente_nombre }}</td>
+        <td>{{ mascota_nombre }}</td>
+        <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
+        <td>{% if encuesta.respondido %}Respondida{% else %}Pendiente{% endif %}</td>
+        <td>{{ encuesta.calificacion or '-' }}</td>
+        <td>{{ clasificacion_por_calificacion(encuesta.calificacion) }}</td>
+        <td>
+          <a class="cive-btn cive-btn--action" href="{{ url_for('encuestas.encuesta_responder', encuesta_id=encuesta.id) }}">Ver</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7">No hay encuestas para el periodo seleccionado.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (() => {
+    const form = document.querySelector('[data-encuestas-filter="date-range"]');
+    if (!form) return;
+
+    const fechaInicioInput = form.querySelector('input[name="fecha_inicio"]');
+    const fechaFinInput = form.querySelector('input[name="fecha_fin"]');
+    const errorEls = {
+      fecha_inicio: form.querySelector('[data-field-error="fecha_inicio"]'),
+      fecha_fin: form.querySelector('[data-field-error="fecha_fin"]'),
+    };
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const validateFilters = () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const fechaInicio = fechaInicioInput.value;
+      const fechaFin = fechaFinInput.value;
+      let valid = true;
+
+      if (fechaInicio && fechaInicio > todayStr) {
+        setError('fecha_inicio', 'La fecha inicial no puede ser posterior a hoy.');
+        valid = false;
+      } else {
+        setError('fecha_inicio', '');
+      }
+
+      if (fechaFin && fechaFin > todayStr) {
+        setError('fecha_fin', 'La fecha final no puede ser posterior a hoy.');
+        valid = false;
+      } else if (fechaFin && fechaInicio && fechaFin < fechaInicio) {
+        setError('fecha_fin', 'La fecha final no puede ser anterior a la fecha inicial.');
+        valid = false;
+      } else {
+        setError('fecha_fin', '');
+      }
+
+      return valid;
+    };
+
+    fechaInicioInput.addEventListener('change', validateFilters);
+    fechaFinInput.addEventListener('change', validateFilters);
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateFilters()) {
+        event.preventDefault();
+      }
+    });
+  })();
+</script>
+{% endblock %}

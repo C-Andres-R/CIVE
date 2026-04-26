@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Encuesta | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/encuestas.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Encuesta de satisfacción</div>
+  <div class="section-subtitle">Cita del {{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }} para {{ mascota_nombre }}.</div>
+</div>
+
+<div class="content-stack encuestas-stack">
+<section class="section-card encuesta-card">
+  <div class="encuesta-meta">
+    <div><strong>Cliente:</strong> {{ cliente_nombre }}</div>
+    <div><strong>Mascota:</strong> {{ mascota_nombre }}</div>
+    <div><strong>Clasificación:</strong> {{ clasificacion }}</div>
+  </div>
+
+  <form method="post" class="encuesta-form" novalidate>
+    <fieldset {% if read_only %}disabled{% endif %}>
+      <label>{{ preguntas.conformidad }}</label>
+      <div class="encuesta-radio-group">
+        <label><input type="radio" name="conforme" value="si" {% if form_data.conforme == 'si' %}checked{% endif %}> Sí</label>
+        <label><input type="radio" name="conforme" value="no" {% if form_data.conforme == 'no' %}checked{% endif %}> No</label>
+      </div>
+      <small class="field-error">{{ errors.conforme or '' }}</small>
+
+      <div id="detalle-inconformidad-wrap" class="{% if form_data.conforme != 'no' %}hidden{% endif %}">
+        <label for="detalle_inconformidad">{{ preguntas.detalle_inconformidad }}</label>
+        <textarea id="detalle_inconformidad" name="detalle_inconformidad" rows="4" maxlength="300">{{ form_data.detalle_inconformidad }}</textarea>
+        <small class="field-error">{{ errors.detalle_inconformidad or '' }}</small>
+      </div>
+
+      <label for="calificacion">{{ preguntas.calificacion }}</label>
+      {% if read_only %}
+      <div class="encuesta-score-display">{{ form_data.calificacion or '-' }}</div>
+      {% else %}
+      <select id="calificacion" name="calificacion">
+        <option value="">Selecciona una opción</option>
+        {% for option in [1, 2, 3, 4, 5] %}
+        <option value="{{ option }}" {% if form_data.calificacion == option|string %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <small class="field-error">{{ errors.calificacion or '' }}</small>
+
+      <label for="comentario">{{ preguntas.comentario }}</label>
+      <textarea id="comentario" name="comentario" rows="4" maxlength="300">{{ form_data.comentario }}</textarea>
+      <small class="field-error">{{ errors.comentario or '' }}</small>
+    </fieldset>
+
+    {% if not read_only %}
+    <div class="encuestas-config-actions">
+      <a class="cive-btn cive-btn--action" href="{{ url_for('encuestas.encuestas_home') }}">Volver</a>
+      <button class="cive-btn cive-btn--tool" type="submit">Enviar encuesta</button>
+    </div>
+    {% else %}
+    <div class="encuestas-config-actions">
+      <a class="cive-btn cive-btn--action" href="{{ url_for('encuestas.encuestas_home') }}">Volver</a>
+    </div>
+    {% endif %}
+  </form>
+</section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (() => {
+    const radios = document.querySelectorAll('input[name="conforme"]');
+    const detailWrap = document.getElementById('detalle-inconformidad-wrap');
+    if (!radios.length || !detailWrap) return;
+
+    const syncDetailVisibility = () => {
+      const selected = document.querySelector('input[name="conforme"]:checked');
+      if (selected && selected.value === 'no') {
+        detailWrap.classList.remove('hidden');
+      } else {
+        detailWrap.classList.add('hidden');
+      }
+    };
+
+    radios.forEach((radio) => radio.addEventListener('change', syncDetailVisibility));
+    syncDetailVisibility();
+  })();
+</script>
+{% endblock %}

@@ -48,19 +48,19 @@
   gap: 12px;
 }
 
-.filter-field {
+.campo-filtro {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.filter-field label {
+.campo-filtro label {
   font-size: 14px;
   color: var(--color-text-dark);
 }
 
-.filter-field input,
-.filter-field select {
+.campo-filtro input,
+.campo-filtro select {
   height: 42px;
   border: none;
   border-bottom: 1px solid var(--border-login);
@@ -70,7 +70,7 @@
   background: var(--bg-login);
 }
 
-.filter-actions {
+.acciones-filtro {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -81,6 +81,21 @@
 .cive-btn--filter {
   min-width: 0;
   width: 100%;
+}
+
+.filters--overlay-errors .campo-filtro {
+  position: relative;
+}
+
+.filters--overlay-errors .field-error {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 2px);
+  min-height: 0;
+}
+
+.filters--overlay-errors {
+  padding-bottom: 32px;
 }
 
 .flash-wrap {
@@ -202,6 +217,25 @@
   min-height: 18px;
   color: #b42318;
   font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .acciones-filtro {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filters--overlay-errors {
+    padding-bottom: 14px;
+  }
+
+  .filters--overlay-errors .field-error {
+    position: static;
+    min-height: 18px;
+  }
 }
 
 .result-card {

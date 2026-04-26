@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="encabezado-pagina">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   <div class="flash-wrap">
@@ -19,7 +19,7 @@
   {% endif %}
   {% endwith %}
 
-  <div class="page-title">Historial completo de {{ mascota.nombre }}</div>
+  <div class="titulo-pagina">Historial completo de {{ mascota.nombre }}</div>
 
   <div class="citas-tools">
     {% if can_multimedia %}
@@ -28,7 +28,7 @@
     {% if can_behavior %}
     <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">Comportamiento</a>
     {% endif %}
-    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_index') }}">Volver</a>
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_lista') }}">Volver</a>
   </div>
 
   <div class="history-grid">

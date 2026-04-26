@@ -32,10 +32,10 @@ def get_engine_url():
         return str(get_engine().url).replace('%', '%%')
 
 
-# add your model's MetaData object here
+# add your modol's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+# from myapp import mymodol
+# target_metadata = mymodol.Base.metadata
 config.set_main_option('sqlalchemy.url', get_engine_url())
 target_db = current_app.extensions['migrate'].db
 
@@ -52,7 +52,7 @@ def get_metadata():
 
 
 def run_migrations_offline():
-    """Run migrations in 'offline' mode.
+    """Run migrations in 'offline' modo.
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
@@ -73,7 +73,7 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    """Run migrations in 'online' mode.
+    """Run migrations in 'online' modo.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.

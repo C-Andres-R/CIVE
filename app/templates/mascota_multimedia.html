@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="encabezado-pagina">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   <div class="flash-wrap">
@@ -19,7 +19,7 @@
   {% endif %}
   {% endwith %}
 
-  <div class="page-title">Multimedia de {{ mascota.nombre }}</div>
+  <div class="titulo-pagina">Multimedia de {{ mascota.nombre }}</div>
 
   <div class="history-grid single">
     <div class="info-card">
@@ -41,7 +41,7 @@
 
         <div class="usuario-actions">
           <button class="usuario-btn-primary" type="submit">Subir</button>
-          <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Volver</a>
+          <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Volver</a>
         </div>
       </form>
     </div>

@@ -7,3 +7,5 @@ mysqlclient
 gunicorn
 requests
 bcrypt
+reportlab
+openpyxl

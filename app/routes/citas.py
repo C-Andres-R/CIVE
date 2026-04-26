@@ -7,12 +7,22 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import aliased
 
 from app.extensions import db
+from app.followups import (
+    enviar_seguimiento_ahora,
+    eliminar_seguimiento,
+    fecha_hora_seguimiento_a_formato,
+    guardar_seguimiento,
+    obtener_mapa_seguimientos_por_ids,
+    obtener_seguimiento,
+    usuario_puede_programar_seguimiento,
+    validar_programacion_seguimiento,
+)
 from app.models import Cita, Mascota, RecordatorioCita, Rol, Usuario
 from utils.auth_ui import get_current_user_from_api
 
 citas_bp = Blueprint("citas", __name__)
 
-LOGIN_GET_ENDPOINT = "pages.login_page"
+LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
 
 ROLE_ADMIN = "administrador"
 ROLE_CLIENTE = "cliente"
@@ -21,12 +31,13 @@ ROLE_VETERINARIO = "veterinario"
 PERMISSIONS = {
     "hu005": {ROLE_ADMIN, ROLE_CLIENTE, ROLE_VETERINARIO},
     "hu006": {ROLE_ADMIN, ROLE_CLIENTE, ROLE_VETERINARIO},
-    "hu007": {ROLE_ADMIN, ROLE_CLIENTE},
-    "hu008": {ROLE_ADMIN},
+    "hu007": {ROLE_ADMIN, ROLE_CLIENTE, ROLE_VETERINARIO},
+    "hu008": {ROLE_ADMIN, ROLE_CLIENTE},
     "hu009": {ROLE_ADMIN, ROLE_CLIENTE, ROLE_VETERINARIO},
     "hu010": {ROLE_ADMIN, ROLE_CLIENTE},
 }
 REMINDER_OFFSET_OPTIONS = {24, 12, 2}
+REMINDER_DEMO_OPTION = "demo_10s"
 ABSENCE_REASON_OPTIONS = {
     "incapacidad": "Incapacidad",
     "vacaciones": "Vacaciones",
@@ -35,17 +46,17 @@ ABSENCE_REASON_OPTIONS = {
 }
 
 
-def _redirect_to_login():
+def _redirigir_a_inicio_sesion():
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
-def _require_login_or_redirect():
+def _requiere_inicio_sesion_o_redirige():
     if not session.get("access_token"):
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
     return None
 
 
-def _get_me_or_logout():
+def _obtener_usuario_o_cerrar_sesion():
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -53,28 +64,28 @@ def _get_me_or_logout():
     return me
 
 
-def _role_name(me) -> str:
+def _nombre_rol(me) -> str:
     return (me.get("rol") or "").strip().lower()
 
 
-def _allowed(me, hu_code: str) -> bool:
-    return _role_name(me) in PERMISSIONS.get(hu_code, set())
+def _permitido(me, hu_code: str) -> bool:
+    return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
-def _redirect_client_to_portal(me):
-    if _role_name(me) == ROLE_CLIENTE:
+def _redirigir_cliente_a_portal(me):
+    if _nombre_rol(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
-def _parse_int(value):
+def _parsear_entero(value):
     try:
         return int(value)
     except (TypeError, ValueError):
         return None
 
 
-def _parse_datetime_local(value: str):
+def _parsear_fecha_hora_local(value: str):
     if not value:
         return None
     try:
@@ -83,7 +94,7 @@ def _parse_datetime_local(value: str):
         return None
 
 
-def _parse_date(value: str):
+def _parsear_fecha(value: str):
     if not value:
         return None
     try:
@@ -92,27 +103,27 @@ def _parse_date(value: str):
         return None
 
 
-def _is_future_datetime(value: datetime) -> bool:
+def _es_fecha_hora_futura(value: datetime) -> bool:
     return value > datetime.now()
 
 
-def _not_canceled_clause():
+def _condicion_no_cancelada():
     return and_(Cita.cancelada.is_(False), Cita.estado != "cancelada")
 
 
-def _is_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclude_cita_id: int | None = None) -> bool:
+def _es_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclude_cita_id: int | None = None) -> bool:
     # Revisa si un veterinario está libre en una fecha y hora específicas.
     q = db.session.query(Cita.id).filter(
         Cita.veterinario_id == veterinario_id,
         Cita.fecha_hora == fecha_hora,
-        _not_canceled_clause(),
+        _condicion_no_cancelada(),
     )
     if exclude_cita_id is not None:
         q = q.filter(Cita.id != exclude_cita_id)
     return q.first() is None
 
 
-def _get_usuarios_por_rol(nombre_rol: str):
+def _obtener_usuarios_por_rol(nombre_rol: str):
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -123,21 +134,24 @@ def _get_usuarios_por_rol(nombre_rol: str):
     )
 
 
-def _get_mascotas_con_dueno_for_form(me):
-    role = _role_name(me)
+def _obtener_mascotas_con_dueno_para_formulario(me):
+    role = _nombre_rol(me)
     q = (
         db.session.query(Mascota.id, Mascota.nombre, Mascota.dueno_id, Usuario.nombre.label("dueno_nombre"))
         .join(Usuario, Mascota.dueno_id == Usuario.id)
-        .filter(Usuario.eliminado.is_(False))
+        .filter(
+            Usuario.eliminado.is_(False),
+            Mascota.estado == "activa",
+        )
     )
     if role == ROLE_CLIENTE:
         q = q.filter(Mascota.dueno_id == int(me["id"]))
     return q.order_by(Mascota.nombre.asc()).all()
 
 
-def _user_can_touch_cita(me, cita: Cita) -> bool:
-    role = _role_name(me)
-    me_id = _parse_int(me.get("id"))
+def _usuario_puede_modificar_cita(me, cita: Cita) -> bool:
+    role = _nombre_rol(me)
+    me_id = _parsear_entero(me.get("id"))
     if role == ROLE_ADMIN:
         return True
     if role == ROLE_CLIENTE and me_id is not None:
@@ -147,7 +161,7 @@ def _user_can_touch_cita(me, cita: Cita) -> bool:
     return False
 
 
-def _build_cita_list_query(me):
+def _construir_consulta_lista_citas(me):
     cliente = aliased(Usuario)
     veterinario = aliased(Usuario)
 
@@ -169,8 +183,8 @@ def _build_cita_list_query(me):
         .filter(cliente.eliminado.is_(False), veterinario.eliminado.is_(False))
     )
 
-    role = _role_name(me)
-    me_id = _parse_int(me.get("id"))
+    role = _nombre_rol(me)
+    me_id = _parsear_entero(me.get("id"))
     if role == ROLE_CLIENTE and me_id is not None:
         q = q.filter(Cita.cliente_id == me_id)
     elif role == ROLE_VETERINARIO and me_id is not None:
@@ -179,33 +193,33 @@ def _build_cita_list_query(me):
     return q
 
 
-def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None):
+def _validar_y_normalizar_formulario(me, form, *, editing_cita_id: int | None = None):
     errors = []
-    field_errors = {}
+    errores_campo = {}
 
     fecha_hora_raw = form.get("fecha_hora") or ""
     motivo = (form.get("motivo") or "").strip()
-    mascota_id = _parse_int(form.get("mascota_id"))
-    veterinario_id = _parse_int(form.get("veterinario_id"))
+    mascota_id = _parsear_entero(form.get("mascota_id"))
+    veterinario_id = _parsear_entero(form.get("veterinario_id"))
 
-    fecha_hora = _parse_datetime_local(fecha_hora_raw)
+    fecha_hora = _parsear_fecha_hora_local(fecha_hora_raw)
     cliente_id = None
 
     if not fecha_hora:
-        field_errors["fecha_hora"] = "Este campo no puede estar vacío."
+        errores_campo["fecha_hora"] = "Este campo no puede estar vacío."
     else:
         today = date.today()
         if fecha_hora.date() <= today:
-            field_errors["fecha_hora"] = "Debes seleccionar una fecha posterior a hoy."
+            errores_campo["fecha_hora"] = "Debes seleccionar una fecha posterior a hoy."
         elif fecha_hora.year != today.year:
-            field_errors["fecha_hora"] = "Solo puedes agendar citas dentro del año actual."
+            errores_campo["fecha_hora"] = "Solo puedes agendar citas dentro del año actual."
 
     if not motivo:
-        field_errors["motivo"] = "Por favor ingresa el motivo de la cita para continuar."
+        errores_campo["motivo"] = "Por favor ingresa el motivo de la cita para continuar."
     if not mascota_id:
-        field_errors["mascota_id"] = "Este campo no puede estar vacío."
+        errores_campo["mascota_id"] = "Este campo no puede estar vacío."
     if not veterinario_id:
-        field_errors["veterinario_id"] = "Este campo no puede estar vacío."
+        errores_campo["veterinario_id"] = "Este campo no puede estar vacío."
 
     cliente = None
     mascota = None
@@ -214,7 +228,9 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
     if mascota_id:
         mascota = db.session.get(Mascota, mascota_id)
         if not mascota:
-            field_errors["mascota_id"] = "La mascota seleccionada no existe."
+            errores_campo["mascota_id"] = "La mascota seleccionada no existe."
+        elif mascota.estado != "activa":
+            errores_campo["mascota_id"] = "No se pueden agendar citas para mascotas inactivas."
         else:
             cliente_id = mascota.dueno_id
 
@@ -227,9 +243,9 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
             .first()
         )
         if not cliente:
-            field_errors["cliente_id"] = "El cliente asociado a la mascota no es válido."
+            errores_campo["cliente_id"] = "El cliente asociado a la mascota no es válido."
     elif mascota_id:
-        field_errors["cliente_id"] = "El cliente asociado a la mascota no es válido."
+        errores_campo["cliente_id"] = "El cliente asociado a la mascota no es válido."
 
     if veterinario_id:
         veterinario = (
@@ -240,11 +256,11 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
             .first()
         )
         if not veterinario:
-            field_errors["veterinario_id"] = "El veterinario seleccionado no es válido."
+            errores_campo["veterinario_id"] = "El veterinario seleccionado no es válido."
 
     if fecha_hora and veterinario_id:
-        if not _is_veterinario_disponible(veterinario_id, fecha_hora, exclude_cita_id=editing_cita_id):
-            field_errors["veterinario_id"] = "El veterinario no está disponible en la fecha/hora indicada."
+        if not _es_veterinario_disponible(veterinario_id, fecha_hora, exclude_cita_id=editing_cita_id):
+            errores_campo["veterinario_id"] = "El veterinario no está disponible en la fecha/hora indicada."
 
     payload = {
         "fecha_hora": fecha_hora,
@@ -252,13 +268,14 @@ def _validate_and_normalize_form(me, form, *, editing_cita_id: int | None = None
         "mascota_id": mascota_id,
         "cliente_id": cliente_id,
         "veterinario_id": veterinario_id,
+        "veterinario": veterinario,
     }
 
-    errors.extend(field_errors.values())
-    return errors, field_errors, payload
+    errors.extend(errores_campo.values())
+    return errors, errores_campo, payload
 
 
-def _default_form_data():
+def _default_datos_formulario():
     return {
         "fecha_hora": "",
         "motivo": "",
@@ -266,10 +283,12 @@ def _default_form_data():
         "cliente_id": "",
         "cliente_nombre": "",
         "veterinario_id": "",
+        "cita_requiere_seguimiento": False,
+        "cita_seguimiento_programado_para": "",
     }
 
 
-def _owner_lookup(mascotas):
+def _mapa_duenos(mascotas):
     # Crea un diccionario para resolver el dueño de una mascota en el formulario.
     return {
         str(mascota_id): {
@@ -280,66 +299,168 @@ def _owner_lookup(mascotas):
     }
 
 
-def _sync_form_client_from_pet(form_data, mascotas):
-    owner_lookup = _owner_lookup(mascotas)
-    owner = owner_lookup.get(str(form_data.get("mascota_id") or ""))
+def _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas):
+    owner_lookup = _mapa_duenos(mascotas)
+    owner = owner_lookup.get(str(datos_formulario.get("mascota_id") or ""))
     if owner:
-        form_data["cliente_id"] = owner["cliente_id"]
-        form_data["cliente_nombre"] = owner["cliente_nombre"]
+        datos_formulario["cliente_id"] = owner["cliente_id"]
+        datos_formulario["cliente_nombre"] = owner["cliente_nombre"]
     else:
-        form_data["cliente_id"] = ""
-        form_data["cliente_nombre"] = ""
-    return form_data
+        datos_formulario["cliente_id"] = ""
+        datos_formulario["cliente_nombre"] = ""
+    return datos_formulario
 
 
-def _datetime_to_local_input(dt: datetime | None) -> str:
+def _construir_datos_seguimiento_cita(form=None, seguimiento=None):
+    # Función de datos de seguimiento.
+    form = form or {}
+    if form:
+        return {
+            "cita_requiere_seguimiento": (form.get("cita_requiere_seguimiento") or "").strip().lower() in {"1", "true", "on", "yes"},
+            "cita_seguimiento_programado_para": (form.get("cita_seguimiento_programado_para") or "").strip(),
+        }
+    return {
+        "cita_requiere_seguimiento": seguimiento is not None,
+        "cita_seguimiento_programado_para": fecha_hora_seguimiento_a_formato(seguimiento.programado_para if seguimiento else None),
+    }
+
+
+def _destinatarios_recordatorio(cliente: Usuario | None, veterinario: Usuario | None):
+    # Función de recordatorio automático.
+    destinatarios = []
+    vistos = set()
+    for usuario in (cliente, veterinario):
+        correo = ((usuario.correo if usuario else "") or "").strip().lower()
+        if correo and correo not in vistos:
+            destinatarios.append(correo)
+            vistos.add(correo)
+    return destinatarios
+
+
+def _descripcion_recordatorio(recordatorio: RecordatorioCita | None) -> str:
+    # Función de recordatorio automático.
+    if not recordatorio:
+        return ""
+    if recordatorio.anticipacion_horas == 0:
+        return "Demo 10 segundos"
+    if recordatorio.anticipacion_horas:
+        return f"{recordatorio.anticipacion_horas} horas antes"
+    return "Programado"
+
+
+def _redirigir_despues_recordatorio(me):
+    # Función de recordatorio automático.
+    if _nombre_rol(me) == ROLE_CLIENTE:
+        return redirect(url_for("clientes.clientes_portal"))
+    return redirect(url_for("citas.citas_lista"))
+
+
+def sincronizar_recordatorios_programados():
+    # Función de recordatorio automático.
+    from app.routes.chat import _enviar_email_smtp
+
+    cliente = aliased(Usuario)
+    veterinario = aliased(Usuario)
+    now = datetime.now()
+    rows = (
+        db.session.query(
+            RecordatorioCita,
+            Cita,
+            Mascota.nombre.label("mascota_nombre"),
+            cliente,
+            veterinario,
+        )
+        .join(Cita, RecordatorioCita.cita_id == Cita.id)
+        .join(Mascota, Cita.mascota_id == Mascota.id)
+        .join(cliente, Cita.cliente_id == cliente.id)
+        .join(veterinario, Cita.veterinario_id == veterinario.id)
+        .filter(RecordatorioCita.estado == "programado")
+        .filter(RecordatorioCita.programado_para.isnot(None))
+        .filter(RecordatorioCita.programado_para <= now)
+        .filter(Cita.cancelada.is_(False), Cita.estado != "cancelada")
+        .filter(Cita.fecha_hora > now)
+        .filter(cliente.activo.is_(True), cliente.eliminado.is_(False))
+        .filter(veterinario.activo.is_(True), veterinario.eliminado.is_(False))
+        .order_by(RecordatorioCita.programado_para.asc(), RecordatorioCita.id.asc())
+        .all()
+    )
+
+    for reminder, cita, mascota_nombre, cliente_row, veterinario_row in rows:
+        destinatarios = _destinatarios_recordatorio(cliente_row, veterinario_row)
+        if len(destinatarios) < 2:
+            continue
+
+        subject = "Recordatorio de cita - CIVE"
+        body = (
+            "Este es un recordatorio automático de una cita programada en CIVE.\n\n"
+            f"Fecha y hora: {cita.fecha_hora.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Mascota: {mascota_nombre}\n"
+            f"Cliente: {cliente_row.nombre}\n"
+            f"Veterinario: {veterinario_row.nombre}\n"
+            f"Motivo: {cita.motivo or 'Sin motivo especificado'}\n"
+            f"Anticipación: {_descripcion_recordatorio(reminder)}\n\n"
+            "Clínica CIVE"
+        )
+
+        sent_ok, _ = _enviar_email_smtp(", ".join(destinatarios), subject, body)
+        if not sent_ok:
+            continue
+
+        reminder.estado = "enviado"
+        reminder.enviado_en = now
+        reminder.token_confirmacion = None
+
+    db.session.commit()
+
+
+def _fecha_hora_a_entrada_local(dt: datetime | None) -> str:
     if not dt:
         return ""
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
-def _validate_cita_filters(fecha_inicio, fecha_fin):
-    field_errors = {}
+def _validar_filtros_citas(fecha_inicio, fecha_fin):
+    errores_campo = {}
     today = date.today()
 
     if fecha_inicio and fecha_inicio > today:
-        field_errors["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
+        errores_campo["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
 
     if fecha_fin and fecha_inicio and fecha_fin < fecha_inicio:
-        field_errors["fecha_fin"] = "La fecha de fin no puede ser previa a la fecha marcada como inicio."
+        errores_campo["fecha_fin"] = "La fecha de fin no puede ser previa a la fecha marcada como inicio."
 
-    return field_errors
+    return errores_campo
 
 
 @citas_bp.get("/citas")
-def citas_index():
-    r = _require_login_or_redirect()
+def citas_lista():
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu007"):
+    if not _permitido(me, "hu007"):
         return render_template("acceso_denegado.html", me=me), 403
 
     estado = (request.args.get("estado") or "").strip().lower()
-    fecha_inicio = _parse_date(request.args.get("fecha_inicio") or "")
-    fecha_fin = _parse_date(request.args.get("fecha_fin") or "")
-    veterinario_id = _parse_int(request.args.get("veterinario_id"))
+    fecha_inicio = _parsear_fecha(request.args.get("fecha_inicio") or "")
+    fecha_fin = _parsear_fecha(request.args.get("fecha_fin") or "")
+    veterinario_id = _parsear_entero(request.args.get("veterinario_id"))
     orden = (request.args.get("orden") or "asc").strip().lower()
     if orden not in {"asc", "desc"}:
         orden = "asc"
 
-    field_errors = _validate_cita_filters(fecha_inicio, fecha_fin)
-    q = _build_cita_list_query(me)
+    errores_campo = _validar_filtros_citas(fecha_inicio, fecha_fin)
+    q = _construir_consulta_lista_citas(me)
 
-    if not field_errors:
+    if not errores_campo:
         if estado in {"pendiente", "confirmada", "cancelada"}:
             q = q.filter(Cita.estado == estado)
 
@@ -357,7 +478,8 @@ def citas_index():
         q = q.order_by(Cita.fecha_hora.asc())
 
     rows = q.all()
-    veterinarios = _get_usuarios_por_rol(ROLE_VETERINARIO)
+    veterinarios = _obtener_usuarios_por_rol(ROLE_VETERINARIO)
+    followup_map = obtener_mapa_seguimientos_por_ids("cita", [row[0].id for row in rows])
 
     return render_template(
         "citas_list.html",
@@ -372,51 +494,84 @@ def citas_index():
             "veterinario_id": str(veterinario_id or ""),
             "orden": orden,
         },
-        field_errors=field_errors,
-        can_create=_allowed(me, "hu005"),
-        can_manage=_allowed(me, "hu006"),
-        can_send_reminder=_allowed(me, "hu008"),
+        errores_campo=errores_campo,
+        can_create=_permitido(me, "hu005"),
+        can_manage=_permitido(me, "hu006"),
+        can_send_reminder=_permitido(me, "hu008"),
+        can_add_to_expediente=_nombre_rol(me) in {ROLE_ADMIN, ROLE_VETERINARIO},
+        followup_map=followup_map,
         now=datetime.now(),
     )
 
 
-@citas_bp.route("/citas/nueva", methods=["GET", "POST"])
-def citas_new():
-    r = _require_login_or_redirect()
+@citas_bp.post("/citas/<int:cita_id>/seguimiento/recordar-ahora")
+def citas_recordar_seguimiento_ahora(cita_id: int):
+    # Botón temporal de demostración de seguimiento.
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    if not usuario_puede_programar_seguimiento(me):
+        return render_template("acceso_denegado.html", me=me), 403
+
+    seguimiento = obtener_seguimiento("cita", cita_id, "cita")
+    if not seguimiento:
+        flash("La cita no tiene seguimiento programado.", "error")
+        return redirect(url_for("citas.citas_lista"))
+
+    sent_ok, sent_error = enviar_seguimiento_ahora(seguimiento.id)
+    if not sent_ok:
+        flash(sent_error or "No fue posible enviar el seguimiento.", "error")
+        return redirect(url_for("citas.citas_lista"))
+
+    db.session.commit()
+    flash("Seguimiento enviado correctamente por correo.", "success")
+    return redirect(url_for("citas.citas_lista"))
+
+
+@citas_bp.route("/citas/nueva", methods=["GET", "POST"])
+def citas_nueva():
+    r = _requiere_inicio_sesion_o_redirige()
+    if r:
+        return r
+
+    me = _obtener_usuario_o_cerrar_sesion()
+    if not me:
+        return _redirigir_a_inicio_sesion()
+
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu005"):
+    if not _permitido(me, "hu005"):
         return render_template("acceso_denegado.html", me=me), 403
 
-    veterinarios = _get_usuarios_por_rol(ROLE_VETERINARIO)
-    clientes = _get_usuarios_por_rol(ROLE_CLIENTE)
-    mascotas = _get_mascotas_con_dueno_for_form(me)
+    veterinarios = _obtener_usuarios_por_rol(ROLE_VETERINARIO)
+    clientes = _obtener_usuarios_por_rol(ROLE_CLIENTE)
+    mascotas = _obtener_mascotas_con_dueno_para_formulario(me)
 
     if request.method == "GET":
-        form_data = _default_form_data()
-        form_data = _sync_form_client_from_pet(form_data, mascotas)
+        datos_formulario = _default_datos_formulario()
+        datos_formulario = _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas)
+        datos_formulario.update(_construir_datos_seguimiento_cita())
         return render_template(
             "cita_form.html",
             me=me,
             active_nav="citas",
             mode="create",
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
+            can_schedule_followup=usuario_puede_programar_seguimiento(me),
         )
-    errors, field_errors, payload = _validate_and_normalize_form(me, request.form)
-    form_data = {
+    errors, errores_campo, payload = _validar_y_normalizar_formulario(me, request.form)
+    datos_formulario = {
         "fecha_hora": request.form.get("fecha_hora") or "",
         "motivo": request.form.get("motivo") or "",
         "mascota_id": request.form.get("mascota_id") or "",
@@ -424,7 +579,21 @@ def citas_new():
         "cliente_nombre": "",
         "veterinario_id": request.form.get("veterinario_id") or "",
     }
-    form_data = _sync_form_client_from_pet(form_data, mascotas)
+    datos_formulario.update(_construir_datos_seguimiento_cita(request.form))
+    datos_formulario = _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas)
+
+    seguimiento_cita = _construir_datos_seguimiento_cita(request.form)
+    if usuario_puede_programar_seguimiento(me):
+        seguimiento_result = validar_programacion_seguimiento(
+            requiere=seguimiento_cita["cita_requiere_seguimiento"],
+            programado_para_raw=seguimiento_cita["cita_seguimiento_programado_para"],
+            veterinario=payload.get("veterinario"),
+            errores_campo=errores_campo,
+            error_field="cita_seguimiento_programado_para",
+        )
+        errors = list(errores_campo.values())
+    else:
+        seguimiento_result = {"requiere": False, "programado_para": None}
 
     if errors:
         return render_template(
@@ -432,11 +601,12 @@ def citas_new():
             me=me,
             active_nav="citas",
             mode="create",
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
+            can_schedule_followup=usuario_puede_programar_seguimiento(me),
         )
     cita = Cita(
         fecha_hora=payload["fecha_hora"],
@@ -448,73 +618,87 @@ def citas_new():
         cancelada=False,
     )
     db.session.add(cita)
+    db.session.flush()
+    if seguimiento_result["requiere"]:
+        guardar_seguimiento(
+            origen_tipo="cita",
+            origen_id=cita.id,
+            evento_tipo="cita",
+            mascota_id=payload["mascota_id"],
+            veterinario_id=payload["veterinario_id"],
+            programado_para=seguimiento_result["programado_para"],
+            descripcion=f"Seguimiento de cita para {payload['motivo'][:120]}",
+        )
     db.session.commit()
 
     flash("Cita creada correctamente.", "success")
-    return redirect(url_for("citas.citas_index"))
+    return redirect(url_for("citas.citas_lista"))
 
 
 @citas_bp.route("/citas/<int:cita_id>/editar", methods=["GET", "POST"])
-def citas_edit(cita_id: int):
-    r = _require_login_or_redirect()
+def citas_editar(cita_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu006"):
+    if not _permitido(me, "hu006"):
         return render_template("acceso_denegado.html", me=me), 403
 
     cita = db.session.get(Cita, cita_id)
     if not cita:
         flash("La cita no existe.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return redirect(url_for("citas.citas_lista"))
 
-    if not _user_can_touch_cita(me, cita):
+    if not _usuario_puede_modificar_cita(me, cita):
         return render_template("acceso_denegado.html", me=me), 403
 
     if cita.cancelada or cita.estado == "cancelada":
         flash("No se puede modificar una cita cancelada.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return redirect(url_for("citas.citas_lista"))
 
-    if not _is_future_datetime(cita.fecha_hora):
+    if not _es_fecha_hora_futura(cita.fecha_hora):
         flash("Solo se pueden modificar citas futuras.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return redirect(url_for("citas.citas_lista"))
 
-    veterinarios = _get_usuarios_por_rol(ROLE_VETERINARIO)
-    clientes = _get_usuarios_por_rol(ROLE_CLIENTE)
-    mascotas = _get_mascotas_con_dueno_for_form(me)
+    veterinarios = _obtener_usuarios_por_rol(ROLE_VETERINARIO)
+    clientes = _obtener_usuarios_por_rol(ROLE_CLIENTE)
+    mascotas = _obtener_mascotas_con_dueno_para_formulario(me)
 
     if request.method == "GET":
-        form_data = {
-            "fecha_hora": _datetime_to_local_input(cita.fecha_hora),
+        seguimiento_cita = obtener_seguimiento("cita", cita.id, "cita")
+        datos_formulario = {
+            "fecha_hora": _fecha_hora_a_entrada_local(cita.fecha_hora),
             "motivo": cita.motivo or "",
             "mascota_id": str(cita.mascota_id),
             "cliente_id": str(cita.cliente_id),
             "cliente_nombre": "",
             "veterinario_id": str(cita.veterinario_id),
         }
-        form_data = _sync_form_client_from_pet(form_data, mascotas)
+        datos_formulario.update(_construir_datos_seguimiento_cita(seguimiento=seguimiento_cita))
+        datos_formulario = _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas)
         return render_template(
             "cita_form.html",
             me=me,
             active_nav="citas",
             mode="edit",
             cita_id=cita.id,
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
+            can_schedule_followup=usuario_puede_programar_seguimiento(me),
         )
-    errors, field_errors, payload = _validate_and_normalize_form(me, request.form, editing_cita_id=cita.id)
-    form_data = {
+    errors, errores_campo, payload = _validar_y_normalizar_formulario(me, request.form, editing_cita_id=cita.id)
+    datos_formulario = {
         "fecha_hora": request.form.get("fecha_hora") or "",
         "motivo": request.form.get("motivo") or "",
         "mascota_id": request.form.get("mascota_id") or "",
@@ -522,7 +706,21 @@ def citas_edit(cita_id: int):
         "cliente_nombre": "",
         "veterinario_id": request.form.get("veterinario_id") or "",
     }
-    form_data = _sync_form_client_from_pet(form_data, mascotas)
+    datos_formulario.update(_construir_datos_seguimiento_cita(request.form))
+    datos_formulario = _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas)
+
+    seguimiento_cita = _construir_datos_seguimiento_cita(request.form)
+    if usuario_puede_programar_seguimiento(me):
+        seguimiento_result = validar_programacion_seguimiento(
+            requiere=seguimiento_cita["cita_requiere_seguimiento"],
+            programado_para_raw=seguimiento_cita["cita_seguimiento_programado_para"],
+            veterinario=payload.get("veterinario"),
+            errores_campo=errores_campo,
+            error_field="cita_seguimiento_programado_para",
+        )
+        errors = list(errores_campo.values())
+    else:
+        seguimiento_result = {"requiere": False, "programado_para": None}
 
     if errors:
         return render_template(
@@ -531,11 +729,12 @@ def citas_edit(cita_id: int):
             active_nav="citas",
             mode="edit",
             cita_id=cita.id,
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             veterinarios=veterinarios,
             clientes=clientes,
             mascotas=mascotas,
+            can_schedule_followup=usuario_puede_programar_seguimiento(me),
         )
 
     cita.fecha_hora = payload["fecha_hora"]
@@ -548,93 +747,115 @@ def citas_edit(cita_id: int):
         cita.estado = "pendiente"
         cita.cancelada = False
 
+    if seguimiento_result["requiere"]:
+        guardar_seguimiento(
+            origen_tipo="cita",
+            origen_id=cita.id,
+            evento_tipo="cita",
+            mascota_id=payload["mascota_id"],
+            veterinario_id=payload["veterinario_id"],
+            programado_para=seguimiento_result["programado_para"],
+            descripcion=f"Seguimiento de cita para {payload['motivo'][:120]}",
+        )
+    else:
+        eliminar_seguimiento(origen_tipo="cita", origen_id=cita.id, evento_tipo="cita")
+
     db.session.commit()
     flash("Cita modificada correctamente.", "success")
-    return redirect(url_for("citas.citas_index"))
+    return redirect(url_for("citas.citas_lista"))
 
 
 @citas_bp.post("/citas/<int:cita_id>/cancelar")
-def citas_cancel(cita_id: int):
-    r = _require_login_or_redirect()
+def citas_cancelar(cita_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
-    if client_redirect:
-        return client_redirect
-
-    if not _allowed(me, "hu006"):
+    if not _permitido(me, "hu006"):
         return render_template("acceso_denegado.html", me=me), 403
 
     cita = db.session.get(Cita, cita_id)
     if not cita:
         flash("La cita no existe.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return redirect(url_for("citas.citas_lista"))
 
-    if not _user_can_touch_cita(me, cita):
+    if not _usuario_puede_modificar_cita(me, cita):
         return render_template("acceso_denegado.html", me=me), 403
 
-    if not _is_future_datetime(cita.fecha_hora):
+    if not _es_fecha_hora_futura(cita.fecha_hora):
         flash("Solo se pueden cancelar citas futuras.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return redirect(url_for("citas.citas_lista"))
 
     cita.estado = "cancelada"
     cita.cancelada = True
     db.session.commit()
 
     flash("Cita cancelada correctamente.", "success")
-    return redirect(url_for("citas.citas_index"))
+    if _nombre_rol(me) == ROLE_CLIENTE:
+        return redirect(url_for("clientes.clientes_portal"))
+    return redirect(url_for("citas.citas_lista"))
 
 
 @citas_bp.post("/citas/<int:cita_id>/recordatorio")
-def citas_schedule_reminder(cita_id: int):
-    r = _require_login_or_redirect()
+def citas_programar_recordatorio(cita_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
-    if client_redirect:
-        return client_redirect
-
-    if not _allowed(me, "hu008"):
+    if not _permitido(me, "hu008"):
         return render_template("acceso_denegado.html", me=me), 403
 
     cita = db.session.get(Cita, cita_id)
     if not cita:
         flash("La cita no existe.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return _redirigir_despues_recordatorio(me)
+
+    if not _usuario_puede_modificar_cita(me, cita):
+        return render_template("acceso_denegado.html", me=me), 403
 
     if cita.cancelada or cita.estado == "cancelada":
         flash("No se puede programar un recordatorio para una cita cancelada.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return _redirigir_despues_recordatorio(me)
 
-    if not _is_future_datetime(cita.fecha_hora):
+    if not _es_fecha_hora_futura(cita.fecha_hora):
         flash("Solo se pueden programar recordatorios para citas futuras.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return _redirigir_despues_recordatorio(me)
 
-    anticipacion_horas = _parse_int(request.form.get("anticipacion_horas"))
-    if anticipacion_horas not in REMINDER_OFFSET_OPTIONS:
-        flash("Debes seleccionar una anticipación válida para el recordatorio.", "error")
-        return redirect(url_for("citas.citas_index"))
+    anticipacion_raw = (request.form.get("anticipacion_horas") or "").strip()
+    if anticipacion_raw == REMINDER_DEMO_OPTION:
+        if _nombre_rol(me) != ROLE_CLIENTE:
+            flash("La opción de demostración solo está disponible para clientes.", "error")
+            return _redirigir_despues_recordatorio(me)
+        anticipacion_horas = 0
+        programado_para = datetime.now() + timedelta(seconds=10)
+    else:
+        anticipacion_horas = _parsear_entero(anticipacion_raw)
+        if anticipacion_horas not in REMINDER_OFFSET_OPTIONS:
+            flash("Debes seleccionar una anticipación válida para el recordatorio.", "error")
+            return _redirigir_despues_recordatorio(me)
 
-    programado_para = cita.fecha_hora - timedelta(hours=anticipacion_horas)
-    if programado_para <= datetime.now():
-        flash("La anticipación elegida ya no es válida para esta cita. Selecciona una opción menor.", "error")
-        return redirect(url_for("citas.citas_index"))
+        programado_para = cita.fecha_hora - timedelta(hours=anticipacion_horas)
+        if programado_para <= datetime.now():
+            flash("La anticipación elegida ya no es válida para esta cita. Selecciona una opción menor.", "error")
+            return _redirigir_despues_recordatorio(me)
 
     # Verificamos que el cliente tenga un correo disponible para el recordatorio.
     cliente = db.session.get(Usuario, cita.cliente_id)
+    veterinario = db.session.get(Usuario, cita.veterinario_id)
     if not cliente or not (cliente.correo or "").strip():
         flash("No se puede programar: el cliente no tiene correo registrado.", "error")
-        return redirect(url_for("citas.citas_index"))
+        return _redirigir_despues_recordatorio(me)
+    if not veterinario or not (veterinario.correo or "").strip():
+        flash("No se puede programar: el veterinario no tiene correo registrado.", "error")
+        return _redirigir_despues_recordatorio(me)
 
     # Buscamos o creamos el registro que controlará el estado del recordatorio.
     reminder = db.session.query(RecordatorioCita).filter(RecordatorioCita.cita_id == cita.id).first()
@@ -653,24 +874,24 @@ def citas_schedule_reminder(cita_id: int):
 
     flash(
         f"Recordatorio programado correctamente para {programado_para.strftime('%Y-%m-%d %H:%M')} "
-        f"({anticipacion_horas} horas antes).",
+        f"({_descripcion_recordatorio(reminder)}).",
         "success",
     )
-    return redirect(url_for("citas.citas_index"))
+    return _redirigir_despues_recordatorio(me)
 
 
-def _daily_slots(target_date: date):
+def _bloques_diarios(target_date: date):
     slots = []
     for hour in range(9, 19):
         slots.append(datetime.combine(target_date, time(hour=hour, minute=0)))
     return slots
 
 
-def _slot_label(dt: datetime) -> str:
+def _etiqueta_bloque(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
-def _next_available_suggestions(veterinario_id: int, base_dt: datetime, count: int = 5):
+def _siguientes_sugerencias_disponibles(veterinario_id: int, base_dt: datetime, count: int = 5):
     suggestions = []
     cursor_date = base_dt.date()
 
@@ -679,10 +900,10 @@ def _next_available_suggestions(veterinario_id: int, base_dt: datetime, count: i
         if day < date.today():
             continue
 
-        for slot in _daily_slots(day):
+        for slot in _bloques_diarios(day):
             if slot <= datetime.now():
                 continue
-            if _is_veterinario_disponible(veterinario_id, slot):
+            if _es_veterinario_disponible(veterinario_id, slot):
                 suggestions.append(slot)
             if len(suggestions) >= count:
                 return suggestions
@@ -692,29 +913,29 @@ def _next_available_suggestions(veterinario_id: int, base_dt: datetime, count: i
 
 @citas_bp.route("/citas/disponibilidad", methods=["GET", "POST"])
 def citas_disponibilidad():
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu009"):
+    if not _permitido(me, "hu009"):
         return render_template("acceso_denegado.html", me=me), 403
 
-    veterinarios = _get_usuarios_por_rol(ROLE_VETERINARIO)
+    veterinarios = _obtener_usuarios_por_rol(ROLE_VETERINARIO)
     result = None
-    form_data = {"veterinario_id": "", "fecha": ""}
+    datos_formulario = {"veterinario_id": "", "fecha": ""}
 
     if request.method == "POST":
-        veterinario_id = _parse_int(request.form.get("veterinario_id"))
-        fecha = _parse_date(request.form.get("fecha") or "")
-        form_data = {
+        veterinario_id = _parsear_entero(request.form.get("veterinario_id"))
+        fecha = _parsear_fecha(request.form.get("fecha") or "")
+        datos_formulario = {
             "veterinario_id": str(veterinario_id or ""),
             "fecha": request.form.get("fecha") or "",
         }
@@ -744,7 +965,7 @@ def citas_disponibilidad():
             for e in errors:
                 flash(e, "error")
         else:
-            slots = _daily_slots(fecha)
+            slots = _bloques_diarios(fecha)
             ocupados = {
                 row[0]
                 for row in db.session.query(Cita.fecha_hora)
@@ -752,7 +973,7 @@ def citas_disponibilidad():
                     Cita.veterinario_id == veterinario_id,
                     Cita.fecha_hora >= datetime.combine(fecha, time.min),
                     Cita.fecha_hora <= datetime.combine(fecha, time.max),
-                    _not_canceled_clause(),
+                    _condicion_no_cancelada(),
                 )
                 .all()
             }
@@ -763,13 +984,13 @@ def citas_disponibilidad():
             if disponible:
                 sugerencias = libres[:5]
             else:
-                sugerencias = _next_available_suggestions(veterinario_id, datetime.combine(fecha, time.min), count=5)
+                sugerencias = _siguientes_sugerencias_disponibles(veterinario_id, datetime.combine(fecha, time.min), count=5)
 
             result = {
                 "disponible": disponible,
                 "veterinario": vet,
                 "fecha": fecha,
-                "sugerencias": [_slot_label(s) for s in sugerencias],
+                "sugerencias": [_etiqueta_bloque(s) for s in sugerencias],
             }
 
     return render_template(
@@ -777,57 +998,57 @@ def citas_disponibilidad():
         me=me,
         active_nav="citas",
         veterinarios=veterinarios,
-        form_data=form_data,
+        datos_formulario=datos_formulario,
         result=result,
     )
 
 
 @citas_bp.route("/citas/reasignar", methods=["GET", "POST"])
 def citas_reasignar():
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu010"):
+    if not _permitido(me, "hu010"):
         return render_template("acceso_denegado.html", me=me), 403
 
-    veterinarios = _get_usuarios_por_rol(ROLE_VETERINARIO)
+    veterinarios = _obtener_usuarios_por_rol(ROLE_VETERINARIO)
     citas_q = (
         db.session.query(Cita)
-        .filter(Cita.fecha_hora > datetime.now(), _not_canceled_clause())
+        .filter(Cita.fecha_hora > datetime.now(), _condicion_no_cancelada())
         .order_by(Cita.fecha_hora.asc())
     )
-    if _role_name(me) == ROLE_CLIENTE:
-        me_id = _parse_int(me.get("id"))
+    if _nombre_rol(me) == ROLE_CLIENTE:
+        me_id = _parsear_entero(me.get("id"))
         if me_id is not None:
             citas_q = citas_q.filter(Cita.cliente_id == me_id)
     citas_futuras = citas_q.all()
 
-    form_data = {
+    datos_formulario = {
         "fecha": "",
         "cita_id": "",
         "veterinario_original_id": "",
         "veterinario_nuevo_id": "",
         "motivo_ausencia": "",
     }
-    field_errors = {}
+    errores_campo = {}
 
     if request.method == "POST":
-        fecha = _parse_date(request.form.get("fecha") or "")
-        cita_id = _parse_int(request.form.get("cita_id"))
-        veterinario_original_id = _parse_int(request.form.get("veterinario_original_id"))
-        veterinario_nuevo_id = _parse_int(request.form.get("veterinario_nuevo_id"))
+        fecha = _parsear_fecha(request.form.get("fecha") or "")
+        cita_id = _parsear_entero(request.form.get("cita_id"))
+        veterinario_original_id = _parsear_entero(request.form.get("veterinario_original_id"))
+        veterinario_nuevo_id = _parsear_entero(request.form.get("veterinario_nuevo_id"))
         motivo_ausencia = (request.form.get("motivo_ausencia") or "").strip().lower()
 
-        form_data = {
+        datos_formulario = {
             "fecha": request.form.get("fecha") or "",
             "cita_id": str(cita_id or ""),
             "veterinario_original_id": str(veterinario_original_id or ""),
@@ -838,39 +1059,39 @@ def citas_reasignar():
         errors = []
 
         if not fecha:
-            field_errors["fecha"] = "Debes seleccionar la fecha de la cita."
+            errores_campo["fecha"] = "Debes seleccionar la fecha de la cita."
         elif fecha <= date.today():
-            field_errors["fecha"] = "La fecha debe ser futura."
+            errores_campo["fecha"] = "La fecha debe ser futura."
         if not motivo_ausencia:
-            field_errors["motivo_ausencia"] = "Debes seleccionar un motivo de ausencia."
+            errores_campo["motivo_ausencia"] = "Debes seleccionar un motivo de ausencia."
         elif motivo_ausencia not in ABSENCE_REASON_OPTIONS:
-            field_errors["motivo_ausencia"] = "El motivo de ausencia seleccionado no es válido."
+            errores_campo["motivo_ausencia"] = "El motivo de ausencia seleccionado no es válido."
 
         cita = db.session.get(Cita, cita_id) if cita_id else None
         if not cita:
-            field_errors["cita_id"] = "Debes seleccionar la cita por reasignar."
+            errores_campo["cita_id"] = "Debes seleccionar la cita por reasignar."
         else:
-            if not _user_can_touch_cita(me, cita):
+            if not _usuario_puede_modificar_cita(me, cita):
                 errors.append("No tienes permisos para reasignar esa cita.")
             if cita.cancelada or cita.estado == "cancelada":
                 errors.append("La cita seleccionada está cancelada.")
-            if not _is_future_datetime(cita.fecha_hora):
+            if not _es_fecha_hora_futura(cita.fecha_hora):
                 errors.append("Solo se pueden reasignar citas futuras.")
             if fecha and cita.fecha_hora.date() != fecha:
-                field_errors["cita_id"] = "La fecha indicada no coincide con la fecha de la cita seleccionada."
+                errores_campo["cita_id"] = "La fecha indicada no coincide con la fecha de la cita seleccionada."
 
         if not veterinario_original_id:
-            field_errors["veterinario_original_id"] = "Debes seleccionar el veterinario original."
+            errores_campo["veterinario_original_id"] = "Debes seleccionar el veterinario original."
         if not veterinario_nuevo_id:
-            field_errors["veterinario_nuevo_id"] = "Debes seleccionar el veterinario nuevo."
+            errores_campo["veterinario_nuevo_id"] = "Debes seleccionar el veterinario nuevo."
         if veterinario_original_id and veterinario_nuevo_id and veterinario_original_id == veterinario_nuevo_id:
-            field_errors["veterinario_nuevo_id"] = "El veterinario nuevo debe ser diferente al veterinario original."
+            errores_campo["veterinario_nuevo_id"] = "El veterinario nuevo debe ser diferente al veterinario original."
 
         if cita and veterinario_original_id and cita.veterinario_id != veterinario_original_id:
-            field_errors["veterinario_original_id"] = "La cita no corresponde al veterinario original seleccionado."
+            errores_campo["veterinario_original_id"] = "La cita no corresponde al veterinario original seleccionado."
 
-        if cita and veterinario_nuevo_id and not _is_veterinario_disponible(veterinario_nuevo_id, cita.fecha_hora, exclude_cita_id=cita.id):
-            field_errors["veterinario_nuevo_id"] = "El veterinario nuevo no está disponible en la fecha/hora de la cita."
+        if cita and veterinario_nuevo_id and not _es_veterinario_disponible(veterinario_nuevo_id, cita.fecha_hora, exclude_cita_id=cita.id):
+            errores_campo["veterinario_nuevo_id"] = "El veterinario nuevo no está disponible en la fecha/hora de la cita."
 
         filtered_q = citas_q
         if fecha:
@@ -882,7 +1103,7 @@ def citas_reasignar():
             filtered_q = filtered_q.filter(Cita.veterinario_id == veterinario_original_id)
         citas_futuras = filtered_q.all()
 
-        errors.extend(field_errors.values())
+        errors.extend(errores_campo.values())
         if errors:
             for e in errors:
                 flash(e, "error")
@@ -898,7 +1119,7 @@ def citas_reasignar():
                 f"{(vet_nuevo.nombre if vet_nuevo else 'Veterinario nuevo')}.",
                 "success",
             )
-            return redirect(url_for("citas.citas_index"))
+            return redirect(url_for("citas.citas_lista"))
 
     return render_template(
         "citas_reasignar.html",
@@ -906,7 +1127,7 @@ def citas_reasignar():
         active_nav="citas",
         veterinarios=veterinarios,
         citas_futuras=citas_futuras,
-        form_data=form_data,
-        field_errors=field_errors,
+        datos_formulario=datos_formulario,
+        errores_campo=errores_campo,
         absence_reason_options=ABSENCE_REASON_OPTIONS,
     )

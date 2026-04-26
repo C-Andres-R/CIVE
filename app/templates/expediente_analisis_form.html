@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar análisis{% else %}Registrar análisis{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == 'edit' %}Editar análisis clínico{% else %}Registrar análisis clínico{% endif %}</div>
+  <div class="section-subtitle">{{ mascota.nombre }}</div>
+</div>
+
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <form class="usuario-form" method="POST" enctype="multipart/form-data" novalidate>
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha de análisis *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha_analisis" value="{{ datos_formulario.fecha_analisis }}">
+        </div>
+        <small class="field-error">{{ errores_campo.fecha_analisis or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_id">
+            <option value="">Seleccione veterinario</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Tipo de análisis *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="tipo_analisis">
+            <option value="">Seleccione tipo de análisis</option>
+            {% for tipo in tipos_analisis %}
+            <option value="{{ tipo }}" {% if datos_formulario.tipo_analisis == tipo %}selected{% endif %}>{{ tipo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.tipo_analisis or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Resultados *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="resultados">{{ datos_formulario.resultados }}</textarea>
+        </div>
+        <small class="field-error">{{ errores_campo.resultados or "" }}</small>
+      </div>
+
+      {% if (me.rol or '')|lower == 'administrador' %}
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Precio *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="number" min="0" step="0.01" name="precio" value="{{ datos_formulario.precio }}">
+        </div>
+        <small class="field-error">{{ errores_campo.precio or "" }}</small>
+      </div>
+      {% endif %}
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Documento adjunto</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="file" name="archivo_adjunto" accept=".pdf,.png,.jpg,.jpeg">
+        </div>
+        <small class="field-error">{{ errores_campo.archivo_adjunto or "" }}</small>
+        {% if datos_formulario.nombre_archivo %}
+        <small class="field-note">Archivo actual: {{ datos_formulario.nombre_archivo }}</small>
+        {% else %}
+        <small class="field-note">Formatos permitidos: PDF, PNG, JPG y JPEG. Máximo 2MB.</small>
+        {% endif %}
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Notas del adjunto</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="documentos_adjuntos">{{ datos_formulario.documentos_adjuntos }}</textarea>
+        </div>
+      </div>
+
+      {% if can_schedule_followup %}
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="analisis_requiere_seguimiento" {% if datos_formulario.analisis_requiere_seguimiento %}checked{% endif %}>
+          ¿Este análisis requiere seguimiento?
+        </label>
+      </div>
+
+      <div class="usuario-form-row analisis-followup-wrap">
+        <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="datetime-local" name="analisis_seguimiento_programado_para" value="{{ datos_formulario.analisis_seguimiento_programado_para }}">
+        </div>
+        <small class="field-error">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
+      </div>
+      {% endif %}
+
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  (() => {
+    const check = document.querySelector('input[name="analisis_requiere_seguimiento"]');
+    const wrap = document.querySelector('.analisis-followup-wrap');
+    if (!check || !wrap) return;
+
+    const syncUi = () => {
+      wrap.classList.toggle('hidden', !check.checked);
+    };
+
+    check.addEventListener('change', syncUi);
+    syncUi();
+  })();
+</script>
+{% endblock %}

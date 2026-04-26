@@ -5,11 +5,12 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Mascotas asociadas</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Mascotas asociadas</div>
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
@@ -20,7 +21,7 @@
     <p><strong>Teléfono:</strong> {{ client.telefono or '-' }}</p>
   </div>
 
-  <div class="table-container table-container--card">
+  <div class="table-container table-container--card cliente-mascotas-table">
     <table class="table">
       <thead>
         <tr>
@@ -28,6 +29,7 @@
           <th>Especie</th>
           <th>Raza</th>
           <th>Estado</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -43,14 +45,151 @@
             <span class="estado-cancelada">Inactiva</span>
             {% endif %}
           </td>
+          <td>
+            <details class="actions-dropdown">
+              <summary class="resumen-acciones">
+                <div class="more-icon"></div>
+              </summary>
+              <div class="actions-menu">
+                <a class="actions-item" href="{{ url_for('mascotas.mascotas_historial', mascota_id=pet.id) }}">Historial completo</a>
+                <button
+                  class="actions-item js-media-preview"
+                  type="button"
+                  data-mascota-nombre="{{ pet.nombre }}"
+                  data-photo-path="{{ foto_previews.get(pet.id, {}).get('path', '') }}"
+                  data-photo-name="{{ foto_previews.get(pet.id, {}).get('name', '') }}"
+                >
+                  Multimedia
+                </button>
+              </div>
+            </details>
+          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="4">El cliente no tiene mascotas asociadas.</td>
+          <td colspan="5">El cliente no tiene mascotas asociadas.</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+<div class="media-modal hidden" id="media-preview-modal" aria-hidden="true">
+  <div class="media-modal__backdrop"></div>
+  <div class="media-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="media-preview-title">
+    <div class="media-modal__head">
+      <h3 id="media-preview-title">Foto</h3>
+      <button class="media-modal__close" type="button" aria-label="Cerrar vista previa">Cerrar</button>
+    </div>
+    <div class="media-modal__body">
+      <img class="media-modal__image hidden" alt="">
+      <p class="media-modal__empty hidden">Esta mascota no tiene una foto registrada.</p>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    const menus = Array.from(document.querySelectorAll('.actions-dropdown'));
+    if (!menus.length) return;
+
+    const closeAll = () => {
+      menus.forEach((menu) => {
+        menu.open = false;
+      });
+    };
+
+    menus.forEach((menu) => {
+      const summary = menu.querySelector('.resumen-acciones');
+      const links = menu.querySelectorAll('.actions-menu a');
+      const previewButtons = menu.querySelectorAll('.actions-menu .js-media-preview');
+
+      if (summary) {
+        summary.addEventListener('click', (event) => {
+          // Función de cierre del menú.
+          event.preventDefault();
+          const willOpen = !menu.open;
+          closeAll();
+          if (willOpen) {
+            menu.open = true;
+          }
+        });
+      }
+
+      links.forEach((link) => {
+        link.addEventListener('click', () => {
+          // Función de cierre del menú.
+          menu.open = false;
+        });
+      });
+
+      previewButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          // Función de cierre del menú.
+          menu.open = false;
+        });
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.actions-dropdown')) return;
+      closeAll();
+    });
+  })();
+
+  (() => {
+    const modal = document.getElementById('media-preview-modal');
+    if (!modal) return;
+
+    const image = modal.querySelector('.media-modal__image');
+    const empty = modal.querySelector('.media-modal__empty');
+    const title = modal.querySelector('#media-preview-title');
+    const closeButton = modal.querySelector('.media-modal__close');
+    const backdrop = modal.querySelector('.media-modal__backdrop');
+    const previewButtons = document.querySelectorAll('.js-media-preview');
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+      image.classList.add('hidden');
+      empty.classList.add('hidden');
+      image.removeAttribute('src');
+      image.setAttribute('alt', '');
+    };
+
+    const openModal = (button) => {
+      const mascotaNombre = button.dataset.mascotaNombre || 'Mascota';
+      const photoPath = button.dataset.photoPath || '';
+      const photoName = button.dataset.photoName || mascotaNombre;
+
+      title.textContent = `Foto de ${mascotaNombre}`;
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+
+      if (photoPath) {
+        image.src = `/static/${photoPath}`;
+        image.alt = photoName;
+        image.classList.remove('hidden');
+        empty.classList.add('hidden');
+      } else {
+        image.classList.add('hidden');
+        empty.classList.remove('hidden');
+      }
+    };
+
+    previewButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        // Función de vista previa multimedia.
+        openModal(button);
+      });
+    });
+
+    closeButton.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    });
+  })();
+</script>
 {% endblock %}

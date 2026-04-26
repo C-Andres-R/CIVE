@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Expedientes | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Expedientes médicos</div>
+  <div class="section-subtitle">Consulta el historial clínico completo por mascota.</div>
+
+  {% if can_manage_inventory %}
+  <div class="citas-tools">
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.inventario_lista') }}">Inventario clínico</a>
+  </div>
+  {% endif %}
+
+  <form class="filters" method="get" action="{{ url_for('expedientes.expedientes_lista') }}">
+    <div class="campo-filtro">
+      <label>Buscar</label>
+      <input class="usuario-input" type="text" name="q" value="{{ filters.q }}" placeholder="Mascota, raza o dueño">
+    </div>
+
+    <div class="campo-filtro">
+      <label>Estado</label>
+      <select name="estado">
+        <option value="">Todos</option>
+        <option value="activa" {% if filters.estado == 'activa' %}selected{% endif %}>Activa</option>
+        <option value="inactiva" {% if filters.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
+      </select>
+    </div>
+
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Filtrar</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('expedientes.expedientes_lista') }}">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Mascota</th>
+        <th>Dueño</th>
+        <th>Estado</th>
+        <th>Consultas</th>
+        <th>Vacunas/Alergias</th>
+        <th>Análisis</th>
+        <th>Última consulta</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mascota, dueno_nombre, dueno_activo in mascotas_rows %}
+      <tr>
+        <td>
+          <strong>{{ mascota.nombre }}</strong><br>
+          <span class="subtext">{{ mascota.especie|capitalize }} / {{ mascota.raza or '-' }}</span>
+        </td>
+        <td>
+          {{ dueno_nombre }}
+          {% if not dueno_activo %}
+          <span class="badge">Dueño inactivo</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if mascota.estado == 'activa' %}
+          <span class="estado-activo">Activa</span>
+          {% else %}
+          <span class="estado-cancelada">Inactiva</span>
+          {% endif %}
+        </td>
+        <td>{{ consultas_summary.get(mascota.id, 0) }}</td>
+        <td>{{ vacunas_summary.get(mascota.id, 0) }}</td>
+        <td>{{ analisis_summary.get(mascota.id, 0) }}</td>
+        <td>{{ ultimas_consultas.get(mascota.id).strftime('%Y-%m-%d') if ultimas_consultas.get(mascota.id) else '-' }}</td>
+        <td>
+          <a class="cive-btn cive-btn--action" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Ver expediente</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">No hay expedientes disponibles con esos filtros.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

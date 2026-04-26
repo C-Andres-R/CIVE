@@ -43,7 +43,7 @@ def validate_password(password: str, *, correo: str = "", nombre: str = "") -> l
         # Revisamos si la contraseña incluye partes reconocibles del nombre.
         name_tokens = re.findall(r"[a-z0-9]+", nombre_l)
         if any(len(token) >= 3 and token in pwd_norm for token in name_tokens):
-            errors.append("La contraseña no debe contener el nombre del usuario.")
+            errors.append("Por seguridad, tu contraseña no puede contener tu nombre.")
 
     return errors
 

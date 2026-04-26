@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Datos | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datos.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+{% if dashboard %}
+<script>
+  window.datosDashboard = {
+    monitorUrl: "{{ url_for('datos.datos_monitor') }}"
+  };
+</script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/datos_dashboard.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Análisis y visualización de datos</div>
+  <div class="section-subtitle">Panel ejecutivo para revisar tendencias, volumen operativo y proyección simple de citas.</div>
+</div>
+
+<div class="datos-stack">
+  <form class="filters filters--overlay-errors" method="get" action="{{ url_for('datos.datos_dashboard') }}" novalidate data-datos-filter="date-range">
+    <div class="campo-filtro">
+      <label>Fecha inicial</label>
+      <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}">
+      <small class="field-error" data-field-error="fecha_inicio">{{ errores_campo.fecha_inicio or "" }}</small>
+    </div>
+    <div class="campo-filtro">
+      <label>Fecha final</label>
+      <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}">
+      <small class="field-error" data-field-error="fecha_fin">{{ errores_campo.fecha_fin or "" }}</small>
+    </div>
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Actualizar panel</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('datos.datos_dashboard') }}">Restablecer</a>
+    </div>
+  </form>
+
+  {% if dashboard %}
+  <section class="datos-hero">
+    <div class="datos-hero__copy">
+      <span class="datos-eyebrow">Panel rápido</span>
+      <h2>Resumen del periodo seleccionado</h2>
+      <p>Vista inicial para seguimiento administrativo con indicadores de operación, servicios y comportamiento de citas.</p>
+    </div>
+    <div class="datos-kpis">
+      <article class="datos-kpi">
+        <span>Citas registradas</span>
+        <strong>{{ dashboard.quick_stats.citas_total }}</strong>
+      </article>
+      <article class="datos-kpi">
+        <span>Consultas generales</span>
+        <strong>{{ dashboard.quick_stats.consultas_total }}</strong>
+      </article>
+      <article class="datos-kpi">
+        <span>Vacunas aplicadas</span>
+        <strong>{{ dashboard.quick_stats.vacunas_total }}</strong>
+      </article>
+      <article class="datos-kpi">
+        <span>Análisis clínicos</span>
+        <strong>{{ dashboard.quick_stats.analisis_total }}</strong>
+      </article>
+      <article class="datos-kpi datos-kpi--accent">
+        <span>Ingresos estimados</span>
+        <strong>{{ dashboard.quick_stats.ingresos_total }}</strong>
+      </article>
+    </div>
+  </section>
+
+  {% if dashboard.has_period_data %}
+  <section class="datos-grid">
+    <article class="datos-card">
+      <div class="datos-card__head">
+        <div>
+          <h3>Citas agendadas dentro del periodo</h3>
+        </div>
+      </div>
+      <div class="line-chart">
+        <div class="line-chart__y">
+          {% for tick in dashboard.frequency_chart.y_ticks %}
+          <span>{{ tick.label }}</span>
+          {% endfor %}
+        </div>
+        <div class="line-chart__plot">
+          <svg viewBox="0 0 100 220" preserveAspectRatio="none" aria-label="Citas agendadas dentro del periodo">
+            {% for tick in dashboard.frequency_chart.y_ticks %}
+            <line x1="0" y1="{{ tick.y }}" x2="100" y2="{{ tick.y }}" class="line-chart__grid"></line>
+            {% endfor %}
+            {% if dashboard.frequency_chart.polyline %}
+            <polyline points="{{ dashboard.frequency_chart.polyline }}" class="line-chart__polyline"></polyline>
+            {% for point in dashboard.frequency_chart.points %}
+            <circle cx="{{ point.x_pct }}" cy="{{ point.y }}" r="1.8" class="line-chart__dot"></circle>
+            {% endfor %}
+            {% endif %}
+          </svg>
+          <div class="line-chart__values" aria-hidden="true">
+            {% for point in dashboard.frequency_chart.points %}
+            {% if point.show_value %}
+            <span style="left: {{ point.x_pct }}%; bottom: {{ point.label_bottom }}px;">{{ point.value }}</span>
+            {% endif %}
+            {% endfor %}
+          </div>
+          <div class="line-chart__labels">
+            {% for point in dashboard.frequency_chart.points %}
+            <span class="{% if not point.show_label %}is-hidden{% endif %}">{% if point.show_label %}{{ point.label }}{% endif %}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="datos-card">
+      <div class="datos-card__head">
+        <div>
+          <h3>Servicios solicitados</h3>
+        </div>
+      </div>
+      <div class="bar-chart" aria-label="Servicios solicitados">
+        {% for bar in dashboard.services_chart.bars %}
+        <div class="bar-chart__item">
+          <div class="bar-chart__track">
+            <div class="bar-chart__fill" style="height: {{ bar.height_pct }}%"></div>
+          </div>
+          <strong>{{ bar.value }}</strong>
+          <span>{{ bar.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+  {% else %}
+  <section class="datos-empty">
+    <h3>Sin datos en el periodo seleccionado</h3>
+    <p>No se cuenta con datos suficientes en el período seleccionado para generar esta visualización.</p>
+  </section>
+  {% endif %}
+
+  <section class="datos-grid datos-grid--secondary">
+    <article class="datos-card">
+      <div class="datos-card__head">
+        <div>
+          <h3>Proyección de citas</h3>
+        </div>
+        <p>Estimación para el siguiente mes.</p>
+      </div>
+      {% if dashboard.prediction.ready %}
+      <div class="prediction-strip">
+        <div>
+          <span>Proyección mensual</span>
+          <strong>{{ dashboard.prediction.projected_total }} citas</strong>
+        </div>
+        <div>
+          <span>Promedio diario estimado</span>
+          <strong>{{ dashboard.prediction.daily_average }}</strong>
+        </div>
+        <div>
+          <span>Método</span>
+          <strong>{{ dashboard.prediction.method }}</strong>
+        </div>
+      </div>
+      <div class="prediction-bars">
+        {% for bar in dashboard.prediction.bars %}
+        <div class="prediction-bar">
+          <span class="prediction-bar__label">{{ bar.label }}</span>
+          <div class="prediction-bar__track">
+            <div class="prediction-bar__fill {% if bar.is_projected %}is-projected{% endif %}" style="height: {{ bar.height_pct }}%"></div>
+          </div>
+          <strong>{{ bar.value }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="prediction-footnote">{{ dashboard.prediction.history_window }}</p>
+      {% else %}
+      <div class="datos-empty datos-empty--inline">
+        <p>{{ dashboard.prediction.message }}</p>
+      </div>
+      {% endif %}
+    </article>
+
+    <article class="datos-card">
+      <div class="datos-card__head">
+        <div>
+          <h3>Monitoreo operativo</h3>
+        </div>
+        <p>Indicadores diarios.</p>
+      </div>
+      <div class="monitor-toolbar">
+        <button class="cive-btn cive-btn--tool" type="button" id="refreshMonitor">Actualizar ahora</button>
+        <small id="monitorTimestamp">Última actualización: {{ dashboard.monitoring.ultima_actualizacion }}</small>
+      </div>
+      <div class="monitor-kpis" id="monitorKpis">
+        <article class="monitor-kpi"><span>Citas del día</span><strong data-monitor="citas_hoy">{{ dashboard.monitoring.citas_hoy }}</strong></article>
+        <article class="monitor-kpi"><span>Consultas del día</span><strong data-monitor="consultas_hoy">{{ dashboard.monitoring.consultas_hoy }}</strong></article>
+        <article class="monitor-kpi"><span>Vacunas del día</span><strong data-monitor="vacunas_hoy">{{ dashboard.monitoring.vacunas_hoy }}</strong></article>
+        <article class="monitor-kpi"><span>Análisis del día</span><strong data-monitor="analisis_hoy">{{ dashboard.monitoring.analisis_hoy }}</strong></article>
+        <article class="monitor-kpi monitor-kpi--accent"><span>Ingresos del día</span><strong data-monitor="ingresos_hoy">{{ dashboard.monitoring.ingresos_hoy }}</strong></article>
+        <article class="monitor-kpi"><span>Ingresos mensuales</span><strong data-monitor="ingresos_mensuales">{{ dashboard.monitoring.ingresos_mensuales }}</strong></article>
+      </div>
+      <div class="table-container table-container--card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Veterinario</th>
+              <th>Consultas</th>
+              <th>Vacunas</th>
+              <th>Análisis</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="monitorRows">
+            {% if dashboard.monitoring.veterinarios %}
+              {% for row in dashboard.monitoring.veterinarios %}
+              <tr>
+                <td>{{ row.veterinario }}</td>
+                <td>{{ row.consultas }}</td>
+                <td>{{ row.vacunas }}</td>
+                <td>{{ row.analisis }}</td>
+                <td>{{ row.total }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5">Sin actividad registrada hoy.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

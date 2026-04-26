@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="encabezado-pagina">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   <div class="flash-wrap">
@@ -19,14 +19,17 @@
   {% endif %}
   {% endwith %}
 
-  <div class="page-title">Portal del cliente</div>
+  <div class="titulo-pagina">Portal del cliente</div>
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
 <div class="content-stack portal-stack">
-  <div class="detail-grid">
+  <div class="cuadricula-detalle">
     <div class="info-card">
-      <h3>Datos personales</h3>
+      <div class="section-card__head">
+        <h3>Datos personales</h3>
+        <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_portal_editar') }}">Editar datos</a>
+      </div>
       <p><strong>Nombre:</strong> {{ client.nombre }}</p>
       <p><strong>Correo:</strong> {{ client.correo }}</p>
       <p><strong>Teléfono:</strong> {{ client.telefono or '-' }}</p>
@@ -40,12 +43,19 @@
       <p><strong>Adeudo:</strong> ${{ '%.2f'|format(summary.total_adeudo) }}</p>
       <p><strong>Movimientos pendientes:</strong> {{ summary.pendientes }}</p>
     </div>
+
+    <div class="info-card">
+      <h3>Encuestas</h3>
+      <p><strong>Pendientes:</strong> {{ surveys_summary.pendientes }}</p>
+      <p><strong>Respondidas:</strong> {{ surveys_summary.respondidas }}</p>
+      <a class="cive-btn cive-btn--action" href="{{ url_for('encuestas.encuestas_home') }}">Ir a encuestas</a>
+    </div>
   </div>
 
   <div class="section-card">
     <div class="section-card__head">
       <h3>Mascotas asociadas</h3>
-      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_mascotas', client_id=client.id) }}">Ver detalle</a>
+      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_mascotas', cliente_id=client.id) }}">Ver detalle</a>
     </div>
     <div class="chips">
       {% for pet in pets %}
@@ -68,19 +78,71 @@
             <th>Mascota</th>
             <th>Motivo</th>
             <th>Estado</th>
+            <th>Recordatorio</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {% for cita, mascota_nombre in appointments %}
+          {% for cita, mascota_nombre, recordatorio_estado, recordatorio_confirmado, recordatorio_anticipacion_horas, recordatorio_programado_para in appointments %}
           <tr>
             <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
             <td>{{ mascota_nombre }}</td>
             <td>{{ cita.motivo or '-' }}</td>
             <td>{{ cita.estado|capitalize }}</td>
+            <td>
+              {% if recordatorio_estado %}
+              {{ recordatorio_estado|capitalize }}
+              {% if recordatorio_estado == 'programado' and recordatorio_anticipacion_horas %}
+              <br>
+              <small>{{ recordatorio_anticipacion_horas }} h antes{% if recordatorio_programado_para %} - {{ recordatorio_programado_para.strftime('%Y-%m-%d %H:%M') }}{% endif %}</small>
+              {% elif recordatorio_estado == 'programado' and recordatorio_anticipacion_horas == 0 %}
+              <br>
+              <small>Demo 10 segundos{% if recordatorio_programado_para %} - {{ recordatorio_programado_para.strftime('%Y-%m-%d %H:%M:%S') }}{% endif %}</small>
+              {% endif %}
+              {% if recordatorio_confirmado %}
+              (Confirmado)
+              {% endif %}
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td>
+              {% if cita.fecha_hora and cita.fecha_hora > now and not cita.cancelada and cita.estado != 'cancelada' %}
+              <div class="row-actions">
+                <form method="post" action="{{ url_for('citas.citas_cancelar', cita_id=cita.id) }}">
+                  <button class="cive-btn cive-btn--action" type="submit">Cancelar</button>
+                </form>
+                <div class="reminder-menu-wrap">
+                  <button class="cive-btn cive-btn--action js-reminder-toggle" type="button" data-target="portal-reminder-menu-{{ cita.id }}">
+                    Programar recordatorio
+                  </button>
+                  <div id="portal-reminder-menu-{{ cita.id }}" class="reminder-menu hidden">
+                    <form class="reminder-form" method="post" action="{{ url_for('citas.citas_programar_recordatorio', cita_id=cita.id) }}" novalidate>
+                      <label for="portal-anticipacion-{{ cita.id }}">Anticipación</label>
+                      <select id="portal-anticipacion-{{ cita.id }}" name="anticipacion_horas">
+                        <option value="">Selecciona una opción</option>
+                        <option value="24" {% if recordatorio_anticipacion_horas == 24 %}selected{% endif %}>24 horas antes</option>
+                        <option value="12" {% if recordatorio_anticipacion_horas == 12 %}selected{% endif %}>12 horas antes</option>
+                        <option value="2" {% if recordatorio_anticipacion_horas == 2 %}selected{% endif %}>2 horas antes</option>
+                        <option value="demo_10s" {% if recordatorio_anticipacion_horas == 0 %}selected{% endif %}>Recuérdame en 10 segundos</option>
+                      </select>
+                      <small class="field-error reminder-field-error hidden">Debes seleccionar una opción.</small>
+                      <div class="reminder-form-actions">
+                        <button class="cive-btn cive-btn--action" type="submit">Guardar</button>
+                        <button class="cive-btn cive-btn--ghost js-reminder-close" type="button" data-target="portal-reminder-menu-{{ cita.id }}">Cerrar</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% else %}
+              -
+              {% endif %}
+            </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="4">No hay citas registradas.</td>
+            <td colspan="6">No hay citas registradas.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -91,10 +153,10 @@
   <div class="section-card">
     <div class="section-card__head">
       <h3>Facturación pendiente / historial financiero</h3>
-      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_finanzas', client_id=client.id) }}">Ver historial</a>
+      <a class="cive-btn cive-btn--action" href="{{ url_for('clientes.clientes_finanzas', cliente_id=client.id) }}">Ver historial</a>
     </div>
 
-    <div class="detail-grid">
+    <div class="cuadricula-detalle">
       <div class="info-card">
         <h3>Pendiente</h3>
         {% for row in pending_rows %}
@@ -115,4 +177,62 @@
     </div>
   </div>
 </div>
+<script>
+  (() => {
+    const toggles = document.querySelectorAll('.js-reminder-toggle');
+    const closes = document.querySelectorAll('.js-reminder-close');
+    const reminderForms = document.querySelectorAll('.reminder-form');
+
+    const closeAll = () => {
+      document.querySelectorAll('.reminder-menu').forEach((menu) => menu.classList.add('hidden'));
+    };
+
+    toggles.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const menu = document.getElementById(targetId);
+        if (!menu) return;
+        const isHidden = menu.classList.contains('hidden');
+        closeAll();
+        if (isHidden) {
+          menu.classList.remove('hidden');
+        }
+      });
+    });
+
+    closes.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const menu = document.getElementById(targetId);
+        if (menu) menu.classList.add('hidden');
+      });
+    });
+
+    reminderForms.forEach((form) => {
+      const select = form.querySelector('select[name="anticipacion_horas"]');
+      const error = form.querySelector('.reminder-field-error');
+      if (!select || !error) return;
+
+      select.addEventListener('change', () => {
+        if (select.value) {
+          error.classList.add('hidden');
+        }
+      });
+
+      form.addEventListener('submit', (event) => {
+        if (select.value) {
+          error.classList.add('hidden');
+          return;
+        }
+        event.preventDefault();
+        error.classList.remove('hidden');
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.reminder-menu-wrap')) return;
+      closeAll();
+    });
+  })();
+</script>
 {% endblock %}

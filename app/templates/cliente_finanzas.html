@@ -8,27 +8,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Historial financiero del cliente</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Historial financiero del cliente</div>
   <div class="section-subtitle">{{ client.nombre }}</div>
 </div>
 
 <div class="content-stack">
   <div class="stat-grid">
     <div class="stat-card">
-      <span class="stat-label">Facturado</span>
+      <span class="etiqueta-estadistica">Facturado</span>
       <strong>${{ '%.2f'|format(summary.total_facturado) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Pagado</span>
+      <span class="etiqueta-estadistica">Pagado</span>
       <strong>${{ '%.2f'|format(summary.total_pagado) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Descuentos</span>
+      <span class="etiqueta-estadistica">Descuentos</span>
       <strong>${{ '%.2f'|format(summary.total_descuento) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Adeudo</span>
+      <span class="etiqueta-estadistica">Adeudo</span>
       <strong>${{ '%.2f'|format(summary.total_adeudo) }}</strong>
     </div>
   </div>

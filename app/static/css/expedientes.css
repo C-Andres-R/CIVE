@@ -1,0 +1,103 @@
+.section-subtitle {
+  color: var(--color-text-light);
+  margin-top: 4px;
+}
+
+.subtext {
+  color: var(--color-text-light);
+  font-size: 12px;
+}
+
+.content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-card {
+  background: #ffffff;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.section-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section-card__head h3 {
+  margin: 0;
+}
+
+.table-container--card {
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.table-container--inner {
+  padding: 0;
+}
+
+.inline-link {
+  color: var(--color-primary-dark);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.expedientes-tools {
+  flex-wrap: wrap;
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.medicamento-extra-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-page {
+  background: #f5f6fa;
+  color: var(--color-text-dark);
+  padding: 24px;
+}
+
+.report-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.report-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .report-page {
+    background: #ffffff;
+    padding: 0;
+  }
+
+  .report-wrap {
+    max-width: none;
+  }
+}

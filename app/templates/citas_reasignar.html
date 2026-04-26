@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Reasignar citas por ausencia</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Reasignar citas por ausencia</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -27,9 +27,9 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha de la cita *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" id="fecha_cita">
+          <input class="usuario-input" type="date" name="fecha" value="{{ datos_formulario.fecha }}" id="fecha_cita">
         </div>
-        <small class="field-error" data-field-error="fecha">{{ field_errors.fecha or "" }}</small>
+        <small class="field-error" data-field-error="fecha">{{ errores_campo.fecha or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -42,13 +42,13 @@
               value="{{ c.id }}"
               data-fecha="{{ c.fecha_hora.strftime('%Y-%m-%d') }}"
               data-vet-original="{{ c.veterinario_id }}"
-              {% if form_data.cita_id == c.id|string %}selected{% endif %}>
+              {% if datos_formulario.cita_id == c.id|string %}selected{% endif %}>
               #{{ c.id }} - {{ c.fecha_hora.strftime('%Y-%m-%d %H:%M') }}
             </option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="cita_id">{{ field_errors.cita_id or "" }}</small>
+        <small class="field-error" data-field-error="cita_id">{{ errores_campo.cita_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -57,11 +57,11 @@
           <select class="usuario-select" name="veterinario_original_id" id="veterinario_original_id">
             <option value="">Seleccione veterinario original</option>
             {% for vet in veterinarios %}
-            <option value="{{ vet.id }}" {% if form_data.veterinario_original_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_original_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="veterinario_original_id">{{ field_errors.veterinario_original_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_original_id">{{ errores_campo.veterinario_original_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -70,11 +70,11 @@
           <select class="usuario-select" name="motivo_ausencia" id="motivo_ausencia">
             <option value="">Seleccione un motivo</option>
             {% for key, label in absence_reason_options.items() %}
-            <option value="{{ key }}" {% if form_data.motivo_ausencia == key %}selected{% endif %}>{{ label }}</option>
+            <option value="{{ key }}" {% if datos_formulario.motivo_ausencia == key %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="motivo_ausencia">{{ field_errors.motivo_ausencia or "" }}</small>
+        <small class="field-error" data-field-error="motivo_ausencia">{{ errores_campo.motivo_ausencia or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -83,16 +83,16 @@
           <select class="usuario-select" name="veterinario_nuevo_id" id="veterinario_nuevo_id">
             <option value="">Seleccione veterinario nuevo</option>
             {% for vet in veterinarios %}
-            <option value="{{ vet.id }}" {% if form_data.veterinario_nuevo_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_nuevo_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="veterinario_nuevo_id">{{ field_errors.veterinario_nuevo_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_nuevo_id">{{ errores_campo.veterinario_nuevo_id or "" }}</small>
       </div>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Reasignar cita</button>
-        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Volver a citas</a>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_lista') }}">Volver a citas</a>
       </div>
     </form>
   </div>

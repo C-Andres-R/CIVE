@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reportes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Generación de reportes</div>
+  <div class="section-subtitle">Selecciona el reporte que deseas consultar o exportar.</div>
+</div>
+
+<div class="reportes-grid">
+  {% for card in cards %}
+  <section class="section-card reporte-card">
+    <div class="section-card__head">
+      <h3>{{ card.title }}</h3>
+    </div>
+    <p>{{ card.subtitle }}</p>
+    <a class="cive-btn cive-btn--tool" href="{{ url_for(card.endpoint) }}">Abrir generador</a>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

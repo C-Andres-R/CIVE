@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte clínico | CIVE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+  <script>
+    window.addEventListener('load', () => {
+      window.setTimeout(() => {
+        window.print();
+      }, 500);
+    });
+  </script>
+</head>
+<body class="report-page">
+  <div class="report-actions no-print">
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Volver</a>
+    <button class="cive-btn cive-btn--tool" type="button" onclick="window.print()">Imprimir reporte clínico</button>
+  </div>
+
+  <div class="report-wrap">
+    <div class="titulo-pagina">Reporte clínico de {{ mascota.nombre }}</div>
+    <div class="section-subtitle">Generado el {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+
+    <div class="history-grid">
+      <div class="info-card">
+        <h3>Datos de la mascota</h3>
+        <p><strong>Nombre:</strong> {{ mascota.nombre }}</p>
+        <p><strong>Fecha de nacimiento:</strong> {{ mascota.fecha_nacimiento.strftime('%Y-%m-%d') if mascota.fecha_nacimiento else '-' }}</p>
+        <p><strong>Peso:</strong> {{ '%.2f'|format(mascota.peso or 0) }} kg</p>
+        <p><strong>Edad:</strong> {{ edad_anos ~ ' años' if edad_anos is not none else '-' }}</p>
+        <p><strong>Raza:</strong> {{ mascota.raza or '-' }}</p>
+        <p><strong>Género:</strong> {{ mascota.sexo|capitalize }}</p>
+        <p><strong>Dueño:</strong> {{ dueno_nombre }}</p>
+      </div>
+    </div>
+
+    <section class="section-card">
+      <div class="section-card__head"><h3>Historial de consultas y tratamientos</h3></div>
+      <div class="table-container table-container--card table-container--inner">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Veterinario</th>
+              <th>Síntomas</th>
+              <th>Diagnóstico</th>
+              <th>Tratamiento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for consulta, veterinario_nombre, medicamento_nombre in consultas_rows %}
+            <tr>
+              <td>{{ consulta.fecha_consulta.strftime('%Y-%m-%d') if consulta.fecha_consulta else '-' }}</td>
+              <td>{{ veterinario_nombre }}</td>
+              <td>{{ consulta.sintomas }}</td>
+              <td>{{ consulta.diagnostico }}</td>
+              <td>{{ consulta.tratamiento }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">No hay consultas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <div class="section-card__head"><h3>Medicamentos administrados</h3></div>
+      <div class="table-container table-container--card table-container--inner">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Medicamento</th>
+              <th>Fecha de administración</th>
+              <th>Dosis</th>
+              <th>Período de administración</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set meds = namespace(has_rows=false) %}
+            {% for consulta, veterinario_nombre, medicamento_nombre in consultas_rows %}
+            {% if medicamento_nombre or consulta.medicamentos_administrados %}
+            {% set meds.has_rows = true %}
+            <tr>
+              <td>{{ medicamento_nombre or consulta.medicamentos_administrados or '-' }}</td>
+              <td>{{ consulta.fecha_administracion.strftime('%Y-%m-%d') if consulta.fecha_administracion else '-' }}</td>
+              <td>{{ consulta.dosis or '-' }}</td>
+              <td>{{ consulta.periodo_administracion or '-' }}</td>
+              <td>{{ consulta.observaciones or '-' }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            {% if not meds.has_rows %}
+            <tr><td colspan="5">No hay medicamentos administrados registrados.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <div class="section-card__head"><h3>Vacunas aplicadas</h3></div>
+      <div class="table-container table-container--card table-container--inner">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Vacuna</th>
+              <th>Fecha de administración</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vacuna in vacunas_rows %}
+            <tr>
+              <td>{{ vacuna.nombre }}</td>
+              <td>{{ vacuna.fecha_registro.strftime('%Y-%m-%d') if vacuna.fecha_registro else '-' }}</td>
+              <td>{{ vacuna.notas_adicionales or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No hay vacunas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <div class="section-card__head"><h3>Análisis clínicos</h3></div>
+      <div class="table-container table-container--card table-container--inner">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Resultados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for analisis in analisis_rows %}
+            <tr>
+              <td>{{ analisis.fecha_analisis.strftime('%Y-%m-%d') if analisis.fecha_analisis else '-' }}</td>
+              <td>{{ analisis.tipo_analisis }}</td>
+              <td>{{ analisis.resultados }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No hay análisis clínicos registrados.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

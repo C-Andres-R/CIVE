@@ -10,26 +10,26 @@ from utils.auth_ui import get_current_user_from_api
 
 usuarios_bp = Blueprint("usuarios", __name__)
 
-LOGIN_GET_ENDPOINT = "pages.login_page"
+LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
 
-def redirect_to_login():
+def redirigir_a_inicio_sesion():
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
-def require_login_or_redirect():
+def requiere_inicio_sesion_o_redirige():
     if not session.get("access_token"):
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
     return None
 
-def require_admin_or_denied(me):
+def requiere_administrador_o_deniega(me):
     if (me.get("rol") or "").lower() != "administrador":
         return render_template("acceso_denegado.html", me=me)
     return None
 
-def is_valid_email(email: str) -> bool:
-    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email or ""))
+def es_correo_valido(correo: str) -> bool:
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", correo or ""))
 
 
-def is_valid_phone(phone: str) -> bool:
+def es_telefono_valido(phone: str) -> bool:
     if not phone:
         return False
     if not re.match(r"^[0-9+\-()\s]{10,20}$", phone):
@@ -38,24 +38,24 @@ def is_valid_phone(phone: str) -> bool:
     return 10 <= len(digits) <= 15
 
 
-def is_valid_cp(cp: str) -> bool:
+def es_cp_valido(cp: str) -> bool:
     if not cp:
         return True
     return bool(re.match(r"^\d{5}$", cp))
 
 
-def is_valid_person_name(value: str) -> bool:
+def es_nombre_persona_valido(value: str) -> bool:
     if not value:
         return False
     return bool(re.match(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$", value))
 
 
-def full_name(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
+def nombre_completo(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
     return " ".join(part for part in parts if part)
 
 
-def full_address(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
+def direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -75,7 +75,7 @@ def full_address(calle: str, numero: str, colonia: str, codigo_postal: str, esta
     return ""
 
 
-def user_form_data(form=None, user: Usuario | None = None):
+def datos_formulario_usuario(form=None, user: Usuario | None = None):
     form = form or {}
     user_nombres = (user.nombres if user else "") or ""
     user_apellido_paterno = (user.apellido_paterno if user else "") or ""
@@ -105,7 +105,7 @@ def user_form_data(form=None, user: Usuario | None = None):
     }
 
 
-def validate_user_form(
+def validar_formulario_usuario(
     *,
     nombres: str,
     apellido_paterno: str,
@@ -117,71 +117,71 @@ def validate_user_form(
     rol_id_raw: str,
     activo: bool,
     nombre_completo: str,
-    current_user_id: int | None = None,
-    editing_user_id: int | None = None,
+    current_usuario_id: int | None = None,
+    editing_usuario_id: int | None = None,
 ):
-    field_errors = {}
+    errores_campo = {}
     rol = None
 
     if not nombres:
-        field_errors["nombres"] = "El nombre es obligatorio."
-    elif not is_valid_person_name(nombres):
-        field_errors["nombres"] = "El campo no puede contener números."
+        errores_campo["nombres"] = "El nombre es obligatorio."
+    elif not es_nombre_persona_valido(nombres):
+        errores_campo["nombres"] = "El campo no puede contener números."
 
     if not apellido_paterno:
-        field_errors["apellido_paterno"] = "Este campo no puede estar vacío."
-    elif not is_valid_person_name(apellido_paterno):
-        field_errors["apellido_paterno"] = "El campo no puede contener números."
+        errores_campo["apellido_paterno"] = "Este campo no puede estar vacío."
+    elif not es_nombre_persona_valido(apellido_paterno):
+        errores_campo["apellido_paterno"] = "El campo no puede contener números."
 
     if not apellido_materno:
-        field_errors["apellido_materno"] = "Este campo no puede estar vacío."
-    elif not is_valid_person_name(apellido_materno):
-        field_errors["apellido_materno"] = "El campo no puede contener números."
+        errores_campo["apellido_materno"] = "Este campo no puede estar vacío."
+    elif not es_nombre_persona_valido(apellido_materno):
+        errores_campo["apellido_materno"] = "El campo no puede contener números."
 
     if not correo:
-        field_errors["correo"] = "El correo es obligatorio."
-    elif not is_valid_email(correo):
-        field_errors["correo"] = "El correo no tiene un formato válido."
+        errores_campo["correo"] = "El correo es obligatorio."
+    elif not es_correo_valido(correo):
+        errores_campo["correo"] = "El correo no tiene un formato válido."
 
-    if codigo_postal and not is_valid_cp(codigo_postal):
-        field_errors["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
+    if codigo_postal and not es_cp_valido(codigo_postal):
+        errores_campo["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
 
     if not telefono:
-        field_errors["telefono"] = "El teléfono es obligatorio."
-    elif not is_valid_phone(telefono):
-        field_errors["telefono"] = "El teléfono debe tener un formato válido."
+        errores_campo["telefono"] = "El teléfono es obligatorio."
+    elif not es_telefono_valido(telefono):
+        errores_campo["telefono"] = "El teléfono debe tener un formato válido."
 
-    if editing_user_id is None and not contrasena:
-        field_errors["contrasena"] = "La contraseña es obligatoria."
+    if editing_usuario_id is None and not contrasena:
+        errores_campo["contrasena"] = "La contraseña es obligatoria."
     elif contrasena:
         password_errors = validate_password(contrasena, correo=correo, nombre=nombre_completo)
         if password_errors:
-            field_errors["contrasena"] = " ".join(password_errors)
+            errores_campo["contrasena"] = " ".join(password_errors)
 
     if not rol_id_raw:
-        field_errors["rol_id"] = "El rol es obligatorio."
+        errores_campo["rol_id"] = "El rol es obligatorio."
     else:
         try:
             rol = db.session.get(Rol, int(rol_id_raw))
             if not rol:
-                field_errors["rol_id"] = "El rol seleccionado no existe."
+                errores_campo["rol_id"] = "El rol seleccionado no existe."
         except ValueError:
-            field_errors["rol_id"] = "Rol inválido."
+            errores_campo["rol_id"] = "Rol inválido."
 
-    if current_user_id is not None and editing_user_id is not None and current_user_id == editing_user_id and not activo:
-        field_errors["activo"] = "No puedes desactivarte a ti mismo."
+    if current_usuario_id is not None and editing_usuario_id is not None and current_usuario_id == editing_usuario_id and not activo:
+        errores_campo["activo"] = "No puedes desactivarte a ti mismo."
 
     if correo:
         correo_duplicado_query = db.session.query(Usuario.id).filter(func.lower(Usuario.correo) == correo.lower())
-        if editing_user_id is not None:
-            correo_duplicado_query = correo_duplicado_query.filter(Usuario.id != editing_user_id)
+        if editing_usuario_id is not None:
+            correo_duplicado_query = correo_duplicado_query.filter(Usuario.id != editing_usuario_id)
         correo_duplicado = correo_duplicado_query.first()
         if correo_duplicado:
-            field_errors["correo"] = "Ya existe un usuario con ese correo."
+            errores_campo["correo"] = "Ya existe un usuario con ese correo."
 
-    return field_errors, rol
+    return errores_campo, rol
 
-def tab_for_role_name(role_name: str) -> str:
+def pestana_para_nombre_rol(role_name: str) -> str:
     role = (role_name or "").strip().lower()
     if role == "veterinario":
         return "veterinarios"
@@ -190,29 +190,29 @@ def tab_for_role_name(role_name: str) -> str:
     return "administradores"
 
 @usuarios_bp.get("/usuarios")
-def usuarios_index():
+def usuarios_lista():
     # Verificamos la sesión antes de consultar cualquier dato.
-    r = require_login_or_redirect()
+    r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
 
     # Permitimos el acceso solo a administradores.
-    denied = require_admin_or_denied(me)
+    denied = requiere_administrador_o_deniega(me)
     if denied:
         return denied
 
     # Identificamos la pestaña solicitada para mostrar solo ese tipo de usuario.
     tab = (request.args.get("rol") or "administradores").lower()
-    tab_to_role_name = {
+    tab_to_nombre_rol = {
         "administradores": "administrador",
         "veterinarios": "veterinario",
         "clientes": "cliente",
     }
-    role_name = tab_to_role_name.get(tab, "administrador")
+    role_name = tab_to_nombre_rol.get(tab, "administrador")
     usuarios_rows = (
         db.session.query(
             Usuario,
@@ -236,31 +236,31 @@ def usuarios_index():
     )
 
 @usuarios_bp.route("/usuarios/nuevo", methods=["GET", "POST"])
-def usuarios_new():
+def usuarios_nuevo():
     # Crea un nuevo usuario desde el formulario de administración.
-    r = require_login_or_redirect()
+    r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
 
-    denied = require_admin_or_denied(me)
+    denied = requiere_administrador_o_deniega(me)
     if denied:
         return denied
 
     roles = db.session.query(Rol).order_by(Rol.nombre.asc()).all()
 
     if request.method == "GET":
-        form_data = user_form_data()
+        datos_formulario = datos_formulario_usuario()
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             mode="create",
         )
 
@@ -280,11 +280,11 @@ def usuarios_new():
     rol_id_raw = request.form.get("rol_id") or ""
     activo = request.form.get("activo") == "on"
 
-    nombre = full_name(nombres, apellido_paterno, apellido_materno)
-    domicilio = full_address(calle, numero, colonia, codigo_postal, estado, entidad)
-    form_data = user_form_data(request.form)
+    nombre = nombre_completo(nombres, apellido_paterno, apellido_materno)
+    domicilio = direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
+    datos_formulario = datos_formulario_usuario(request.form)
 
-    field_errors, rol = validate_user_form(
+    errores_campo, rol = validar_formulario_usuario(
         nombres=nombres,
         apellido_paterno=apellido_paterno,
         apellido_materno=apellido_materno,
@@ -297,13 +297,13 @@ def usuarios_new():
         nombre_completo=nombre,
     )
 
-    if field_errors:
+    if errores_campo:
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             mode="create",
         )
 
@@ -335,45 +335,45 @@ def usuarios_new():
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors={"correo": "Ya existe un usuario con ese correo."},
+            datos_formulario=datos_formulario,
+            errores_campo={"correo": "Ya existe un usuario con ese correo."},
             mode="create",
         )
 
     flash("Usuario creado correctamente.", "success")
-    return redirect(url_for("usuarios.usuarios_index", rol=tab_for_role_name(rol.nombre)))
+    return redirect(url_for("usuarios.usuarios_lista", rol=pestana_para_nombre_rol(rol.nombre)))
 
-@usuarios_bp.route("/usuarios/<int:user_id>/editar", methods=["GET", "POST"])
-def usuarios_edit(user_id: int):
-    r = require_login_or_redirect()
+@usuarios_bp.route("/usuarios/<int:usuario_id>/editar", methods=["GET", "POST"])
+def usuarios_editar(usuario_id: int):
+    r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
 
-    denied = require_admin_or_denied(me)
+    denied = requiere_administrador_o_deniega(me)
     if denied:
         return denied
 
-    user = db.session.get(Usuario, user_id)
+    user = db.session.get(Usuario, usuario_id)
     if not user or user.eliminado:
-        return render_template("usuario_no_encontrado.html", user_id=user_id)
+        return render_template("usuario_no_encontrado.html", usuario_id=usuario_id)
 
     roles = db.session.query(Rol).order_by(Rol.nombre.asc()).all()
 
     if request.method == "GET":
-        form_data = user_form_data(user=user)
+        datos_formulario = datos_formulario_usuario(user=user)
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             mode="edit",
-            user_id=user.id,
+            usuario_id=user.id,
         )
 
     # Leemos y validamos los datos enviados por el formulario.
@@ -392,9 +392,9 @@ def usuarios_edit(user_id: int):
     contrasena_nueva = request.form.get("contrasena") or ""
     activo = request.form.get("activo") == "on"
 
-    nombre = full_name(nombres, apellido_paterno, apellido_materno)
-    domicilio = full_address(calle, numero, colonia, codigo_postal, estado, entidad)
-    form_data = user_form_data(request.form)
+    nombre = nombre_completo(nombres, apellido_paterno, apellido_materno)
+    domicilio = direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
+    datos_formulario = datos_formulario_usuario(request.form)
 
     # Evitamos que el administrador se desactive a sí mismo.
     try:
@@ -402,7 +402,7 @@ def usuarios_edit(user_id: int):
     except (TypeError, ValueError):
         me_id = None
 
-    field_errors, rol = validate_user_form(
+    errores_campo, rol = validar_formulario_usuario(
         nombres=nombres,
         apellido_paterno=apellido_paterno,
         apellido_materno=apellido_materno,
@@ -413,19 +413,19 @@ def usuarios_edit(user_id: int):
         rol_id_raw=rol_id_raw,
         activo=activo,
         nombre_completo=nombre,
-        current_user_id=me_id,
-        editing_user_id=user.id,
+        current_usuario_id=me_id,
+        editing_usuario_id=user.id,
     )
 
-    if field_errors:
+    if errores_campo:
         return render_template(
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             mode="edit",
-            user_id=user.id,
+            usuario_id=user.id,
         )
 
     user.nombre = nombre
@@ -455,64 +455,64 @@ def usuarios_edit(user_id: int):
             "usuario_form.html",
             me=me,
             roles=roles,
-            form_data=form_data,
-            field_errors={"correo": "Ya existe un usuario con ese correo."},
+            datos_formulario=datos_formulario,
+            errores_campo={"correo": "Ya existe un usuario con ese correo."},
             mode="edit",
-            user_id=user.id,
+            usuario_id=user.id,
         )
 
     flash("Usuario actualizado correctamente.", "success")
-    return redirect(url_for("usuarios.usuarios_index", rol=tab_for_role_name(rol.nombre)))
+    return redirect(url_for("usuarios.usuarios_lista", rol=pestana_para_nombre_rol(rol.nombre)))
 
-@usuarios_bp.get("/usuarios/<int:user_id>")
-def usuarios_detail(user_id: int):
-    r = require_login_or_redirect()
+@usuarios_bp.get("/usuarios/<int:usuario_id>")
+def usuarios_detalle(usuario_id: int):
+    r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
 
-    denied = require_admin_or_denied(me)
+    denied = requiere_administrador_o_deniega(me)
     if denied:
         return denied
 
     row = (
         db.session.query(Usuario, Rol.nombre.label("rol_nombre"))
         .join(Rol, Usuario.rol_id == Rol.id)
-        .filter(Usuario.id == user_id, Usuario.eliminado.is_(False))
+        .filter(Usuario.id == usuario_id, Usuario.eliminado.is_(False))
         .first()
     )
 
     if not row:
-        return render_template("usuario_no_encontrado.html", user_id=user_id)
+        return render_template("usuario_no_encontrado.html", usuario_id=usuario_id)
 
     return render_template("usuario_detalle.html", user=row)
 
-@usuarios_bp.post("/usuarios/<int:user_id>/toggle")
-def usuarios_toggle(user_id: int):
+@usuarios_bp.post("/usuarios/<int:usuario_id>/toggle")
+def usuarios_alternar(usuario_id: int):
     # Activa o desactiva un usuario desde el panel de administración.
-    r = require_login_or_redirect()
+    r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
-        return redirect_to_login()
+        return redirigir_a_inicio_sesion()
 
-    denied = require_admin_or_denied(me)
+    denied = requiere_administrador_o_deniega(me)
     if denied:
         return denied
 
     tab = request.args.get("rol") or "administradores"
-    user = db.session.get(Usuario, user_id)
+    user = db.session.get(Usuario, usuario_id)
 
     if not user or user.eliminado:
         flash("Usuario no encontrado.", "error")
-        return redirect(url_for("usuarios.usuarios_index", rol=tab))
+        return redirect(url_for("usuarios.usuarios_lista", rol=tab))
 
     try:
         me_id = int(me.get("id"))
@@ -521,9 +521,9 @@ def usuarios_toggle(user_id: int):
 
     if me_id == user.id:
         flash("No puedes desactivarte a ti mismo.", "error")
-        return redirect(url_for("usuarios.usuarios_index", rol=tab))
+        return redirect(url_for("usuarios.usuarios_lista", rol=tab))
 
     user.activo = not bool(user.activo)
     db.session.commit()
 
-    return redirect(url_for("usuarios.usuarios_index", rol=tab))
+    return redirect(url_for("usuarios.usuarios_lista", rol=tab))

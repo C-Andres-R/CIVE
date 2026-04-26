@@ -17,7 +17,7 @@ from utils.auth_ui import get_current_user_from_api
 
 mascotas_bp = Blueprint("mascotas", __name__)
 
-LOGIN_GET_ENDPOINT = "pages.login_page"
+LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
 
 ROLE_ADMIN = "administrador"
 ROLE_CLIENTE = "cliente"
@@ -44,17 +44,17 @@ MAX_AGE_BY_SPECIES = {
 }
 
 
-def _redirect_to_login():
+def _redirigir_a_inicio_sesion():
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
-def _require_login_or_redirect():
+def _requiere_inicio_sesion_o_redirige():
     if not session.get("access_token"):
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
     return None
 
 
-def _get_me_or_logout():
+def _obtener_usuario_o_cerrar_sesion():
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -62,35 +62,35 @@ def _get_me_or_logout():
     return me
 
 
-def _role_name(me) -> str:
+def _nombre_rol(me) -> str:
     return (me.get("rol") or "").strip().lower()
 
 
-def _allowed(me, hu_code: str) -> bool:
-    return _role_name(me) in PERMISSIONS.get(hu_code, set())
+def _permitido(me, hu_code: str) -> bool:
+    return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
-def _redirect_client_to_portal(me):
-    if _role_name(me) == ROLE_CLIENTE:
+def _redirigir_cliente_a_portal(me):
+    if _nombre_rol(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
-def _parse_int(value):
+def _parsear_entero(value):
     try:
         return int(value)
     except (TypeError, ValueError):
         return None
 
 
-def _parse_float(value):
+def _parsear_flotante(value):
     try:
         return float(value)
     except (TypeError, ValueError):
         return None
 
 
-def _parse_date(value: str):
+def _parsear_fecha(value: str):
     if not value:
         return None
     try:
@@ -99,7 +99,7 @@ def _parse_date(value: str):
         return None
 
 
-def _birthdate_from_age(age: int):
+def _fecha_nacimiento_desde_edad(age: int):
     today = date.today()
     try:
         return date(today.year - age, today.month, today.day)
@@ -107,7 +107,7 @@ def _birthdate_from_age(age: int):
         return date(today.year - age, today.month, 1)
 
 
-def _age_from_birthdate(birthdate: date | None):
+def _edad_desde_fecha_nacimiento(birthdate: date | None):
     if not birthdate:
         return None
     today = date.today()
@@ -117,18 +117,18 @@ def _age_from_birthdate(birthdate: date | None):
     return max(years, 0)
 
 
-def _format_age_label(age: int | None):
+def _formatear_etiqueta_edad(age: int | None):
     if age is None:
         return ""
     suffix = "año" if age == 1 else "años"
     return f"{age} {suffix}"
 
 
-def _word_count(value: str) -> int:
+def _contar_palabras(value: str) -> int:
     return len(re.findall(r"\S+", value or ""))
 
 
-def _validate_pet_name(raw_value: str):
+def _validar_nombre_mascota(raw_value: str):
     value = (raw_value or "").strip()
     if not value:
         return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
@@ -139,7 +139,7 @@ def _validate_pet_name(raw_value: str):
     return value, None
 
 
-def _validate_weight(raw_value: str):
+def _validar_peso(raw_value: str):
     value = (raw_value or "").strip()
     if not value:
         return None, "El peso es obligatorio."
@@ -160,7 +160,7 @@ def _validate_weight(raw_value: str):
     return float(weight), None
 
 
-def _validate_approx_age(raw_value: str, especie: str):
+def _validar_edad_aproximada(raw_value: str, especie: str):
     value = (raw_value or "").strip()
     if not value:
         return None, "Debes ingresar la fecha de nacimiento o la edad aproximada."
@@ -173,10 +173,10 @@ def _validate_approx_age(raw_value: str, especie: str):
     return age, None
 
 
-def _build_pet_form_data(form=None, mascota: Mascota | None = None):
+def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = None):
     form = form or {}
     if mascota is not None and not form:
-        edad_mostrada = _format_age_label(_age_from_birthdate(mascota.fecha_nacimiento))
+        edad_mostrada = _formatear_etiqueta_edad(_edad_desde_fecha_nacimiento(mascota.fecha_nacimiento))
         return {
             "nombre": mascota.nombre or "",
             "fecha_nacimiento": mascota.fecha_nacimiento.isoformat() if mascota.fecha_nacimiento else "",
@@ -197,7 +197,7 @@ def _build_pet_form_data(form=None, mascota: Mascota | None = None):
     edad_mostrada = ""
 
     if not usa_edad_aproximada:
-        edad_mostrada = _format_age_label(_age_from_birthdate(_parse_date(fecha_nacimiento)))
+        edad_mostrada = _formatear_etiqueta_edad(_edad_desde_fecha_nacimiento(_parsear_fecha(fecha_nacimiento)))
 
     return {
         "nombre": ((form.get("nombre") or "").strip()),
@@ -210,11 +210,11 @@ def _build_pet_form_data(form=None, mascota: Mascota | None = None):
         "especie": ((form.get("especie") or "").strip().lower()),
         "sexo": ((form.get("sexo") or "").strip().lower()),
         "datos_adicionales": (form.get("datos_adicionales") or "").strip(),
-        "dueno_id": str(_parse_int(form.get("dueno_id")) or ""),
+        "dueno_id": str(_parsear_entero(form.get("dueno_id")) or ""),
     }
 
 
-def _is_active_client(user: Usuario | None) -> bool:
+def _es_cliente_activo(user: Usuario | None) -> bool:
     if not user:
         return False
     if user.eliminado or not user.activo:
@@ -235,24 +235,24 @@ def _get_clientes_activos():
     )
 
 
-def _build_mascotas_query(me):
+def _construir_consulta_mascotas(me):
     q = (
         db.session.query(Mascota, Usuario.nombre.label("dueno_nombre"), Usuario.activo.label("dueno_activo"))
         .join(Usuario, Mascota.dueno_id == Usuario.id)
         .filter(Usuario.eliminado.is_(False))
     )
 
-    me_id = _parse_int(me.get("id"))
-    if _role_name(me) == ROLE_CLIENTE and me_id is not None:
+    me_id = _parsear_entero(me.get("id"))
+    if _nombre_rol(me) == ROLE_CLIENTE and me_id is not None:
         q = q.filter(Mascota.dueno_id == me_id)
 
     return q
 
 
-def _user_can_view_pet(me, mascota: Mascota) -> bool:
+def _usuario_puede_ver_mascota(me, mascota: Mascota) -> bool:
     # Revisa si el usuario actual puede consultar la mascota indicada.
-    role = _role_name(me)
-    me_id = _parse_int(me.get("id"))
+    role = _nombre_rol(me)
+    me_id = _parsear_entero(me.get("id"))
     if role in {ROLE_ADMIN, ROLE_VETERINARIO}:
         return True
     if role == ROLE_CLIENTE and me_id is not None:
@@ -260,11 +260,11 @@ def _user_can_view_pet(me, mascota: Mascota) -> bool:
     return False
 
 
-def _validate_pet_form(form, *, for_update: bool = False):
+def _validar_formulario_mascota(form, *, for_update: bool = False):
     errors = []
-    field_errors = {}
+    errores_campo = {}
 
-    nombre, nombre_error = _validate_pet_name(form.get("nombre") or "")
+    nombre, nombre_error = _validar_nombre_mascota(form.get("nombre") or "")
     fecha_nacimiento_raw = (form.get("fecha_nacimiento") or "").strip()
     usa_edad_aproximada = (form.get("usa_edad_aproximada") or "").strip().lower() in {"1", "true", "on", "yes"}
     edad_raw = (form.get("edad") or "").strip()
@@ -273,50 +273,50 @@ def _validate_pet_form(form, *, for_update: bool = False):
     especie = (form.get("especie") or "").strip().lower()
     sexo = (form.get("sexo") or "").strip().lower()
     datos_adicionales = (form.get("datos_adicionales") or "").strip()
-    dueno_id = _parse_int(form.get("dueno_id"))
+    dueno_id = _parsear_entero(form.get("dueno_id"))
 
-    fecha_nacimiento = _parse_date(fecha_nacimiento_raw)
-    peso, peso_error = _validate_weight(peso_raw)
+    fecha_nacimiento = _parsear_fecha(fecha_nacimiento_raw)
+    peso, peso_error = _validar_peso(peso_raw)
     edad_aproximada = None
 
     if nombre_error:
-        field_errors["nombre"] = nombre_error
+        errores_campo["nombre"] = nombre_error
 
     if usa_edad_aproximada:
-        edad_aproximada, edad_error = _validate_approx_age(edad_raw, especie)
+        edad_aproximada, edad_error = _validar_edad_aproximada(edad_raw, especie)
         if edad_error:
-            field_errors["edad"] = edad_error
+            errores_campo["edad"] = edad_error
         elif edad_aproximada is not None:
-            fecha_nacimiento = _birthdate_from_age(edad_aproximada)
+            fecha_nacimiento = _fecha_nacimiento_desde_edad(edad_aproximada)
     else:
         if not fecha_nacimiento:
-            field_errors["fecha_nacimiento"] = "Debes ingresar la fecha de nacimiento o la edad aproximada."
+            errores_campo["fecha_nacimiento"] = "Debes ingresar la fecha de nacimiento o la edad aproximada."
         elif fecha_nacimiento > date.today():
-            field_errors["fecha_nacimiento"] = "La fecha de nacimiento no puede ser futura."
+            errores_campo["fecha_nacimiento"] = "La fecha de nacimiento no puede ser futura."
 
     if peso_error:
-        field_errors["peso"] = peso_error
+        errores_campo["peso"] = peso_error
 
     if not especie or especie not in ALLOWED_SPECIES:
-        field_errors["especie"] = "La especie es obligatoria y debe ser válida."
+        errores_campo["especie"] = "La especie es obligatoria y debe ser válida."
 
     if not sexo or sexo not in ALLOWED_SEX:
-        field_errors["sexo"] = "El sexo es obligatorio y debe ser válido."
+        errores_campo["sexo"] = "El sexo es obligatorio y debe ser válido."
 
     if not dueno_id:
-        field_errors["dueno_id"] = "Debes asociar un dueño."
+        errores_campo["dueno_id"] = "Debes asociar un dueño."
 
     if not raza:
-        field_errors["raza"] = "La raza es obligatoria."
+        errores_campo["raza"] = "La raza es obligatoria."
 
-    if datos_adicionales and _word_count(datos_adicionales) > 100:
-        field_errors["datos_adicionales"] = "Los datos adicionales no pueden exceder 100 palabras."
+    if datos_adicionales and _contar_palabras(datos_adicionales) > 100:
+        errores_campo["datos_adicionales"] = "Los datos adicionales no pueden exceder 100 palabras."
 
     dueno = db.session.get(Usuario, dueno_id) if dueno_id else None
-    if dueno_id and not _is_active_client(dueno):
-        field_errors["dueno_id"] = "El dueño seleccionado no existe o no está activo."
+    if dueno_id and not _es_cliente_activo(dueno):
+        errores_campo["dueno_id"] = "El dueño seleccionado no existe o no está activo."
 
-    errors.extend(field_errors.values())
+    errors.extend(errores_campo.values())
 
     payload = {
         "nombre": nombre,
@@ -331,24 +331,24 @@ def _validate_pet_form(form, *, for_update: bool = False):
         "razon_inactivacion": None,
     }
 
-    return errors, field_errors, payload
+    return errors, errores_campo, payload
 
 
-def _reflect_table(table_name: str) -> Table | None:
+def _reflejar_tabla(table_name: str) -> Table | None:
     if not inspect(db.engine).has_table(table_name):
         return None
     metadata = MetaData()
     return Table(table_name, metadata, autoload_with=db.engine)
 
 
-def _find_col(table: Table, candidates: list[str]):
+def _buscar_columna(table: Table, candidates: list[str]):
     for name in candidates:
         if name in table.c:
             return table.c[name]
     return None
 
 
-def _required_columns_without_default(table: Table):
+def _columnas_obligatorias_sin_predeterminado(table: Table):
     required = []
     for col in table.columns:
         if col.primary_key and col.autoincrement:
@@ -361,14 +361,14 @@ def _required_columns_without_default(table: Table):
     return required
 
 
-def _build_media_payload(table: Table, *, mascota_id: int, rel_file_path: str, filename: str):
+def _construir_datos_multimedia(table: Table, *, mascota_id: int, rel_file_path: str, filename: str):
     payload: dict[str, object] = {}
 
-    mascota_col = _find_col(table, ["mascota_id", "id_mascota"])
+    mascota_col = _buscar_columna(table, ["mascota_id", "id_mascota"])
     if mascota_col is not None:
         payload[mascota_col.name] = mascota_id
 
-    file_col = _find_col(
+    file_col = _buscar_columna(
         table,
         [
             "url_foto",
@@ -384,15 +384,15 @@ def _build_media_payload(table: Table, *, mascota_id: int, rel_file_path: str, f
     if file_col is not None:
         payload[file_col.name] = rel_file_path
 
-    name_col = _find_col(table, ["nombre_archivo", "nombre", "titulo"])
+    name_col = _buscar_columna(table, ["nombre_archivo", "nombre", "titulo"])
     if name_col is not None:
         payload[name_col.name] = filename
 
-    date_col = _find_col(table, ["fecha_subida", "fecha_registro", "fecha_creacion", "created_at"])
+    date_col = _buscar_columna(table, ["fecha_subida", "fecha_registro", "fecha_creacion", "created_at"])
     if date_col is not None:
         payload[date_col.name] = datetime.now()
 
-    required_cols = _required_columns_without_default(table)
+    required_cols = _columnas_obligatorias_sin_predeterminado(table)
     unknown_required = [c for c in required_cols if c not in payload and c not in ("id",)]
     if unknown_required:
         raise ValueError(
@@ -403,13 +403,13 @@ def _build_media_payload(table: Table, *, mascota_id: int, rel_file_path: str, f
     return payload
 
 
-def _media_rows(table: Table | None, *, mascota_id: int):
+def _filas_multimedia(table: Table | None, *, mascota_id: int):
     if table is None:
         return []
 
-    id_col = _find_col(table, ["id"])
-    mascota_col = _find_col(table, ["mascota_id", "id_mascota"])
-    file_col = _find_col(
+    id_col = _buscar_columna(table, ["id"])
+    mascota_col = _buscar_columna(table, ["mascota_id", "id_mascota"])
+    file_col = _buscar_columna(
         table,
         [
             "url_foto",
@@ -422,8 +422,8 @@ def _media_rows(table: Table | None, *, mascota_id: int):
             "url_documento",
         ],
     )
-    name_col = _find_col(table, ["nombre_archivo", "nombre", "titulo"])
-    date_col = _find_col(table, ["fecha_subida", "fecha_registro", "fecha_creacion", "created_at"])
+    name_col = _buscar_columna(table, ["nombre_archivo", "nombre", "titulo"])
+    date_col = _buscar_columna(table, ["fecha_subida", "fecha_registro", "fecha_creacion", "created_at"])
 
     if mascota_col is None or file_col is None:
         return []
@@ -458,27 +458,44 @@ def _media_rows(table: Table | None, *, mascota_id: int):
     return data
 
 
+def _mapa_foto_principal(mascota_ids: list[int]):
+    # Función de vista previa multimedia.
+    fotos_table = _reflejar_tabla("fotos_mascota")
+    if fotos_table is None:
+        return {}
+
+    previews: dict[int, dict[str, str]] = {}
+    for mascota_id in mascota_ids:
+        fotos = _filas_multimedia(fotos_table, mascota_id=mascota_id)
+        if fotos:
+            previews[mascota_id] = {
+                "path": fotos[0]["path"],
+                "name": fotos[0]["name"],
+            }
+    return previews
+
+
 @mascotas_bp.get("/mascotas")
-def mascotas_index():
-    r = _require_login_or_redirect()
+def mascotas_lista():
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu014"):
+    if not _permitido(me, "hu014"):
         return render_template("acceso_denegado.html", me=me)
 
     estado = (request.args.get("estado") or "").strip().lower()
     orden = (request.args.get("orden") or "asc").strip().lower()
 
-    q = _build_mascotas_query(me)
+    q = _construir_consulta_mascotas(me)
 
     if estado in {"activa", "inactiva"}:
         q = q.filter(Mascota.estado == estado)
@@ -489,66 +506,69 @@ def mascotas_index():
         q = q.order_by(Mascota.fecha_registro.asc(), Mascota.id.asc())
 
     rows = q.all()
+    mascota_ids = [mascota.id for mascota, *_ in rows]
+    foto_previews = _mapa_foto_principal(mascota_ids)
 
     return render_template(
         "mascotas_list.html",
         me=me,
         active_nav="mascotas",
         mascotas_rows=rows,
+        foto_previews=foto_previews,
         filters={"estado": estado, "orden": orden},
-        can_create=_allowed(me, "hu011"),
-        can_edit=_allowed(me, "hu012"),
-        can_inactivate=_allowed(me, "hu013"),
-        can_link_owner=_allowed(me, "hu015"),
-        can_behavior=_allowed(me, "hu017"),
-        can_multimedia=_allowed(me, "hu016"),
+        can_create=_permitido(me, "hu011"),
+        can_edit=_permitido(me, "hu012"),
+        can_inactivate=_permitido(me, "hu013"),
+        can_link_owner=_permitido(me, "hu015"),
+        can_behavior=_permitido(me, "hu017"),
+        can_multimedia=_permitido(me, "hu016"),
     )
 
 
 @mascotas_bp.route("/mascotas/nueva", methods=["GET", "POST"])
-def mascotas_new():
-    r = _require_login_or_redirect()
+def mascotas_nueva():
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu011"):
+    if not _permitido(me, "hu011"):
         return render_template("acceso_denegado.html", me=me)
 
     clientes = _get_clientes_activos()
-    role = _role_name(me)
-    me_id = _parse_int(me.get("id"))
+    role = _nombre_rol(me)
+    me_id = _parsear_entero(me.get("id"))
 
     if request.method == "GET":
-        form_data = _build_pet_form_data()
+        datos_formulario = _construir_datos_formulario_mascota()
         if role == ROLE_CLIENTE:
-            form_data["dueno_id"] = str(me_id or "")
+            datos_formulario["dueno_id"] = str(me_id or "")
         return render_template(
             "mascota_form.html",
             me=me,
             active_nav="mascotas",
             mode="create",
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
         )
 
-    errors, field_errors, payload = _validate_pet_form(request.form)
+    errors, errores_campo, payload = _validar_formulario_mascota(request.form)
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
 
-    form_data = _build_pet_form_data(request.form)
-    form_data["dueno_id"] = str(payload.get("dueno_id") or "")
+    datos_formulario = _construir_datos_formulario_mascota(request.form)
+    datos_formulario["dueno_id"] = str(payload.get("dueno_id") or "")
 
     if errors:
         return render_template(
@@ -556,8 +576,8 @@ def mascotas_new():
             me=me,
             active_nav="mascotas",
             mode="create",
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
@@ -580,40 +600,40 @@ def mascotas_new():
     db.session.commit()
 
     flash("Mascota registrada correctamente.", "success")
-    return redirect(url_for("mascotas.mascotas_index"))
+    return redirect(url_for("mascotas.mascotas_lista"))
 
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/editar", methods=["GET", "POST"])
-def mascotas_edit(mascota_id: int):
-    r = _require_login_or_redirect()
+def mascotas_editar(mascota_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu012"):
+    if not _permitido(me, "hu012"):
         return render_template("acceso_denegado.html", me=me)
 
     mascota = db.session.get(Mascota, mascota_id)
     if not mascota:
         flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
+        return redirect(url_for("mascotas.mascotas_lista"))
 
-    if not _user_can_view_pet(me, mascota):
+    if not _usuario_puede_ver_mascota(me, mascota):
         return render_template("acceso_denegado.html", me=me)
 
-    role = _role_name(me)
-    me_id = _parse_int(me.get("id"))
+    role = _nombre_rol(me)
+    me_id = _parsear_entero(me.get("id"))
     clientes = _get_clientes_activos()
 
     if request.method == "GET":
-        form_data = _build_pet_form_data(mascota=mascota)
+        datos_formulario = _construir_datos_formulario_mascota(mascota=mascota)
 
         return render_template(
             "mascota_form.html",
@@ -621,20 +641,20 @@ def mascotas_edit(mascota_id: int):
             active_nav="mascotas",
             mode="edit",
             mascota_id=mascota.id,
-            form_data=form_data,
-            field_errors={},
+            datos_formulario=datos_formulario,
+            errores_campo={},
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
         )
 
-    errors, field_errors, payload = _validate_pet_form(request.form, for_update=True)
+    errors, errores_campo, payload = _validar_formulario_mascota(request.form, for_update=True)
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
 
-    form_data = _build_pet_form_data(request.form)
-    form_data["dueno_id"] = str(payload.get("dueno_id") or "")
+    datos_formulario = _construir_datos_formulario_mascota(request.form)
+    datos_formulario["dueno_id"] = str(payload.get("dueno_id") or "")
 
     if errors:
         return render_template(
@@ -643,8 +663,8 @@ def mascotas_edit(mascota_id: int):
             active_nav="mascotas",
             mode="edit",
             mascota_id=mascota.id,
-            form_data=form_data,
-            field_errors=field_errors,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
@@ -662,33 +682,33 @@ def mascotas_edit(mascota_id: int):
     db.session.commit()
 
     flash("Mascota actualizada correctamente.", "success")
-    return redirect(url_for("mascotas.mascotas_index"))
+    return redirect(url_for("mascotas.mascotas_lista"))
 
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/inactivar", methods=["GET", "POST"])
 def mascotas_inactivar(mascota_id: int):
     # Inactiva una mascota y guarda la razón indicada.
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu013"):
+    if not _permitido(me, "hu013"):
         return render_template("acceso_denegado.html", me=me)
 
     mascota = db.session.get(Mascota, mascota_id)
     if not mascota:
         flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
+        return redirect(url_for("mascotas.mascotas_lista"))
 
-    if not _user_can_view_pet(me, mascota):
+    if not _usuario_puede_ver_mascota(me, mascota):
         return render_template("acceso_denegado.html", me=me)
 
     if request.method == "GET":
@@ -697,8 +717,8 @@ def mascotas_inactivar(mascota_id: int):
             me=me,
             active_nav="mascotas",
             mascota=mascota,
-            form_data={"razon_inactivacion": "", "confirmar": False},
-            field_errors={},
+            datos_formulario={"razon_inactivacion": "", "confirmar": False},
+            errores_campo={},
         )
 
     razon = (request.form.get("razon_inactivacion") or "").strip()
@@ -706,16 +726,16 @@ def mascotas_inactivar(mascota_id: int):
 
     errors = []
     general_errors = []
-    field_errors = {}
+    errores_campo = {}
     if not razon:
-        field_errors["razon_inactivacion"] = (
+        errores_campo["razon_inactivacion"] = (
             "Este campo no puede estar vacío. Por favor indica la razón de desactivación."
         )
     if not confirmacion:
         general_errors.append("Debes confirmar la inactivación.")
 
     errors.extend(general_errors)
-    errors.extend(field_errors.values())
+    errors.extend(errores_campo.values())
 
     if errors:
         for err in general_errors:
@@ -725,8 +745,8 @@ def mascotas_inactivar(mascota_id: int):
             me=me,
             active_nav="mascotas",
             mascota=mascota,
-            form_data={"razon_inactivacion": razon, "confirmar": confirmacion},
-            field_errors=field_errors,
+            datos_formulario={"razon_inactivacion": razon, "confirmar": confirmacion},
+            errores_campo=errores_campo,
         )
 
     mascota.estado = "inactiva"
@@ -734,30 +754,30 @@ def mascotas_inactivar(mascota_id: int):
     db.session.commit()
 
     flash("Mascota inactivada correctamente.", "success")
-    return redirect(url_for("mascotas.mascotas_index"))
+    return redirect(url_for("mascotas.mascotas_lista"))
 
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/vincular", methods=["GET", "POST"])
-def mascotas_vincular_dueno(mascota_id: int):
-    r = _require_login_or_redirect()
+def mascotas_vincular_duenio(mascota_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu015"):
+    if not _permitido(me, "hu015"):
         return render_template("acceso_denegado.html", me=me)
 
     mascota = db.session.get(Mascota, mascota_id)
     if not mascota:
         flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
+        return redirect(url_for("mascotas.mascotas_lista"))
 
     clientes = _get_clientes_activos()
 
@@ -771,13 +791,13 @@ def mascotas_vincular_dueno(mascota_id: int):
             selected_dueno_id=str(mascota.dueno_id),
         )
 
-    nuevo_dueno_id = _parse_int(request.form.get("dueno_id"))
+    nuevo_dueno_id = _parsear_entero(request.form.get("dueno_id"))
     dueno = db.session.get(Usuario, nuevo_dueno_id) if nuevo_dueno_id else None
 
     errors = []
     if not nuevo_dueno_id:
         errors.append("Debes seleccionar un dueño.")
-    elif not _is_active_client(dueno):
+    elif not _es_cliente_activo(dueno):
         errors.append("El dueño seleccionado no existe o no está activo.")
 
     if errors:
@@ -796,47 +816,47 @@ def mascotas_vincular_dueno(mascota_id: int):
     db.session.commit()
 
     flash("Dueño vinculado correctamente.", "success")
-    return redirect(url_for("mascotas.mascotas_index"))
+    return redirect(url_for("mascotas.mascotas_lista"))
 
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/comportamiento", methods=["GET", "POST"])
 def mascotas_comportamiento(mascota_id: int):
     # Guarda observaciones de comportamiento para una mascota.
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu017"):
+    if not _permitido(me, "hu017"):
         return render_template("acceso_denegado.html", me=me)
 
     mascota = db.session.get(Mascota, mascota_id)
     if not mascota:
         flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
+        return redirect(url_for("mascotas.mascotas_lista"))
 
-    if not _user_can_view_pet(me, mascota):
+    if not _usuario_puede_ver_mascota(me, mascota):
         return render_template("acceso_denegado.html", me=me)
 
     if mascota.estado != "activa":
         flash("Solo se puede registrar comportamiento para mascotas activas.", "error")
-        return redirect(url_for("mascotas.mascotas_historial", mascota_id=mascota.id))
+        return redirect(url_for("expedientes.expedientes_detalle", mascota_id=mascota.id))
 
     if request.method == "GET":
         return render_template(
             "mascota_comportamiento.html",
             me=me,
-            active_nav="mascotas",
+            active_nav="expedientes",
             mascota=mascota,
-            form_data={"comportamiento": mascota.comportamiento or ""},
-            field_errors={},
+            datos_formulario={"comportamiento": mascota.comportamiento or ""},
+            errores_campo={},
         )
 
     comportamiento = (request.form.get("comportamiento") or "").strip()
@@ -844,10 +864,10 @@ def mascotas_comportamiento(mascota_id: int):
         return render_template(
             "mascota_comportamiento.html",
             me=me,
-            active_nav="mascotas",
+            active_nav="expedientes",
             mascota=mascota,
-            form_data={"comportamiento": ""},
-            field_errors={
+            datos_formulario={"comportamiento": ""},
+            errores_campo={
                 "comportamiento": "Debes describir el comportamiento especial observado para continuar.",
             },
         )
@@ -856,36 +876,36 @@ def mascotas_comportamiento(mascota_id: int):
     db.session.commit()
 
     flash("Comportamiento guardado correctamente.", "success")
-    return redirect(url_for("mascotas.mascotas_historial", mascota_id=mascota.id))
+    return redirect(url_for("expedientes.expedientes_detalle", mascota_id=mascota.id))
 
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/multimedia", methods=["GET", "POST"])
 def mascotas_multimedia(mascota_id: int):
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    client_redirect = _redirect_client_to_portal(me)
+    client_redirect = _redirigir_cliente_a_portal(me)
     if client_redirect:
         return client_redirect
 
-    if not _allowed(me, "hu016"):
+    if not _permitido(me, "hu016"):
         return render_template("acceso_denegado.html", me=me)
 
     mascota = db.session.get(Mascota, mascota_id)
     if not mascota:
         flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
+        return redirect(url_for("mascotas.mascotas_lista"))
 
-    if not _user_can_view_pet(me, mascota):
+    if not _usuario_puede_ver_mascota(me, mascota):
         return render_template("acceso_denegado.html", me=me)
 
-    fotos_table = _reflect_table("fotos_mascota")
-    docs_table = _reflect_table("documentos_mascota")
+    fotos_table = _reflejar_tabla("fotos_mascota")
+    docs_table = _reflejar_tabla("documentos_mascota")
 
     if request.method == "POST":
         uploaded = request.files.get("archivo")
@@ -924,7 +944,7 @@ def mascotas_multimedia(mascota_id: int):
         uploaded.save(abs_path)
 
         try:
-            payload = _build_media_payload(
+            payload = _construir_datos_multimedia(
                 target_table,
                 mascota_id=mascota.id,
                 rel_file_path=rel_path,
@@ -946,13 +966,13 @@ def mascotas_multimedia(mascota_id: int):
 
         return redirect(url_for("mascotas.mascotas_multimedia", mascota_id=mascota.id))
 
-    fotos = _media_rows(fotos_table, mascota_id=mascota.id)
-    documentos = _media_rows(docs_table, mascota_id=mascota.id)
+    fotos = _filas_multimedia(fotos_table, mascota_id=mascota.id)
+    documentos = _filas_multimedia(docs_table, mascota_id=mascota.id)
 
     return render_template(
         "mascota_multimedia.html",
         me=me,
-        active_nav="mascotas",
+        active_nav="expedientes",
         mascota=mascota,
         fotos=fotos,
         documentos=documentos,
@@ -963,62 +983,5 @@ def mascotas_multimedia(mascota_id: int):
 
 @mascotas_bp.get("/mascotas/<int:mascota_id>/historial")
 def mascotas_historial(mascota_id: int):
-    r = _require_login_or_redirect()
-    if r:
-        return r
-
-    me = _get_me_or_logout()
-    if not me:
-        return _redirect_to_login()
-
-    client_redirect = _redirect_client_to_portal(me)
-    if client_redirect:
-        return client_redirect
-
-    if not _allowed(me, "hu014"):
-        return render_template("acceso_denegado.html", me=me)
-
-    dueno = aliased(Usuario)
-
-    mascota_row = (
-        db.session.query(Mascota, dueno.nombre.label("dueno_nombre"), dueno.correo.label("dueno_correo"))
-        .join(dueno, Mascota.dueno_id == dueno.id)
-        .filter(Mascota.id == mascota_id)
-        .first()
-    )
-
-    if not mascota_row:
-        flash("La mascota no existe.", "error")
-        return redirect(url_for("mascotas.mascotas_index"))
-
-    mascota = mascota_row[0]
-    if not _user_can_view_pet(me, mascota):
-        return render_template("acceso_denegado.html", me=me)
-
-    cliente = aliased(Usuario)
-    veterinario = aliased(Usuario)
-
-    citas_rows = (
-        db.session.query(
-            Cita,
-            cliente.nombre.label("cliente_nombre"),
-            veterinario.nombre.label("veterinario_nombre"),
-        )
-        .join(cliente, Cita.cliente_id == cliente.id)
-        .join(veterinario, Cita.veterinario_id == veterinario.id)
-        .filter(Cita.mascota_id == mascota.id)
-        .order_by(Cita.fecha_hora.asc(), Cita.id.asc())
-        .all()
-    )
-
-    return render_template(
-        "mascota_historial.html",
-        me=me,
-        active_nav="mascotas",
-        mascota=mascota,
-        dueno_nombre=mascota_row.dueno_nombre,
-        dueno_correo=mascota_row.dueno_correo,
-        citas_rows=citas_rows,
-        can_behavior=_allowed(me, "hu017"),
-        can_multimedia=_allowed(me, "hu016"),
-    )
+    # Función de historial completo.
+    return redirect(url_for("expedientes.expedientes_reporte", mascota_id=mascota_id))

@@ -1,0 +1,10 @@
+<nav class="reportes-tabs" aria-label="Secciones de reportes">
+  {% for tab in tabs %}
+  <a
+    class="reportes-tab {% if active_report == tab.id %}active{% endif %}"
+    href="{{ url_for(tab.endpoint) }}"
+  >
+    {{ tab.label }}
+  </a>
+  {% endfor %}
+</nav>

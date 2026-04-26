@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">{% if mode == "edit" %}Editar usuario{% else %}Nuevo usuario{% endif %}</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == "edit" %}Editar usuario{% else %}Nuevo usuario{% endif %}</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -24,31 +24,31 @@
     {% endwith %}
 
     <form class="usuario-form" method="POST" novalidate
-      action="{% if mode == 'edit' %}{{ url_for('usuarios.usuarios_edit', user_id=user_id) }}{% else %}{{ url_for('usuarios.usuarios_new') }}{% endif %}">
+      action="{% if mode == 'edit' %}{{ url_for('usuarios.usuarios_editar', usuario_id=usuario_id) }}{% else %}{{ url_for('usuarios.usuarios_nuevo') }}{% endif %}">
 
       <div class="usuario-form-grid usuario-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}">
+            <input class="usuario-input" type="text" name="nombres" value="{{ datos_formulario.nombres }}">
           </div>
-          <small class="field-error" data-field-error="nombres">{{ field_errors.nombres or "" }}</small>
+          <small class="field-error" data-field-error="nombres">{{ errores_campo.nombres or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Paterno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ form_data.apellido_paterno }}">
+            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ datos_formulario.apellido_paterno }}">
           </div>
-          <small class="field-error" data-field-error="apellido_paterno">{{ field_errors.apellido_paterno or "" }}</small>
+          <small class="field-error" data-field-error="apellido_paterno">{{ errores_campo.apellido_paterno or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Materno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ datos_formulario.apellido_materno }}">
           </div>
-          <small class="field-error" data-field-error="apellido_materno">{{ field_errors.apellido_materno or "" }}</small>
+          <small class="field-error" data-field-error="apellido_materno">{{ errores_campo.apellido_materno or "" }}</small>
         </div>
       </div>
 
@@ -56,21 +56,21 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Calle</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="calle" value="{{ form_data.calle }}">
+            <input class="usuario-input" type="text" name="calle" value="{{ datos_formulario.calle }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Número</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="numero" value="{{ form_data.numero }}">
+            <input class="usuario-input" type="text" name="numero" value="{{ datos_formulario.numero }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Colonia</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="colonia" value="{{ form_data.colonia }}">
+            <input class="usuario-input" type="text" name="colonia" value="{{ datos_formulario.colonia }}">
           </div>
         </div>
       </div>
@@ -79,22 +79,22 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">C.P.</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="codigo_postal" value="{{ form_data.codigo_postal }}" maxlength="5">
+            <input class="usuario-input" type="text" name="codigo_postal" value="{{ datos_formulario.codigo_postal }}" maxlength="5">
           </div>
-          <small class="field-error" data-field-error="codigo_postal">{{ field_errors.codigo_postal or "" }}</small>
+          <small class="field-error" data-field-error="codigo_postal">{{ errores_campo.codigo_postal or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Estado</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="estado" value="{{ form_data.estado }}">
+            <input class="usuario-input" type="text" name="estado" value="{{ datos_formulario.estado }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Entidad</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="entidad" value="{{ form_data.entidad }}">
+            <input class="usuario-input" type="text" name="entidad" value="{{ datos_formulario.entidad }}">
           </div>
         </div>
       </div>
@@ -103,17 +103,17 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Teléfono *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}">
+            <input class="usuario-input" type="text" name="telefono" value="{{ datos_formulario.telefono }}">
           </div>
-          <small class="field-error" data-field-error="telefono">{{ field_errors.telefono or "" }}</small>
+          <small class="field-error" data-field-error="telefono">{{ errores_campo.telefono or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Correo *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}">
+            <input class="usuario-input" type="email" name="correo" value="{{ datos_formulario.correo }}">
           </div>
-          <small class="field-error" data-field-error="correo">{{ field_errors.correo or "" }}</small>
+          <small class="field-error" data-field-error="correo">{{ errores_campo.correo or "" }}</small>
         </div>
       </div>
 
@@ -126,7 +126,7 @@
             <input class="usuario-input" type="password" name="contrasena"
               placeholder="{% if mode == 'edit' %}Dejar vacío para mantener la actual{% else %}Mínimo 12 caracteres{% endif %}">
           </div>
-          <small class="field-error" data-field-error="contrasena">{{ field_errors.contrasena or "" }}</small>
+          <small class="field-error" data-field-error="contrasena">{{ errores_campo.contrasena or "" }}</small>
           <small style="color:#697077;">Debe incluir mayúscula, minúscula, número y carácter especial.</small>
         </div>
 
@@ -136,28 +136,28 @@
             <select class="usuario-select" name="rol_id">
               <option value="">Seleccione un rol</option>
               {% for rol in roles %}
-              <option value="{{ rol.id }}" {% if form_data.rol_id|string==rol.id|string %}selected{% endif %}>
+              <option value="{{ rol.id }}" {% if datos_formulario.rol_id|string==rol.id|string %}selected{% endif %}>
                 {{ rol.nombre }}
               </option>
               {% endfor %}
             </select>
           </div>
-          <small class="field-error" data-field-error="rol_id">{{ field_errors.rol_id or "" }}</small>
+          <small class="field-error" data-field-error="rol_id">{{ errores_campo.rol_id or "" }}</small>
         </div>
       </div>
 
       <label class="usuario-check">
-        <input type="checkbox" name="activo" {% if form_data.activo %}checked{% endif %}>
+        <input type="checkbox" name="activo" {% if datos_formulario.activo %}checked{% endif %}>
         Activo
       </label>
-      <small class="field-error" data-field-error="activo">{{ field_errors.activo or "" }}</small>
+      <small class="field-error" data-field-error="activo">{{ errores_campo.activo or "" }}</small>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">
           {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}
         </button>
 
-        <a class="usuario-btn-link" href="{{ url_for('usuarios.usuarios_index') }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{{ url_for('usuarios.usuarios_lista') }}">Cancelar</a>
       </div>
     </form>
   </div>
@@ -174,11 +174,11 @@
     const apellidoMaternoInput = form.querySelector('input[name="apellido_materno"]');
     const codigoPostalInput = form.querySelector('input[name="codigo_postal"]');
     const telefonoInput = form.querySelector('input[name="telefono"]');
-    const correoInput = form.querySelector('input[name="correo"]');
-    const contrasenaInput = form.querySelector('input[name="contrasena"]');
+    const emailInput = form.querySelector('input[name="correo"]');
+    const passwordInput = form.querySelector('input[name="contrasena"]');
     const rolInput = form.querySelector('select[name="rol_id"]');
     const activoInput = form.querySelector('input[name="activo"]');
-    let submitAttempted = {{ "true" if field_errors else "false" }};
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
 
     const errorEls = {
       nombres: form.querySelector('[data-field-error="nombres"]'),
@@ -198,6 +198,10 @@
     };
 
     const hasOnlyLetters = (value) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(value);
+    const normalizeText = (value) => (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
 
     const validateNombres = () => {
       const value = (nombresInput.value || '').trim();
@@ -270,8 +274,8 @@
       return true;
     };
 
-    const validateCorreo = () => {
-      const value = (correoInput.value || '').trim();
+    const validateEmail = () => {
+      const value = (emailInput.value || '').trim();
       if (!value) {
         setError('correo', 'El correo es obligatorio.');
         return false;
@@ -284,8 +288,8 @@
       return true;
     };
 
-    const validateContrasena = () => {
-      const value = contrasenaInput.value || '';
+    const validatePassword = () => {
+      const value = passwordInput.value || '';
       if (mode !== 'edit' && !value) {
         setError('contrasena', 'La contraseña es obligatoria.');
         return false;
@@ -296,11 +300,34 @@
       }
 
       const passwordErrors = [];
+      const commonPasswords = new Set(['123456', '123456789', 'password', 'qwerty', 'abc123', 'admin', 'letmein']);
+      const correoNormalizado = normalizeText((emailInput.value || '').trim());
+      const nombreCompleto = [
+        nombresInput.value || '',
+        apellidoPaternoInput.value || '',
+        apellidoMaternoInput.value || '',
+      ].join(' ');
+      const nombreNormalizado = normalizeText(nombreCompleto);
+      const passwordNormalizada = normalizeText(value.trim());
+
       if (value.trim().length < 12) passwordErrors.push('La contraseña debe tener al menos 12 caracteres.');
       if (!/[A-Z]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos una letra mayúscula.');
       if (!/[a-z]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos una letra minúscula.');
       if (!/\d/.test(value)) passwordErrors.push('La contraseña debe incluir al menos un número.');
       if (!/[^A-Za-z0-9]/.test(value)) passwordErrors.push('La contraseña debe incluir al menos un carácter especial.');
+      if (commonPasswords.has(value.trim().toLowerCase())) passwordErrors.push('La contraseña es demasiado común.');
+
+      if (correoNormalizado) {
+        const localPart = correoNormalizado.split('@')[0];
+        if (localPart && passwordNormalizada.includes(localPart)) {
+          passwordErrors.push('La contraseña no debe contener parte del correo.');
+        }
+      }
+
+      const nameTokens = nombreNormalizado.match(/[a-z0-9]+/g) || [];
+      if (nameTokens.some((token) => token.length >= 3 && passwordNormalizada.includes(token))) {
+        passwordErrors.push('Por seguridad, tu contraseña no puede contener tu nombre.');
+      }
 
       if (passwordErrors.length) {
         setError('contrasena', passwordErrors.join(' '));
@@ -333,15 +360,15 @@
         validateApellidoMaterno(),
         validateCodigoPostal(),
         validateTelefono(),
-        validateCorreo(),
-        validateContrasena(),
+        validateEmail(),
+        validatePassword(),
         validateRol(),
         validateActivo(),
       ];
       return checks.every(Boolean);
     };
 
-    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, codigoPostalInput, telefonoInput, correoInput, contrasenaInput].forEach((input) => {
+    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, codigoPostalInput, telefonoInput, emailInput, passwordInput].forEach((input) => {
       input.addEventListener('input', validateForm);
     });
     rolInput.addEventListener('change', validateForm);

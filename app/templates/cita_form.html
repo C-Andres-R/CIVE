@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">{% if mode == 'edit' %}Editar cita{% else %}Crear cita{% endif %}</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == 'edit' %}Editar cita{% else %}Crear cita{% endif %}</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -24,22 +24,22 @@
     {% endwith %}
 
     <form class="usuario-form" method="POST" novalidate
-      action="{% if mode == 'edit' %}{{ url_for('citas.citas_edit', cita_id=cita_id) }}{% else %}{{ url_for('citas.citas_new') }}{% endif %}">
+      action="{% if mode == 'edit' %}{{ url_for('citas.citas_editar', cita_id=cita_id) }}{% else %}{{ url_for('citas.citas_nueva') }}{% endif %}">
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha y hora *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="datetime-local" name="fecha_hora" value="{{ form_data.fecha_hora }}">
+          <input class="usuario-input" type="datetime-local" name="fecha_hora" value="{{ datos_formulario.fecha_hora }}">
         </div>
-        <small class="field-error" data-field-error="fecha_hora">{{ field_errors.fecha_hora or "" }}</small>
+        <small class="field-error" data-field-error="fecha_hora">{{ errores_campo.fecha_hora or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Motivo *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="motivo">{{ form_data.motivo }}</textarea>
+          <textarea class="usuario-input" name="motivo">{{ datos_formulario.motivo }}</textarea>
         </div>
-        <small class="field-error" data-field-error="motivo">{{ field_errors.motivo or "" }}</small>
+        <small class="field-error" data-field-error="motivo">{{ errores_campo.motivo or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -52,14 +52,14 @@
               value="{{ mascota_id }}"
               data-cliente-id="{{ dueno_id }}"
               data-cliente-nombre="{{ dueno_nombre }}"
-              {% if form_data.mascota_id == mascota_id|string %}selected{% endif %}
+              {% if datos_formulario.mascota_id == mascota_id|string %}selected{% endif %}
             >
               {{ mascota_nombre }}
             </option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="mascota_id">{{ field_errors.mascota_id or "" }}</small>
+        <small class="field-error" data-field-error="mascota_id">{{ errores_campo.mascota_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -68,12 +68,12 @@
           <select class="usuario-select" name="cliente_id_display" disabled>
             <option value="">Cliente asociado</option>
             {% for cliente in clientes %}
-            <option value="{{ cliente.id }}" {% if form_data.cliente_id == cliente.id|string %}selected{% endif %}>{{ cliente.nombre }}</option>
+            <option value="{{ cliente.id }}" {% if datos_formulario.cliente_id == cliente.id|string %}selected{% endif %}>{{ cliente.nombre }}</option>
             {% endfor %}
           </select>
         </div>
-        <input type="hidden" name="cliente_id" value="{{ form_data.cliente_id }}">
-        <small class="field-error" data-field-error="cliente_id">{{ field_errors.cliente_id or "" }}</small>
+        <input type="hidden" name="cliente_id" value="{{ datos_formulario.cliente_id }}">
+        <small class="field-error" data-field-error="cliente_id">{{ errores_campo.cliente_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -82,16 +82,35 @@
           <select class="usuario-select" name="veterinario_id">
             <option value="">Seleccione veterinario</option>
             {% for vet in veterinarios %}
-            <option value="{{ vet.id }}" {% if form_data.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="veterinario_id">{{ field_errors.veterinario_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_id">{{ errores_campo.veterinario_id or "" }}</small>
       </div>
+
+      {% if can_schedule_followup %}
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="cita_requiere_seguimiento" {% if datos_formulario.cita_requiere_seguimiento %}checked{% endif %}>
+          ¿Esta cita requiere seguimiento?
+        </label>
+      </div>
+
+      <div class="seguimiento-extra-wrap">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="datetime-local" name="cita_seguimiento_programado_para" value="{{ datos_formulario.cita_seguimiento_programado_para }}">
+          </div>
+          <small class="field-error" data-field-error="cita_seguimiento_programado_para">{{ errores_campo.cita_seguimiento_programado_para or "" }}</small>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
-        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_lista') }}">Cancelar</a>
       </div>
     </form>
   </div>
@@ -108,7 +127,10 @@
     const clienteDisplayInput = form.querySelector('select[name="cliente_id_display"]');
     const clienteHiddenInput = form.querySelector('input[name="cliente_id"]');
     const veterinarioInput = form.querySelector('select[name="veterinario_id"]');
-    let submitAttempted = {{ "true" if field_errors else "false" }};
+    const seguimientoCheck = form.querySelector('input[name="cita_requiere_seguimiento"]');
+    const seguimientoWrap = form.querySelector('.seguimiento-extra-wrap');
+    const seguimientoFechaInput = form.querySelector('input[name="cita_seguimiento_programado_para"]');
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
 
     const errorEls = {
       fecha_hora: form.querySelector('[data-field-error="fecha_hora"]'),
@@ -116,6 +138,7 @@
       mascota_id: form.querySelector('[data-field-error="mascota_id"]'),
       cliente_id: form.querySelector('[data-field-error="cliente_id"]'),
       veterinario_id: form.querySelector('[data-field-error="veterinario_id"]'),
+      cita_seguimiento_programado_para: form.querySelector('[data-field-error="cita_seguimiento_programado_para"]'),
     };
 
     const setError = (field, message) => {
@@ -193,12 +216,38 @@
       return true;
     };
 
+    const toggleSeguimiento = () => {
+      if (!seguimientoCheck || !seguimientoWrap) return;
+      seguimientoWrap.classList.toggle('hidden', !seguimientoCheck.checked);
+    };
+
+    const validateSeguimiento = () => {
+      if (!seguimientoCheck || !seguimientoFechaInput) return true;
+      if (!seguimientoCheck.checked) {
+        setError('cita_seguimiento_programado_para', '');
+        return true;
+      }
+      const value = seguimientoFechaInput.value;
+      if (!value) {
+        setError('cita_seguimiento_programado_para', 'Debes seleccionar una fecha y hora válidas para el seguimiento.');
+        return false;
+      }
+      const selectedDate = new Date(value);
+      if (Number.isNaN(selectedDate.getTime()) || selectedDate <= new Date()) {
+        setError('cita_seguimiento_programado_para', 'Debes seleccionar una fecha y hora futura para el seguimiento.');
+        return false;
+      }
+      setError('cita_seguimiento_programado_para', '');
+      return true;
+    };
+
     const validateForm = () => {
       const checks = [
         validateFechaHora(),
         validateMotivo(),
         validateMascota(),
         validateVeterinario(),
+        validateSeguimiento(),
       ];
       return checks.every(Boolean);
     };
@@ -207,6 +256,8 @@
     motivoInput.addEventListener('input', validateForm);
     mascotaInput.addEventListener('change', validateForm);
     veterinarioInput.addEventListener('change', validateForm);
+    if (seguimientoCheck) seguimientoCheck.addEventListener('change', () => { toggleSeguimiento(); validateForm(); });
+    if (seguimientoFechaInput) seguimientoFechaInput.addEventListener('change', validateForm);
 
     form.addEventListener('submit', (event) => {
       submitAttempted = true;
@@ -216,6 +267,7 @@
     });
 
     syncClienteFromMascota();
+    toggleSeguimiento();
   })();
 </script>
 {% endblock %}

@@ -261,17 +261,17 @@
     font-size: 14px;
   }
 
-  .login-messages {
+  .mensajes-inicio-sesion {
     margin-bottom: 16px;
   }
 
-  .login-alert {
+  .alerta-inicio-sesion {
     padding: 10px 12px;
     border-radius: 8px;
     font-size: 14px;
   }
 
-  .login-alert-error {
+  .alerta-inicio-sesion-error {
     background-color: #fdecea;
     color: #611a15;
     border: 1px solid #f5c6cb;

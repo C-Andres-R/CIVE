@@ -15,8 +15,8 @@
   <p><b>Activo:</b> {{ 'Sí' if u.activo else 'No' }}</p>
 
   <div style="margin-top: 16px;">
-    <a href="{{ url_for('usuarios.usuarios_edit', user_id=user[0].id) }}">Editar</a>
-    <a href="{{ url_for('usuarios.usuarios_index') }}" style="margin-left: 12px;">Volver</a>
+    <a href="{{ url_for('usuarios.usuarios_editar', usuario_id=user[0].id) }}">Editar</a>
+    <a href="{{ url_for('usuarios.usuarios_lista') }}" style="margin-left: 12px;">Volver</a>
   </div>
 
 </div>

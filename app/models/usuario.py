@@ -20,6 +20,11 @@ class Usuario(db.Model):
     entidad = db.Column(db.String(80))
     telefono = db.Column(db.String(20))
     razon_inactivacion = db.Column(db.Text)
+    fuente_captacion = db.Column(
+        db.Enum("recomendacion", "redes_sociales", name="fuente_captacion_cliente"),
+        nullable=True,
+    )
+    fecha_registro = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     activo = db.Column(db.Boolean, nullable=False, default=True)
     eliminado = db.Column(db.Boolean, nullable=False, default=False)

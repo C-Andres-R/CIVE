@@ -17,16 +17,16 @@ def get_current_user_from_api():
     except Exception:
         return None
 
-    user_id = claims.get("sub")
-    if not user_id:
+    usuario_id = claims.get("sub")
+    if not usuario_id:
         return None
 
     try:
-        user_id = int(user_id)
+        usuario_id = int(usuario_id)
     except (TypeError, ValueError):
         return None
 
-    user: Usuario | None = db.session.get(Usuario, user_id)
+    user: Usuario | None = db.session.get(Usuario, usuario_id)
     if not user or user.eliminado or not user.activo:
         return None
 

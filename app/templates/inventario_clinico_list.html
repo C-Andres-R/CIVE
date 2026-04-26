@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario clínico | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Inventario clínico</div>
+  <div class="section-subtitle">Gestiona medicamentos y vacunas disponibles para tratamientos y expedientes.</div>
+
+  <div class="citas-tools">
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.inventario_nuevo') }}">Registrar insumo</a>
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.expedientes_lista') }}">Volver a expedientes</a>
+  </div>
+
+  <form class="filters" method="get" action="{{ url_for('expedientes.inventario_lista') }}">
+    <div class="campo-filtro">
+      <label>Tipo</label>
+      <select name="tipo">
+        <option value="">Todos</option>
+        <option value="medicamento" {% if filters.tipo == 'medicamento' %}selected{% endif %}>Medicamento</option>
+        <option value="vacuna" {% if filters.tipo == 'vacuna' %}selected{% endif %}>Vacuna</option>
+      </select>
+    </div>
+
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Filtrar</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('expedientes.inventario_lista') }}">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Tipo</th>
+        <th>Caducidad</th>
+        <th>Existencia</th>
+        <th>Precio</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for insumo in insumos %}
+      <tr>
+        <td>{{ insumo.nombre }}</td>
+        <td>{{ insumo.tipo_insumo|capitalize }}</td>
+        <td>{{ insumo.fecha_caducidad.strftime('%Y-%m-%d') if insumo.fecha_caducidad else '-' }}</td>
+        <td>{{ insumo.cantidad_existencia }}</td>
+        <td>${{ '%.2f'|format(insumo.precio or 0) }}</td>
+        <td>{{ 'Activo' if insumo.activo else 'Inactivo' }}</td>
+        <td><a class="inline-link" href="{{ url_for('expedientes.inventario_editar', insumo_id=insumo.id) }}">Editar</a></td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7">No hay insumos clínicos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

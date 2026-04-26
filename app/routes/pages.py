@@ -7,68 +7,80 @@ from utils.auth_ui import get_current_user_from_api
 
 pages_bp = Blueprint("pages", __name__)
 
-def login_required(view_func):
+
+def _safe_next_path(value: str | None):
+    candidate = (value or "").strip()
+    if candidate.startswith("/") and not candidate.startswith("//"):
+        return candidate
+    return ""
+
+def requiere_inicio_sesion(view_func):
     # Protege una vista para que solo pueda abrirse con sesión iniciada.
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         if not session.get ("access_token"):
-            return redirect(url_for("pages.login_page"))
+            return redirect(url_for("pages.pagina_inicio_sesion"))
         return view_func(*args, **kwargs)
     return wrapper
 
 @pages_bp.get("/")
 @pages_bp.get("/login")
-def login_page():
+def pagina_inicio_sesion():
+    next_path = _safe_next_path(request.args.get("next"))
     if session.get("access_token"):
-        return redirect(url_for("pages.dashboard_page"))
-    return render_template("login.html", form_data={"correo": ""}, field_errors={})
+        return redirect(next_path or url_for("pages.pagina_panel"))
+    return render_template("login.html", datos_formulario={"correo": "", "next": next_path}, errores_campo={})
 
 @pages_bp.post("/login")
-def login_post():
+def procesar_inicio_sesion():
     correo = (request.form.get("correo") or "").strip().lower()
     contrasena = request.form.get("contrasena") or ""
-    form_data = {"correo": correo}
-    field_errors = {}
+    next_path = _safe_next_path(request.form.get("next"))
+    datos_formulario = {"correo": correo, "next": next_path}
+    errores_campo = {}
 
     if not correo:
-        field_errors["correo"] = "Este campo no puede estar vacío."
+        errores_campo["correo"] = "Este campo no puede estar vacío."
     elif "@" not in correo or "." not in correo.split("@")[-1]:
-        field_errors["correo"] = "Por favor, verifica la información ingresada."
+        errores_campo["correo"] = "Por favor, verifica la información ingresada."
 
     if not contrasena:
-        field_errors["contrasena"] = "Este campo no puede estar vacío."
+        errores_campo["contrasena"] = "Este campo no puede estar vacío."
 
-    if field_errors:
-        return render_template("login.html", form_data=form_data, field_errors=field_errors)
+    if errores_campo:
+        return render_template("login.html", datos_formulario=datos_formulario, errores_campo=errores_campo)
 
     user, rol_nombre = authenticate_user(correo, contrasena)
     if not user:
-        field_errors = {
+        errores_campo = {
             "correo": "Por favor, verifica la información ingresada.",
             "contrasena": "Por favor, verifica la información ingresada.",
         }
-        return render_template("login.html", form_data=form_data, field_errors=field_errors)
+        return render_template("login.html", datos_formulario=datos_formulario, errores_campo=errores_campo)
     access_token = create_access_token(
         identity=str(user.id),
         additional_claims={"rol": rol_nombre}
     )
     session["access_token"] = access_token
-    return redirect(url_for("pages.dashboard_page"))
+    return redirect(next_path or url_for("pages.pagina_panel"))
 
 @pages_bp.get("/dashboard")
-@login_required
-def dashboard_page():
+@requiere_inicio_sesion
+def pagina_panel():
     me = get_current_user_from_api()
     if not me:
         session.clear()
-        return redirect(url_for("pages.login_page"))
-    if (me.get("rol") or "").strip().lower() == "cliente":
+        return redirect(url_for("pages.pagina_inicio_sesion"))
+    rol = (me.get("rol") or "").strip().lower()
+    if rol == "cliente":
         return redirect(url_for("clientes.clientes_portal"))
-    return redirect(url_for("usuarios.usuarios_index"))
+    if rol == "veterinario":
+        return redirect(url_for("citas.citas_lista"))
+    return redirect(url_for("datos.datos_dashboard"))
 
 @pages_bp.get("/logout")
-@login_required
-def logout_page():
+@requiere_inicio_sesion
+def pagina_cerrar_sesion():
     # Cierra la sesión actual y vuelve al login.
     session.clear()
-    return redirect(url_for("pages.login_page"))
+    return redirect(url_for("pages.pagina_inicio_sesion"))

@@ -8,37 +8,37 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Generar historial financiero</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Generar historial financiero</div>
   <div class="section-subtitle">Consulta administrativa con filtros por cliente y movimientos.</div>
 </div>
 
 <div class="content-stack">
   <form class="filters" method="post" action="{{ url_for('clientes.clientes_finanzas_generar') }}" novalidate>
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Cliente</label>
-      <select name="client_id">
+      <select name="cliente_id">
         <option value="">Seleccione un cliente</option>
         {% for client, mascotas_count in clients %}
-        <option value="{{ client.id }}" {% if filters.client_id == client.id|string %}selected{% endif %}>{{ client.nombre }}</option>
+        <option value="{{ client.id }}" {% if filters.cliente_id == client.id|string %}selected{% endif %}>{{ client.nombre }}</option>
         {% endfor %}
       </select>
-      <small class="field-error">{{ field_errors.client_id or "" }}</small>
+      <small class="field-error">{{ errores_campo.cliente_id or "" }}</small>
     </div>
 
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Fecha inicio</label>
       <input type="date" name="fecha_inicio" value="{{ filters.fecha_inicio }}">
-      <small class="field-error">{{ field_errors.fecha_inicio or "" }}</small>
+      <small class="field-error">{{ errores_campo.fecha_inicio or "" }}</small>
     </div>
 
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Fecha fin</label>
       <input type="date" name="fecha_fin" value="{{ filters.fecha_fin }}">
-      <small class="field-error">{{ field_errors.fecha_fin or "" }}</small>
+      <small class="field-error">{{ errores_campo.fecha_fin or "" }}</small>
     </div>
 
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Estado</label>
       <select name="estado">
         <option value="">Todos</option>
@@ -46,10 +46,10 @@
         <option value="pendiente" {% if filters.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
         <option value="parcial" {% if filters.estado == 'parcial' %}selected{% endif %}>Parcial</option>
       </select>
-      <small class="field-error">{{ field_errors.estado or "" }}</small>
+      <small class="field-error">{{ errores_campo.estado or "" }}</small>
     </div>
 
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Método de pago</label>
       <select name="metodo_pago">
         <option value="">Todos</option>
@@ -57,10 +57,10 @@
         <option value="{{ metodo }}" {% if filters.metodo_pago == metodo %}selected{% endif %}>{{ metodo }}</option>
         {% endfor %}
       </select>
-      <small class="field-error">{{ field_errors.metodo_pago or "" }}</small>
+      <small class="field-error">{{ errores_campo.metodo_pago or "" }}</small>
     </div>
 
-    <div class="filter-actions">
+    <div class="acciones-filtro">
       <button class="cive-btn cive-btn--filter" type="submit">Generar</button>
       <a class="cive-btn cive-btn--filter" href="{{ url_for('clientes.clientes_finanzas_generar') }}">Limpiar</a>
     </div>
@@ -76,19 +76,19 @@
 
   <div class="stat-grid">
     <div class="stat-card">
-      <span class="stat-label">Facturado</span>
+      <span class="etiqueta-estadistica">Facturado</span>
       <strong>${{ '%.2f'|format(summary.total_facturado) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Pagado</span>
+      <span class="etiqueta-estadistica">Pagado</span>
       <strong>${{ '%.2f'|format(summary.total_pagado) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Descuentos</span>
+      <span class="etiqueta-estadistica">Descuentos</span>
       <strong>${{ '%.2f'|format(summary.total_descuento) }}</strong>
     </div>
     <div class="stat-card">
-      <span class="stat-label">Adeudo</span>
+      <span class="etiqueta-estadistica">Adeudo</span>
       <strong>${{ '%.2f'|format(summary.total_adeudo) }}</strong>
     </div>
   </div>

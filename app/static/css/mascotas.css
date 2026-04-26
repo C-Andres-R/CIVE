@@ -90,3 +90,74 @@
 .warn-note {
   color: #8a6d3b;
 }
+
+.media-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-modal.hidden {
+  display: none;
+}
+
+.media-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.media-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 720px);
+  max-height: 88vh;
+  background: #ffffff;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 14px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.media-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-dashboard);
+}
+
+.media-modal__head h3 {
+  margin: 0;
+}
+
+.media-modal__close {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-dashboard);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.media-modal__body {
+  padding: 18px;
+}
+
+.media-modal__image {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.media-modal__empty {
+  margin: 0;
+  color: var(--color-text-light);
+}

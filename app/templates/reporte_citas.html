@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte administrativo de citas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reportes.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reportes_filters.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Reporte administrativo de citas</div>
+  <div class="section-subtitle">Analiza citas completadas, canceladas y pendientes por periodo.</div>
+</div>
+
+{% include "_reportes_tabs.html" %}
+
+<div class="content-stack">
+  <form class="filters filters--overlay-errors" method="get" action="{{ url_for('reportes.reportes_citas_administrativo') }}" novalidate data-report-filter="date-range">
+    <div class="campo-filtro">
+      <label>Fecha inicial</label>
+      <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}">
+      <small class="field-error" data-field-error="fecha_inicio">{{ errores_campo.fecha_inicio or "" }}</small>
+    </div>
+    <div class="campo-filtro">
+      <label>Fecha final</label>
+      <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}">
+      <small class="field-error" data-field-error="fecha_fin">{{ errores_campo.fecha_fin or "" }}</small>
+    </div>
+    <div class="acciones-filtro">
+      <button class="cive-btn cive-btn--filter" type="submit">Generar reporte</button>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('reportes.reportes_citas_administrativo') }}">Limpiar</a>
+    </div>
+  </form>
+
+  {% if rows %}
+  <div class="stat-grid">
+    <div class="stat-card"><span class="etiqueta-estadistica">Completadas</span><strong>{{ summary.completadas }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Canceladas</span><strong>{{ summary.canceladas }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Pendientes</span><strong>{{ summary.pendientes }}</strong></div>
+    <div class="stat-card"><span class="etiqueta-estadistica">Total</span><strong>{{ summary.total }}</strong></div>
+  </div>
+
+  <div class="citas-tools">
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.pdf }}">Exportar PDF</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.xlsx }}">Exportar Excel</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.csv }}">Exportar CSV</a>
+  </div>
+
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Veterinario</th>
+          <th>Completadas</th>
+          <th>Canceladas</th>
+          <th>Pendientes</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.veterinario }}</td>
+          <td>{{ row.completadas }}</td>
+          <td>{{ row.canceladas }}</td>
+          <td>{{ row.pendientes }}</td>
+          <td>{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

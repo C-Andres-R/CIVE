@@ -26,22 +26,35 @@
             </div>
 
             <div class="nav-list">
-                {% set is_cliente = ((me.rol if me is defined and me else '') or '')|lower == 'cliente' %}
+                {% set current_role = ((me.rol if me is defined and me else '') or '')|lower %}
+                {% set is_cliente = current_role == 'cliente' %}
+                {% set is_veterinario = current_role == 'veterinario' %}
                 {% if is_cliente %}
                 <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_portal') }}">Portal del cliente</a>
-                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.chat_page') }}">Chat</a>
-                <a class="nav-item" href="{{ url_for('pages.logout_page') }}">Cerrar sesión</a>
+                <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
+                <a class="nav-item {% if (active_nav or '') == 'expedientes' %}active{% endif %}" href="{{ url_for('expedientes.expedientes_lista') }}">Expedientes</a>
+                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
+                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
+                {% elif is_veterinario %}
+                <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_lista') }}">Citas</a>
+                <a class="nav-item {% if (active_nav or '') == 'mascotas' %}active{% endif %}" href="{{ url_for('mascotas.mascotas_lista') }}">Mascotas</a>
+                <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_lista') }}">Clientes</a>
+                <a class="nav-item {% if (active_nav or '') == 'expedientes' %}active{% endif %}" href="{{ url_for('expedientes.expedientes_lista') }}">Expedientes</a>
+                <a class="nav-item {% if (active_nav or '') == 'reportes' %}active{% endif %}" href="{{ url_for('reportes.reportes_home') }}">Reportes</a>
+                <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
+                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
+                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
                 {% else %}
-                <a class="nav-item {% if (active_nav or 'usuarios') == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios.usuarios_index') }}">Usuarios</a>
-                <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_index') }}">Citas</a>
-                <a class="nav-item {% if (active_nav or '') == 'mascotas' %}active{% endif %}" href="{{ url_for('mascotas.mascotas_index') }}">Mascotas</a>
-                <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_index') }}">Clientes</a>
-                <a class="nav-item" href="#">Expedientes</a>
-                <a class="nav-item" href="#">Reportes</a>
-                <a class="nav-item" href="#">Datos</a>
-                <a class="nav-item" href="#">Encuestas</a>
-                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.chat_page') }}">Chat</a>
-                <a class="nav-item" href="{{ url_for('pages.logout_page') }}">Cerrar sesión</a>
+                <a class="nav-item {% if (active_nav or 'usuarios') == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios.usuarios_lista') }}">Usuarios</a>
+                <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_lista') }}">Citas</a>
+                <a class="nav-item {% if (active_nav or '') == 'mascotas' %}active{% endif %}" href="{{ url_for('mascotas.mascotas_lista') }}">Mascotas</a>
+                <a class="nav-item {% if (active_nav or '') == 'clientes' %}active{% endif %}" href="{{ url_for('clientes.clientes_lista') }}">Clientes</a>
+                <a class="nav-item {% if (active_nav or '') == 'expedientes' %}active{% endif %}" href="{{ url_for('expedientes.expedientes_lista') }}">Expedientes</a>
+                <a class="nav-item {% if (active_nav or '') == 'reportes' %}active{% endif %}" href="{{ url_for('reportes.reportes_home') }}">Reportes</a>
+                <a class="nav-item {% if (active_nav or '') == 'datos' %}active{% endif %}" href="{{ url_for('datos.datos_dashboard') }}">Datos</a>
+                <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
+                <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
+                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
                 {% endif %}
             </div>
 

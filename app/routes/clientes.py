@@ -11,12 +11,12 @@ from werkzeug.security import generate_password_hash
 
 from app.auth.password_policy import validate_password
 from app.extensions import db
-from app.models import Cita, Facturacion, Mascota, Rol, Usuario
+from app.models import Cita, EncuestaSatisfaccion, Facturacion, FotoMascota, Mascota, RecordatorioCita, Rol, Usuario
 from utils.auth_ui import get_current_user_from_api
 
 clientes_bp = Blueprint("clientes", __name__)
 
-LOGIN_GET_ENDPOINT = "pages.login_page"
+LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
 
 ROLE_ADMIN = "administrador"
 ROLE_CLIENTE = "cliente"
@@ -36,19 +36,20 @@ PHONE_PATTERN = re.compile(r"^[0-9+\-()\s]{10,20}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CP_PATTERN = re.compile(r"^\d{5}$")
 FINANCIAL_STATES = {"pagado", "pendiente", "parcial"}
+CLIENT_SOURCE_OPTIONS = {"recomendacion", "redes_sociales"}
 
 
-def _redirect_to_login():
+def _redirigir_a_inicio_sesion():
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
-def _require_login_or_redirect():
+def _requiere_inicio_sesion_o_redirige():
     if not session.get("access_token"):
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
     return None
 
 
-def _get_me_or_logout():
+def _obtener_usuario_o_cerrar_sesion():
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -56,39 +57,39 @@ def _get_me_or_logout():
     return me
 
 
-def _role_name(me) -> str:
+def _nombre_rol(me) -> str:
     return (me.get("rol") or "").strip().lower()
 
 
-def _allowed(me, hu_code: str) -> bool:
-    return _role_name(me) in PERMISSIONS.get(hu_code, set())
+def _permitido(me, hu_code: str) -> bool:
+    return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
-def _parse_int(value):
+def _parsear_entero(value):
     try:
         return int(value)
     except (TypeError, ValueError):
         return None
 
 
-def _is_valid_email(email: str) -> bool:
-    return bool(EMAIL_PATTERN.match(email or ""))
+def _es_correo_valido(correo: str) -> bool:
+    return bool(EMAIL_PATTERN.match(correo or ""))
 
 
-def _is_valid_phone(phone: str) -> bool:
+def _es_telefono_valido(phone: str) -> bool:
     if not PHONE_PATTERN.match(phone or ""):
         return False
     digits = re.sub(r"\D", "", phone or "")
     return 10 <= len(digits) <= 15
 
 
-def _full_name(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
+def _nombre_completo(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
     # Normaliza el nombre completo a partir de sus componentes.
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
     return " ".join(part for part in parts if part)
 
 
-def _full_address(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
+def _direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -108,7 +109,7 @@ def _full_address(calle: str, numero: str, colonia: str, codigo_postal: str, est
     return ""
 
 
-def _get_client_role():
+def _obtener_rol_cliente():
     return (
         db.session.query(Rol)
         .filter(func.lower(Rol.nombre) == ROLE_CLIENTE)
@@ -116,34 +117,34 @@ def _get_client_role():
     )
 
 
-def _get_client(client_id: int) -> Usuario | None:
+def _obtener_cliente(cliente_id: int) -> Usuario | None:
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
-        .filter(Usuario.id == client_id)
+        .filter(Usuario.id == cliente_id)
         .filter(func.lower(Rol.nombre) == ROLE_CLIENTE)
         .first()
     )
 
 
-def _client_exists_for_access(client_id: int) -> Usuario | None:
-    client = _get_client(client_id)
+def _cliente_existe_para_acceso(cliente_id: int) -> Usuario | None:
+    client = _obtener_cliente(cliente_id)
     if not client or client.eliminado:
         return None
     return client
 
 
-def _can_access_client_resource(me, client_id: int, hu_code: str) -> bool:
+def _puede_acceder_recurso_cliente(me, cliente_id: int, hu_code: str) -> bool:
     # Revisa si el usuario actual puede consultar recursos de un cliente.
-    if not _allowed(me, hu_code):
+    if not _permitido(me, hu_code):
         return False
-    role = _role_name(me)
+    role = _nombre_rol(me)
     if role == ROLE_CLIENTE:
-        return _parse_int(me.get("id")) == client_id
+        return _parsear_entero(me.get("id")) == cliente_id
     return True
 
 
-def _client_form_data(form=None, client: Usuario | None = None):
+def _datos_formulario_cliente(form=None, client: Usuario | None = None):
     form = form or {}
     client_nombres = (client.nombres if client else "") or ""
     client_apellido_paterno = (client.apellido_paterno if client else "") or ""
@@ -169,11 +170,20 @@ def _client_form_data(form=None, client: Usuario | None = None):
         "entidad": (form.get("entidad") if form else None) or (client.entidad if client else "") or "",
         "telefono": (form.get("telefono") if form else None) or (client.telefono if client else "") or "",
         "correo": (form.get("correo") if form else None) or (client.correo if client else "") or "",
+        "fuente_captacion": (form.get("fuente_captacion") if form else None) or (client.fuente_captacion if client else "") or "",
     }
 
 
-def _validate_client_form(form, *, client_id: int | None = None, require_password: bool = True):
+def _validar_formulario_cliente(
+    form,
+    *,
+    cliente_id: int | None = None,
+    require_password: bool = True,
+    require_source: bool = True,
+    current_source: str | None = None,
+):
     errors = []
+    errores_campo = {}
 
     nombres = (form.get("nombres") or "").strip()
     apellido_paterno = (form.get("apellido_paterno") or "").strip()
@@ -187,34 +197,48 @@ def _validate_client_form(form, *, client_id: int | None = None, require_passwor
     telefono = (form.get("telefono") or "").strip()
     correo = (form.get("correo") or "").strip().lower()
     contrasena = form.get("contrasena") or ""
+    fuente_captacion = (form.get("fuente_captacion") or "").strip().lower()
 
     if not nombres:
-        errors.append("El nombre es obligatorio.")
+        errores_campo["nombres"] = "El nombre es obligatorio."
     if codigo_postal and not CP_PATTERN.match(codigo_postal):
-        errors.append("El C.P. debe tener exactamente 5 dígitos.")
+        errores_campo["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
     if not telefono:
-        errors.append("El teléfono es obligatorio.")
-    elif not _is_valid_phone(telefono):
-        errors.append("El teléfono debe tener un formato válido.")
+        errores_campo["telefono"] = "El teléfono es obligatorio."
+    elif not _es_telefono_valido(telefono):
+        errores_campo["telefono"] = "El teléfono debe tener un formato válido."
     if not correo:
-        errors.append("El correo es obligatorio.")
-    elif not _is_valid_email(correo):
-        errors.append("El correo no tiene un formato válido.")
+        errores_campo["correo"] = "El correo es obligatorio."
+    elif not _es_correo_valido(correo):
+        errores_campo["correo"] = "El correo no tiene un formato válido."
+    if require_source:
+        if not fuente_captacion:
+            errores_campo["fuente_captacion"] = "Debes seleccionar una fuente de captación."
+        elif fuente_captacion not in CLIENT_SOURCE_OPTIONS:
+            errores_campo["fuente_captacion"] = "Debes seleccionar una fuente de captación válida."
+    else:
+        fuente_captacion = fuente_captacion or ((current_source or "").strip().lower())
+        if fuente_captacion and fuente_captacion not in CLIENT_SOURCE_OPTIONS:
+            fuente_captacion = ((current_source or "").strip().lower())
 
     if require_password and not contrasena:
-        errors.append("La contraseña es obligatoria.")
+        errores_campo["contrasena"] = "La contraseña es obligatoria."
     if contrasena:
-        errors.extend(validate_password(contrasena, correo=correo, nombre=_full_name(nombres, apellido_paterno, apellido_materno)))
+        password_errors = validate_password(contrasena, correo=correo, nombre=_nombre_completo(nombres, apellido_paterno, apellido_materno))
+        if password_errors:
+            errores_campo["contrasena"] = " ".join(password_errors)
 
     if correo:
         duplicate_query = db.session.query(Usuario.id).filter(func.lower(Usuario.correo) == correo.lower())
-        if client_id is not None:
-            duplicate_query = duplicate_query.filter(Usuario.id != client_id)
+        if cliente_id is not None:
+            duplicate_query = duplicate_query.filter(Usuario.id != cliente_id)
         if duplicate_query.first():
-            errors.append("Ya existe un cliente con ese correo.")
+            errores_campo["correo"] = "Ya existe un cliente con ese correo."
 
-    nombre = _full_name(nombres, apellido_paterno, apellido_materno)
-    domicilio = _full_address(calle, numero, colonia, codigo_postal, estado, entidad)
+    errors.extend(errores_campo.values())
+
+    nombre = _nombre_completo(nombres, apellido_paterno, apellido_materno)
+    domicilio = _direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
 
     payload = {
         "nombres": nombres,
@@ -231,12 +255,13 @@ def _validate_client_form(form, *, client_id: int | None = None, require_passwor
         "telefono": telefono,
         "correo": correo,
         "contrasena": contrasena,
+        "fuente_captacion": fuente_captacion,
     }
 
-    return errors, payload
+    return errors, errores_campo, payload
 
 
-def _clients_query():
+def _consulta_clientes():
     pet_counts = (
         db.session.query(
             Mascota.dueno_id.label("cliente_id"),
@@ -259,35 +284,79 @@ def _clients_query():
     )
 
 
-def _client_pets(client_id: int):
+def _mascotas_cliente(cliente_id: int):
     return (
         db.session.query(Mascota)
-        .filter(Mascota.dueno_id == client_id)
+        .filter(Mascota.dueno_id == cliente_id)
         .order_by(Mascota.nombre.asc(), Mascota.id.asc())
         .all()
     )
 
 
-def _client_appointments(client_id: int):
+def _foto_previews_cliente(mascota_ids: list[int]):
+    # Función de vista previa multimedia.
+    if not mascota_ids:
+        return {}
+
+    rows = (
+        db.session.query(FotoMascota)
+        .filter(FotoMascota.mascota_id.in_(mascota_ids))
+        .order_by(FotoMascota.mascota_id.asc(), FotoMascota.fecha_subida.desc(), FotoMascota.id.desc())
+        .all()
+    )
+
+    previews = {}
+    for row in rows:
+        if row.mascota_id in previews:
+            continue
+        previews[row.mascota_id] = {
+            "path": row.url_foto,
+            "name": row.nombre_archivo or "Foto de mascota",
+        }
+    return previews
+
+
+def _citas_cliente(cliente_id: int):
+    # Función de recordatorio automático.
     return (
-        db.session.query(Cita, Mascota.nombre.label("mascota_nombre"))
+        db.session.query(
+            Cita,
+            Mascota.nombre.label("mascota_nombre"),
+            RecordatorioCita.estado.label("recordatorio_estado"),
+            RecordatorioCita.confirmado.label("recordatorio_confirmado"),
+            RecordatorioCita.anticipacion_horas.label("recordatorio_anticipacion_horas"),
+            RecordatorioCita.programado_para.label("recordatorio_programado_para"),
+        )
         .join(Mascota, Mascota.id == Cita.mascota_id)
-        .filter(Cita.cliente_id == client_id)
+        .outerjoin(RecordatorioCita, RecordatorioCita.cita_id == Cita.id)
+        .filter(Cita.cliente_id == cliente_id)
         .order_by(Cita.fecha_hora.desc(), Cita.id.desc())
         .all()
     )
 
 
-def _client_financial_rows(client_id: int):
+def _filas_financieras_cliente(cliente_id: int):
     return (
         db.session.query(Facturacion)
-        .filter(Facturacion.cliente_id == client_id)
+        .filter(Facturacion.cliente_id == cliente_id)
         .order_by(Facturacion.fecha_pago.desc(), Facturacion.id.desc())
         .all()
     )
 
 
-def _parse_datetime_date(value: str):
+def _resumen_encuestas_cliente(cliente_id: int):
+    rows = (
+        db.session.query(EncuestaSatisfaccion)
+        .filter(EncuestaSatisfaccion.cliente_id == cliente_id)
+        .all()
+    )
+    return {
+        "pendientes": sum(1 for row in rows if not row.respondido),
+        "respondidas": sum(1 for row in rows if row.respondido),
+    }
+
+
+def _parsear_fecha_datetime(value: str):
     if not value:
         return None
     try:
@@ -296,7 +365,7 @@ def _parse_datetime_date(value: str):
         return None
 
 
-def _financial_methods():
+def _metodos_financieros():
     rows = (
         db.session.query(Facturacion.metodo_pago)
         .filter(Facturacion.metodo_pago.isnot(None))
@@ -307,9 +376,9 @@ def _financial_methods():
     return [row[0] for row in rows if (row[0] or "").strip()]
 
 
-def _filtered_financial_rows(client_id: int, *, fecha_inicio=None, fecha_fin=None, estado="", metodo_pago=""):
+def _filas_financieras_filtradas(cliente_id: int, *, fecha_inicio=None, fecha_fin=None, estado="", metodo_pago=""):
     # Filtra los movimientos financieros del cliente según los criterios capturados.
-    q = db.session.query(Facturacion).filter(Facturacion.cliente_id == client_id)
+    q = db.session.query(Facturacion).filter(Facturacion.cliente_id == cliente_id)
     if fecha_inicio:
         q = q.filter(Facturacion.fecha_pago >= fecha_inicio)
     if fecha_fin:
@@ -321,7 +390,7 @@ def _filtered_financial_rows(client_id: int, *, fecha_inicio=None, fecha_fin=Non
     return q.order_by(Facturacion.fecha_pago.desc(), Facturacion.id.desc()).all()
 
 
-def _financial_summary(rows: list[Facturacion]):
+def _resumen_financiero(rows: list[Facturacion]):
     # Resume los totales financieros de un cliente.
     total_pagado = sum((row.monto_pagado or Decimal("0")) for row in rows)
     total_descuento = sum((row.descuento or Decimal("0")) for row in rows)
@@ -338,59 +407,59 @@ def _financial_summary(rows: list[Facturacion]):
 
 
 @clientes_bp.get("/clientes")
-def clientes_index():
-    r = _require_login_or_redirect()
+def clientes_lista():
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    role = _role_name(me)
+    role = _nombre_rol(me)
     if role == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
 
     if role not in {ROLE_ADMIN, ROLE_VETERINARIO}:
         return render_template("acceso_denegado.html", me=me)
 
-    rows = _clients_query().all()
+    rows = _consulta_clientes().all()
     return render_template(
         "clientes_list.html",
         me=me,
         active_nav="clientes",
         clientes_rows=rows,
-        can_create=_allowed(me, "hu018"),
-        can_edit=_allowed(me, "hu019"),
-        can_inactivate=_allowed(me, "hu020"),
-        can_notify=_allowed(me, "hu021"),
-        can_view_pets=_allowed(me, "hu022"),
-        can_view_finance=_allowed(me, "hu023"),
+        can_create=_permitido(me, "hu018"),
+        can_edit=_permitido(me, "hu019"),
+        can_inactivate=_permitido(me, "hu020"),
+        can_notify=_permitido(me, "hu021"),
+        can_view_pets=_permitido(me, "hu022"),
+        can_view_finance=_permitido(me, "hu023"),
         can_generate_finance_report=(role == ROLE_ADMIN),
     )
 
 
 @clientes_bp.route("/clientes/finanzas/generar", methods=["GET", "POST"])
 def clientes_finanzas_generar():
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if _role_name(me) != ROLE_ADMIN:
+    if _nombre_rol(me) != ROLE_ADMIN:
         return render_template("acceso_denegado.html", me=me)
 
-    clients = _clients_query().all()
-    payment_methods = _financial_methods()
-    field_errors = {}
+    clients = _consulta_clientes().all()
+    payment_methods = _metodos_financieros()
+    errores_campo = {}
     selected_client = None
     rows = []
-    summary = _financial_summary(rows)
+    summary = _resumen_financiero(rows)
     filters = {
-        "client_id": "",
+        "cliente_id": "",
         "fecha_inicio": "",
         "fecha_fin": "",
         "estado": "",
@@ -398,56 +467,56 @@ def clientes_finanzas_generar():
     }
 
     if request.method == "POST":
-        client_id = _parse_int(request.form.get("client_id"))
+        cliente_id = _parsear_entero(request.form.get("cliente_id"))
         fecha_inicio_raw = request.form.get("fecha_inicio") or ""
         fecha_fin_raw = request.form.get("fecha_fin") or ""
         estado = (request.form.get("estado") or "").strip().lower()
         metodo_pago = (request.form.get("metodo_pago") or "").strip()
 
         filters = {
-            "client_id": str(client_id or ""),
+            "cliente_id": str(cliente_id or ""),
             "fecha_inicio": fecha_inicio_raw,
             "fecha_fin": fecha_fin_raw,
             "estado": estado,
             "metodo_pago": metodo_pago,
         }
 
-        fecha_inicio = _parse_datetime_date(fecha_inicio_raw)
-        fecha_fin = _parse_datetime_date(fecha_fin_raw)
+        fecha_inicio = _parsear_fecha_datetime(fecha_inicio_raw)
+        fecha_fin = _parsear_fecha_datetime(fecha_fin_raw)
 
-        if not client_id:
-            field_errors["client_id"] = "Debes seleccionar el cliente."
+        if not cliente_id:
+            errores_campo["cliente_id"] = "Debes seleccionar el cliente."
         else:
-            selected_client = _client_exists_for_access(client_id)
+            selected_client = _cliente_existe_para_acceso(cliente_id)
             if not selected_client:
-                field_errors["client_id"] = "El cliente seleccionado no existe."
+                errores_campo["cliente_id"] = "El cliente seleccionado no existe."
 
         if fecha_inicio_raw and not fecha_inicio:
-            field_errors["fecha_inicio"] = "Debes seleccionar una fecha de inicio válida."
+            errores_campo["fecha_inicio"] = "Debes seleccionar una fecha de inicio válida."
         elif fecha_inicio and fecha_inicio.date() > date.today():
-            field_errors["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
+            errores_campo["fecha_inicio"] = "La fecha de inicio no puede ser posterior a hoy."
         if fecha_fin_raw and not fecha_fin:
-            field_errors["fecha_fin"] = "Debes seleccionar una fecha de fin válida."
+            errores_campo["fecha_fin"] = "Debes seleccionar una fecha de fin válida."
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
-            field_errors["fecha_fin"] = "La fecha de fin no puede ser anterior a la fecha de inicio."
+            errores_campo["fecha_fin"] = "La fecha de fin no puede ser anterior a la fecha de inicio."
         if estado and estado not in FINANCIAL_STATES:
-            field_errors["estado"] = "Debes seleccionar un estado válido."
+            errores_campo["estado"] = "Debes seleccionar un estado válido."
         if metodo_pago and metodo_pago not in payment_methods:
-            field_errors["metodo_pago"] = "Debes seleccionar un método de pago válido."
+            errores_campo["metodo_pago"] = "Debes seleccionar un método de pago válido."
 
-        if not field_errors and selected_client:
+        if not errores_campo and selected_client:
             if fecha_inicio:
                 fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0, microsecond=0)
             if fecha_fin:
                 fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59, microsecond=999999)
-            rows = _filtered_financial_rows(
+            rows = _filas_financieras_filtradas(
                 selected_client.id,
                 fecha_inicio=fecha_inicio,
                 fecha_fin=fecha_fin,
                 estado=estado,
                 metodo_pago=metodo_pago,
             )
-            summary = _financial_summary(rows)
+            summary = _resumen_financiero(rows)
 
     return render_template(
         "clientes_finanzas_generar.html",
@@ -455,7 +524,7 @@ def clientes_finanzas_generar():
         active_nav="clientes",
         clients=clients,
         payment_methods=payment_methods,
-        field_errors=field_errors,
+        errores_campo=errores_campo,
         filters=filters,
         selected_client=selected_client,
         financial_rows=rows,
@@ -464,16 +533,16 @@ def clientes_finanzas_generar():
 
 
 @clientes_bp.route("/clientes/nuevo", methods=["GET", "POST"])
-def clientes_new():
-    r = _require_login_or_redirect()
+def clientes_nuevo():
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _allowed(me, "hu018"):
+    if not _permitido(me, "hu018"):
         return render_template("acceso_denegado.html", me=me)
 
     if request.method == "GET":
@@ -482,24 +551,24 @@ def clientes_new():
             me=me,
             active_nav="clientes",
             mode="create",
-            form_data=_client_form_data(),
+            datos_formulario=_datos_formulario_cliente(),
+            errores_campo={},
         )
 
-    errors, payload = _validate_client_form(request.form, require_password=True)
-    form_data = _client_form_data(request.form)
+    errors, errores_campo, payload = _validar_formulario_cliente(request.form, require_password=True)
+    datos_formulario = _datos_formulario_cliente(request.form)
 
     if errors:
-        for err in errors:
-            flash(err, "error")
         return render_template(
             "cliente_form.html",
             me=me,
             active_nav="clientes",
             mode="create",
-            form_data=form_data,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
         )
 
-    role = _get_client_role()
+    role = _obtener_rol_cliente()
     if not role:
         flash("No existe el rol cliente en la base de datos.", "error")
         return render_template(
@@ -507,7 +576,8 @@ def clientes_new():
             me=me,
             active_nav="clientes",
             mode="create",
-            form_data=form_data,
+            datos_formulario=datos_formulario,
+            errores_campo={},
         )
 
     client = Usuario(
@@ -525,6 +595,7 @@ def clientes_new():
         entidad=payload["entidad"],
         domicilio=payload["domicilio"],
         telefono=payload["telefono"],
+        fuente_captacion=payload["fuente_captacion"],
         razon_inactivacion=None,
         activo=True,
         eliminado=False,
@@ -542,29 +613,30 @@ def clientes_new():
             me=me,
             active_nav="clientes",
             mode="create",
-            form_data=form_data,
+            datos_formulario=datos_formulario,
+            errores_campo={},
         )
 
     flash("Cliente registrado correctamente.", "success")
-    return redirect(url_for("clientes.clientes_index"))
+    return redirect(url_for("clientes.clientes_lista"))
 
 
-@clientes_bp.route("/clientes/<int:client_id>/editar", methods=["GET", "POST"])
-def clientes_edit(client_id: int):
-    r = _require_login_or_redirect()
+@clientes_bp.route("/clientes/<int:cliente_id>/editar", methods=["GET", "POST"])
+def clientes_editar(cliente_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _allowed(me, "hu019"):
+    if not _permitido(me, "hu019"):
         return render_template("acceso_denegado.html", me=me)
 
-    client = _client_exists_for_access(client_id)
+    client = _cliente_existe_para_acceso(cliente_id)
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
     if request.method == "GET":
         return render_template(
@@ -573,24 +645,24 @@ def clientes_edit(client_id: int):
             active_nav="clientes",
             mode="edit",
             client=client,
-            client_id=client.id,
-            form_data=_client_form_data(client=client),
+            cliente_id=client.id,
+            datos_formulario=_datos_formulario_cliente(client=client),
+            errores_campo={},
         )
 
-    errors, payload = _validate_client_form(request.form, client_id=client.id, require_password=False)
-    form_data = _client_form_data(request.form, client)
+    errors, errores_campo, payload = _validar_formulario_cliente(request.form, cliente_id=client.id, require_password=False)
+    datos_formulario = _datos_formulario_cliente(request.form, client)
 
     if errors:
-        for err in errors:
-            flash(err, "error")
         return render_template(
             "cliente_form.html",
             me=me,
             active_nav="clientes",
             mode="edit",
             client=client,
-            client_id=client.id,
-            form_data=form_data,
+            cliente_id=client.id,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
         )
 
     client.nombres = payload["nombres"]
@@ -606,6 +678,7 @@ def clientes_edit(client_id: int):
     client.domicilio = payload["domicilio"]
     client.telefono = payload["telefono"]
     client.correo = payload["correo"]
+    client.fuente_captacion = payload["fuente_captacion"]
     if payload["contrasena"]:
         client.contrasena = generate_password_hash(payload["contrasena"])
 
@@ -620,31 +693,32 @@ def clientes_edit(client_id: int):
             active_nav="clientes",
             mode="edit",
             client=client,
-            client_id=client.id,
-            form_data=form_data,
+            cliente_id=client.id,
+            datos_formulario=datos_formulario,
+            errores_campo={},
         )
 
     flash("Cliente actualizado correctamente.", "success")
-    return redirect(url_for("clientes.clientes_index"))
+    return redirect(url_for("clientes.clientes_lista"))
 
 
-@clientes_bp.route("/clientes/<int:client_id>/inactivar", methods=["GET", "POST"])
-def clientes_inactivar(client_id: int):
+@clientes_bp.route("/clientes/<int:cliente_id>/inactivar", methods=["GET", "POST"])
+def clientes_inactivar(cliente_id: int):
     # Inactiva un cliente y guarda la razón indicada.
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _allowed(me, "hu020"):
+    if not _permitido(me, "hu020"):
         return render_template("acceso_denegado.html", me=me)
 
-    client = _client_exists_for_access(client_id)
+    client = _cliente_existe_para_acceso(cliente_id)
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
     if request.method == "GET":
         return render_template(
@@ -679,26 +753,26 @@ def clientes_inactivar(client_id: int):
     db.session.commit()
 
     flash("Cliente inactivado correctamente.", "success")
-    return redirect(url_for("clientes.clientes_index"))
+    return redirect(url_for("clientes.clientes_lista"))
 
 
-@clientes_bp.route("/clientes/<int:client_id>/notificar", methods=["GET", "POST"])
-def clientes_notificar(client_id: int):
+@clientes_bp.route("/clientes/<int:cliente_id>/notificar", methods=["GET", "POST"])
+def clientes_notificar(cliente_id: int):
     # Envía una notificación por correo a un cliente.
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _allowed(me, "hu021"):
+    if not _permitido(me, "hu021"):
         return render_template("acceso_denegado.html", me=me)
 
-    client = _client_exists_for_access(client_id)
+    client = _cliente_existe_para_acceso(cliente_id)
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
     default_subject = f"Notificación de CIVE para {client.nombre}"
     default_message = (
@@ -714,7 +788,7 @@ def clientes_notificar(client_id: int):
             me=me,
             active_nav="clientes",
             client=client,
-            form_data={"asunto": default_subject, "mensaje": default_message},
+            datos_formulario={"asunto": default_subject, "mensaje": default_message},
         )
 
     subject = (request.form.get("asunto") or "").strip()
@@ -727,7 +801,7 @@ def clientes_notificar(client_id: int):
             me=me,
             active_nav="clientes",
             client=client,
-            form_data={"asunto": subject, "mensaje": body},
+            datos_formulario={"asunto": subject, "mensaje": body},
         )
 
     if not (client.correo or "").strip():
@@ -737,13 +811,13 @@ def clientes_notificar(client_id: int):
             me=me,
             active_nav="clientes",
             client=client,
-            form_data={"asunto": subject, "mensaje": body},
+            datos_formulario={"asunto": subject, "mensaje": body},
         )
 
-    from app.routes.chat import _send_email_smtp
+    from app.routes.chat import _enviar_email_smtp
 
     # Enviamos el correo y mostramos el error si el servicio no responde.
-    sent_ok, sent_error = _send_email_smtp(client.correo.strip(), subject, body)
+    sent_ok, sent_error = _enviar_email_smtp(client.correo.strip(), subject, body)
     if not sent_ok:
         flash(sent_error or "No fue posible enviar el correo.", "error")
         return render_template(
@@ -751,89 +825,91 @@ def clientes_notificar(client_id: int):
             me=me,
             active_nav="clientes",
             client=client,
-            form_data={"asunto": subject, "mensaje": body},
+            datos_formulario={"asunto": subject, "mensaje": body},
         )
 
     flash("Notificación enviada correctamente.", "success")
-    return redirect(url_for("clientes.clientes_index"))
+    return redirect(url_for("clientes.clientes_lista"))
 
 
-@clientes_bp.get("/clientes/<int:client_id>/mascotas")
-def clientes_mascotas(client_id: int):
-    r = _require_login_or_redirect()
+@clientes_bp.get("/clientes/<int:cliente_id>/mascotas")
+def clientes_mascotas(cliente_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _can_access_client_resource(me, client_id, "hu022"):
+    if not _puede_acceder_recurso_cliente(me, cliente_id, "hu022"):
         return render_template("acceso_denegado.html", me=me)
 
-    client = _client_exists_for_access(client_id)
+    client = _cliente_existe_para_acceso(cliente_id)
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
-    pets = _client_pets(client.id)
+    pets = _mascotas_cliente(client.id)
+    foto_previews = _foto_previews_cliente([pet.id for pet in pets])
     return render_template(
         "cliente_mascotas.html",
         me=me,
         active_nav="clientes",
         client=client,
         pets=pets,
+        foto_previews=foto_previews,
     )
 
 
-@clientes_bp.get("/clientes/<int:client_id>/finanzas")
-def clientes_finanzas(client_id: int):
-    r = _require_login_or_redirect()
+@clientes_bp.get("/clientes/<int:cliente_id>/finanzas")
+def clientes_finanzas(cliente_id: int):
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _can_access_client_resource(me, client_id, "hu023"):
+    if not _puede_acceder_recurso_cliente(me, cliente_id, "hu023"):
         return render_template("acceso_denegado.html", me=me)
 
-    client = _client_exists_for_access(client_id)
+    client = _cliente_existe_para_acceso(cliente_id)
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
-    rows = _client_financial_rows(client.id)
+    rows = _filas_financieras_cliente(client.id)
     return render_template(
         "cliente_finanzas.html",
         me=me,
         active_nav="clientes",
         client=client,
         financial_rows=rows,
-        summary=_financial_summary(rows),
+        summary=_resumen_financiero(rows),
     )
 
 
 @clientes_bp.get("/portal-cliente")
 def clientes_portal():
-    r = _require_login_or_redirect()
+    r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
 
-    me = _get_me_or_logout()
+    me = _obtener_usuario_o_cerrar_sesion()
     if not me:
-        return _redirect_to_login()
+        return _redirigir_a_inicio_sesion()
 
-    if not _allowed(me, "hu024"):
+    if not _permitido(me, "hu024"):
         return render_template("acceso_denegado.html", me=me)
 
-    client_id = _parse_int(me.get("id"))
-    client = _client_exists_for_access(client_id) if client_id is not None else None
+    cliente_id = _parsear_entero(me.get("id"))
+    client = _cliente_existe_para_acceso(cliente_id) if cliente_id is not None else None
     if not client:
-        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", client_id=client_id)
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
 
-    pets = _client_pets(client.id)
-    appointments = _client_appointments(client.id)
-    financial_rows = _client_financial_rows(client.id)
+    pets = _mascotas_cliente(client.id)
+    appointments = _citas_cliente(client.id)
+    financial_rows = _filas_financieras_cliente(client.id)
     pending_rows = [row for row in financial_rows if row.estado in {"pendiente", "parcial"}]
 
     return render_template(
@@ -845,5 +921,98 @@ def clientes_portal():
         appointments=appointments,
         financial_rows=financial_rows,
         pending_rows=pending_rows,
-        summary=_financial_summary(financial_rows),
+        summary=_resumen_financiero(financial_rows),
+        surveys_summary=_resumen_encuestas_cliente(client.id),
+        now=datetime.now(),
     )
+
+
+@clientes_bp.route("/portal-cliente/editar", methods=["GET", "POST"])
+def clientes_portal_editar():
+    # Función de autoservicio del cliente.
+    r = _requiere_inicio_sesion_o_redirige()
+    if r:
+        return r
+
+    me = _obtener_usuario_o_cerrar_sesion()
+    if not me:
+        return _redirigir_a_inicio_sesion()
+
+    if not _permitido(me, "hu024"):
+        return render_template("acceso_denegado.html", me=me)
+
+    cliente_id = _parsear_entero(me.get("id"))
+    client = _cliente_existe_para_acceso(cliente_id) if cliente_id is not None else None
+    if not client:
+        return render_template("cliente_no_encontrado.html", me=me, active_nav="clientes", cliente_id=cliente_id)
+
+    if request.method == "GET":
+        return render_template(
+            "cliente_form.html",
+            me=me,
+            active_nav="clientes",
+            mode="edit",
+            client=client,
+            cliente_id=client.id,
+            datos_formulario=_datos_formulario_cliente(client=client),
+            errores_campo={},
+            self_service=True,
+        )
+
+    errors, errores_campo, payload = _validar_formulario_cliente(
+        request.form,
+        cliente_id=client.id,
+        require_password=False,
+        require_source=False,
+        current_source=client.fuente_captacion,
+    )
+    datos_formulario = _datos_formulario_cliente(request.form, client)
+
+    if errors:
+        return render_template(
+            "cliente_form.html",
+            me=me,
+            active_nav="clientes",
+            mode="edit",
+            client=client,
+            cliente_id=client.id,
+            datos_formulario=datos_formulario,
+            errores_campo=errores_campo,
+            self_service=True,
+        )
+
+    client.nombres = payload["nombres"]
+    client.apellido_paterno = payload["apellido_paterno"]
+    client.apellido_materno = payload["apellido_materno"]
+    client.nombre = payload["nombre"]
+    client.calle = payload["calle"]
+    client.numero = payload["numero"]
+    client.colonia = payload["colonia"]
+    client.codigo_postal = payload["codigo_postal"]
+    client.estado = payload["estado"]
+    client.entidad = payload["entidad"]
+    client.domicilio = payload["domicilio"]
+    client.telefono = payload["telefono"]
+    client.correo = payload["correo"]
+    if payload["contrasena"]:
+        client.contrasena = generate_password_hash(payload["contrasena"])
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("No fue posible actualizar tus datos por un conflicto de información.", "error")
+        return render_template(
+            "cliente_form.html",
+            me=me,
+            active_nav="clientes",
+            mode="edit",
+            client=client,
+            cliente_id=client.id,
+            datos_formulario=datos_formulario,
+            errores_campo={},
+            self_service=True,
+        )
+
+    flash("Tus datos se actualizaron correctamente.", "success")
+    return redirect(url_for("clientes.clientes_portal"))

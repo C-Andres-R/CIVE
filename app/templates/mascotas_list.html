@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="encabezado-pagina">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   <div class="flash-wrap">
@@ -19,16 +19,16 @@
   {% endif %}
   {% endwith %}
 
-  <div class="page-title">Registro de Mascotas</div>
+  <div class="titulo-pagina">Registro de Mascotas</div>
 
   <div class="citas-tools">
     {% if can_create %}
-    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_new') }}">Registrar mascota</a>
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_nueva') }}">Registrar mascota</a>
     {% endif %}
   </div>
 
-  <form class="filters" method="get" action="{{ url_for('mascotas.mascotas_index') }}">
-    <div class="filter-field">
+  <form class="filters" method="get" action="{{ url_for('mascotas.mascotas_lista') }}">
+    <div class="campo-filtro">
       <label>Estado</label>
       <select name="estado">
         <option value="">Todos</option>
@@ -37,7 +37,7 @@
       </select>
     </div>
 
-    <div class="filter-field">
+    <div class="campo-filtro">
       <label>Orden</label>
       <select name="orden">
         <option value="asc" {% if filters.orden == 'asc' %}selected{% endif %}>Registro ascendente</option>
@@ -45,9 +45,9 @@
       </select>
     </div>
 
-    <div class="filter-actions">
+    <div class="acciones-filtro">
       <button class="cive-btn cive-btn--filter" type="submit">Filtrar</button>
-      <a class="cive-btn cive-btn--filter" href="{{ url_for('mascotas.mascotas_index') }}">Limpiar</a>
+      <a class="cive-btn cive-btn--filter" href="{{ url_for('mascotas.mascotas_lista') }}">Limpiar</a>
     </div>
   </form>
 </div>
@@ -89,22 +89,30 @@
         </td>
         <td>
           <details class="actions-dropdown">
-            <summary class="actions-summary">
+            <summary class="resumen-acciones">
               <div class="more-icon"></div>
             </summary>
             <div class="actions-menu">
               <a class="actions-item" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Historial completo</a>
               {% if can_edit %}
-              <a class="actions-item" href="{{ url_for('mascotas.mascotas_edit', mascota_id=mascota.id) }}">Editar</a>
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_editar', mascota_id=mascota.id) }}">Editar</a>
               {% endif %}
               {% if can_inactivate and mascota.estado == 'activa' %}
               <a class="actions-item" href="{{ url_for('mascotas.mascotas_inactivar', mascota_id=mascota.id) }}">Inactivar</a>
               {% endif %}
               {% if can_link_owner %}
-              <a class="actions-item" href="{{ url_for('mascotas.mascotas_vincular_dueno', mascota_id=mascota.id) }}">Vincular dueño</a>
+              <a class="actions-item" href="{{ url_for('mascotas.mascotas_vincular_duenio', mascota_id=mascota.id) }}">Vincular dueño</a>
               {% endif %}
               {% if can_multimedia %}
-              <a class="actions-item" href="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">Multimedia</a>
+              <button
+                class="actions-item js-media-preview"
+                type="button"
+                data-mascota-nombre="{{ mascota.nombre }}"
+                data-photo-path="{{ foto_previews.get(mascota.id, {}).get('path', '') }}"
+                data-photo-name="{{ foto_previews.get(mascota.id, {}).get('name', '') }}"
+              >
+                Multimedia
+              </button>
               {% endif %}
               {% if can_behavior %}
               <a class="actions-item" href="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">Comportamiento</a>
@@ -121,4 +129,128 @@
     </tbody>
   </table>
 </div>
+<div class="media-modal hidden" id="media-preview-modal" aria-hidden="true">
+  <div class="media-modal__backdrop"></div>
+  <div class="media-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="media-preview-title">
+    <div class="media-modal__head">
+      <h3 id="media-preview-title">Multimedia</h3>
+      <button class="media-modal__close" type="button" aria-label="Cerrar vista previa">Cerrar</button>
+    </div>
+    <div class="media-modal__body">
+      <img class="media-modal__image hidden" alt="">
+      <p class="media-modal__empty hidden">Esta mascota no tiene una foto registrada.</p>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    const menus = Array.from(document.querySelectorAll('.actions-dropdown'));
+    if (!menus.length) return;
+
+    const closeAll = () => {
+      menus.forEach((menu) => {
+        menu.open = false;
+      });
+    };
+
+    menus.forEach((menu) => {
+      const summary = menu.querySelector('.resumen-acciones');
+      const links = menu.querySelectorAll('.actions-menu a');
+      const previewButtons = menu.querySelectorAll('.actions-menu .js-media-preview');
+
+      if (summary) {
+        summary.addEventListener('click', (event) => {
+          // Función de cierre del menú.
+          event.preventDefault();
+          const willOpen = !menu.open;
+          closeAll();
+          if (willOpen) {
+            menu.open = true;
+          }
+        });
+      }
+
+      links.forEach((link) => {
+        link.addEventListener('click', () => {
+          // Función de cierre del menú.
+          const href = link.getAttribute('href') || '';
+          const target = (link.getAttribute('target') || '').toLowerCase();
+          const isExternal = /^https?:\/\//i.test(href);
+          if (target === '_blank' || isExternal) {
+            return;
+          }
+          menu.open = false;
+        });
+      });
+
+      previewButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          // Función de cierre del menú.
+          menu.open = false;
+        });
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.actions-dropdown')) return;
+      closeAll();
+    });
+  })();
+
+  (() => {
+    const modal = document.getElementById('media-preview-modal');
+    if (!modal) return;
+
+    const image = modal.querySelector('.media-modal__image');
+    const empty = modal.querySelector('.media-modal__empty');
+    const title = modal.querySelector('#media-preview-title');
+    const closeButton = modal.querySelector('.media-modal__close');
+    const backdrop = modal.querySelector('.media-modal__backdrop');
+    const previewButtons = document.querySelectorAll('.js-media-preview');
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+      image.classList.add('hidden');
+      empty.classList.add('hidden');
+      image.removeAttribute('src');
+      image.setAttribute('alt', '');
+    };
+
+    const openModal = (button) => {
+      const mascotaNombre = button.dataset.mascotaNombre || 'Mascota';
+      const photoPath = button.dataset.photoPath || '';
+      const photoName = button.dataset.photoName || mascotaNombre;
+
+      title.textContent = `Foto de ${mascotaNombre}`;
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+
+      if (photoPath) {
+        image.src = `/static/${photoPath}`;
+        image.alt = photoName;
+        image.classList.remove('hidden');
+        empty.classList.add('hidden');
+      } else {
+        image.classList.add('hidden');
+        empty.classList.remove('hidden');
+      }
+    };
+
+    previewButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        // Función de vista previa multimedia.
+        openModal(button);
+      });
+    });
+
+    closeButton.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    });
+  })();
+</script>
 {% endblock %}

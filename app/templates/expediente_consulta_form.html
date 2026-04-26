@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar consulta{% else %}Registrar consulta{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == 'edit' %}Editar consulta médica{% else %}Registrar consulta médica{% endif %}</div>
+  <div class="section-subtitle">{{ mascota.nombre }}</div>
+</div>
+
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <form class="usuario-form" method="POST" novalidate>
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha de consulta *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha_consulta" value="{{ datos_formulario.fecha_consulta }}">
+        </div>
+        <small class="field-error">{{ errores_campo.fecha_consulta or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Veterinario *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="veterinario_id">
+            <option value="">Seleccione veterinario</option>
+            {% for vet in veterinarios %}
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Síntomas *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="sintomas">{{ datos_formulario.sintomas }}</textarea>
+        </div>
+        <small class="field-error">{{ errores_campo.sintomas or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Diagnóstico *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="diagnostico">{{ datos_formulario.diagnostico }}</textarea>
+        </div>
+        <small class="field-error">{{ errores_campo.diagnostico or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Tratamiento *</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="tratamiento">{{ datos_formulario.tratamiento }}</textarea>
+        </div>
+        <small class="field-error">{{ errores_campo.tratamiento or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="incluye_medicamento" {% if datos_formulario.incluye_medicamento %}checked{% endif %}>
+          ¿Se proporcionó medicamento?
+        </label>
+      </div>
+
+      <div class="medicamento-extra-wrap">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Medicamento desde inventario</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="insumo_clinico_id">
+              <option value="">Seleccione medicamento</option>
+              {% for item in medicamentos %}
+              <option value="{{ item.id }}" {% if datos_formulario.insumo_clinico_id == item.id|string %}selected{% endif %}>{{ item.nombre }} · ${{ '%.2f'|format(item.precio or 0) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <small class="field-error">{{ errores_campo.insumo_clinico_id or "" }}</small>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Medicamentos administrados</label>
+          <div class="usuario-input-wrap text-area-wrap">
+            <textarea class="usuario-input" name="medicamentos_administrados">{{ datos_formulario.medicamentos_administrados }}</textarea>
+          </div>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Fecha de administración</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="date" name="fecha_administracion" value="{{ datos_formulario.fecha_administracion }}">
+          </div>
+          <small class="field-error">{{ errores_campo.fecha_administracion or "" }}</small>
+        </div>
+
+        <div class="split-row">
+          <div class="usuario-form-row">
+            <label class="usuario-form-label">Dosis</label>
+            <div class="usuario-input-wrap">
+              <input class="usuario-input" type="text" name="dosis" value="{{ datos_formulario.dosis }}">
+            </div>
+            <small class="field-error">{{ errores_campo.dosis or "" }}</small>
+          </div>
+
+          <div class="usuario-form-row">
+            <label class="usuario-form-label">Período de administración</label>
+            <div class="usuario-input-wrap">
+              <input class="usuario-input" type="text" name="periodo_administracion" value="{{ datos_formulario.periodo_administracion }}">
+            </div>
+            <small class="field-error">{{ errores_campo.periodo_administracion or "" }}</small>
+          </div>
+        </div>
+
+        {% if can_schedule_followup %}
+        <div class="usuario-form-row">
+          <label class="usuario-form-label checkbox-inline">
+            <input type="checkbox" name="medicamento_requiere_seguimiento" {% if datos_formulario.medicamento_requiere_seguimiento %}checked{% endif %}>
+            ¿Este medicamento requiere seguimiento?
+          </label>
+        </div>
+
+        <div class="usuario-form-row medicamento-seguimiento-wrap">
+          <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="datetime-local" name="medicamento_seguimiento_programado_para" value="{{ datos_formulario.medicamento_seguimiento_programado_para }}">
+          </div>
+          <small class="field-error">{{ errores_campo.medicamento_seguimiento_programado_para or "" }}</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="incluye_vacuna" {% if datos_formulario.incluye_vacuna %}checked{% endif %}>
+          ¿Se aplicaron vacunas?
+        </label>
+      </div>
+
+      <div class="vacuna-extra-wrap">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Vacuna aplicada</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="vacuna_insumo_id">
+              <option value="">Seleccione vacuna</option>
+              {% for item in vacunas %}
+              <option value="{{ item.id }}" {% if datos_formulario.vacuna_insumo_id == item.id|string %}selected{% endif %}>{{ item.nombre }} · ${{ '%.2f'|format(item.precio or 0) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <small class="field-error">{{ errores_campo.vacuna_insumo_id or "" }}</small>
+        </div>
+
+        {% if can_schedule_followup %}
+        <div class="usuario-form-row">
+          <label class="usuario-form-label checkbox-inline">
+            <input type="checkbox" name="vacuna_requiere_seguimiento" {% if datos_formulario.vacuna_requiere_seguimiento %}checked{% endif %}>
+            ¿Esta vacuna requiere seguimiento?
+          </label>
+        </div>
+
+        <div class="usuario-form-row vacuna-seguimiento-wrap">
+          <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="datetime-local" name="vacuna_seguimiento_programado_para" value="{{ datos_formulario.vacuna_seguimiento_programado_para }}">
+          </div>
+          <small class="field-error">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="incluye_analisis" {% if datos_formulario.incluye_analisis %}checked{% endif %}>
+          ¿Se realizaron análisis?
+        </label>
+      </div>
+
+      <div class="analisis-extra-wrap">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Análisis realizado</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="tipo_analisis_relacionado">
+              <option value="">Seleccione análisis</option>
+              {% for tipo in tipos_analisis %}
+              <option value="{{ tipo }}" {% if datos_formulario.tipo_analisis_relacionado == tipo %}selected{% endif %}>{{ tipo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <small class="field-error">{{ errores_campo.tipo_analisis_relacionado or "" }}</small>
+        </div>
+
+        {% if can_schedule_followup %}
+        <div class="usuario-form-row">
+          <label class="usuario-form-label checkbox-inline">
+            <input type="checkbox" name="analisis_requiere_seguimiento" {% if datos_formulario.analisis_requiere_seguimiento %}checked{% endif %}>
+            ¿Este análisis requiere seguimiento?
+          </label>
+        </div>
+
+        <div class="usuario-form-row analisis-seguimiento-wrap">
+          <label class="usuario-form-label">Fecha y hora de seguimiento *</label>
+          <div class="usuario-input-wrap">
+            <input class="usuario-input" type="datetime-local" name="analisis_seguimiento_programado_para" value="{{ datos_formulario.analisis_seguimiento_programado_para }}">
+          </div>
+          <small class="field-error">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Precio base de consulta</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" value="$300.00" readonly>
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Observaciones</label>
+        <div class="usuario-input-wrap text-area-wrap">
+          <textarea class="usuario-input" name="observaciones">{{ datos_formulario.observaciones }}</textarea>
+        </div>
+      </div>
+
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  (() => {
+    const pairs = [
+      ['input[name="incluye_medicamento"]', '.medicamento-extra-wrap'],
+      ['input[name="incluye_vacuna"]', '.vacuna-extra-wrap'],
+      ['input[name="incluye_analisis"]', '.analisis-extra-wrap'],
+    ];
+
+    pairs.forEach(([inputSelector, wrapSelector]) => {
+      const input = document.querySelector(inputSelector);
+      const wrap = document.querySelector(wrapSelector);
+      if (!input || !wrap) return;
+
+      const toggleExtra = () => {
+        wrap.classList.toggle('hidden', !input.checked);
+      };
+
+      input.addEventListener('change', toggleExtra);
+      toggleExtra();
+    });
+
+    const followupPairs = [
+      ['input[name="medicamento_requiere_seguimiento"]', '.medicamento-seguimiento-wrap'],
+      ['input[name="vacuna_requiere_seguimiento"]', '.vacuna-seguimiento-wrap'],
+      ['input[name="analisis_requiere_seguimiento"]', '.analisis-seguimiento-wrap'],
+    ];
+
+    followupPairs.forEach(([inputSelector, wrapSelector]) => {
+      const input = document.querySelector(inputSelector);
+      const wrap = document.querySelector(wrapSelector);
+      if (!input || !wrap) return;
+
+      const toggleExtra = () => {
+        wrap.classList.toggle('hidden', !input.checked);
+      };
+
+      input.addEventListener('change', toggleExtra);
+      toggleExtra();
+    });
+  })();
+</script>
+{% endblock %}

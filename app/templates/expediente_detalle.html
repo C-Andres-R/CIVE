@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Expediente | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Expediente de {{ mascota.nombre }}</div>
+  <div class="section-subtitle">Gestión del expediente médico y tratamientos.</div>
+
+  <div class="citas-tools expedientes-tools">
+    {% if can_edit_expediente %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Editar expediente</a>
+    {% endif %}
+    {% if can_manage_consultas %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.consultas_nueva', mascota_id=mascota.id) }}">Registrar consulta</a>
+    {% endif %}
+    {% if can_manage_vacunas %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.vacunas_nueva', mascota_id=mascota.id) }}">Registrar vacuna/alergia</a>
+    {% endif %}
+    {% if can_manage_analisis %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.analisis_nuevo', mascota_id=mascota.id) }}">Registrar análisis</a>
+    {% endif %}
+    {% if can_manage_inventory %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.inventario_lista') }}">Inventario clínico</a>
+    {% endif %}
+    {% if can_print_report %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.expedientes_reporte', mascota_id=mascota.id) }}">Descargar reporte clínico</a>
+    {% endif %}
+    {% if can_multimedia %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_multimedia', mascota_id=mascota.id) }}">Multimedia</a>
+    {% endif %}
+    {% if can_behavior %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">Comportamiento</a>
+    {% endif %}
+    <a class="cive-btn cive-btn--tool" href="{{ url_for('expedientes.expedientes_lista') }}">Volver</a>
+  </div>
+
+  <div class="history-grid">
+    <div class="info-card">
+      <h3>Datos de mascota</h3>
+      <p><strong>Nombre:</strong> {{ mascota.nombre }}</p>
+      <p><strong>Fecha nacimiento:</strong> {{ mascota.fecha_nacimiento.strftime('%Y-%m-%d') if mascota.fecha_nacimiento else '-' }}</p>
+      <p><strong>Especie/Raza:</strong> {{ mascota.especie|capitalize }} / {{ mascota.raza or '-' }}</p>
+      <p><strong>Sexo:</strong> {{ mascota.sexo|capitalize }}</p>
+      <p><strong>Peso:</strong> {{ '%.2f'|format(mascota.peso or 0) }} kg</p>
+      <p><strong>Estado:</strong> {{ mascota.estado|capitalize }}</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Dueño y observaciones</h3>
+      <p><strong>Dueño:</strong> {{ dueno_nombre }}</p>
+      <p><strong>Correo:</strong> {{ dueno_correo }}</p>
+      <p><strong>Situación:</strong> {{ 'Activo' if dueno_activo else 'Inactivo' }}</p>
+      <p><strong>Comportamiento:</strong></p>
+      <p>{{ mascota.comportamiento or 'Sin comportamiento registrado.' }}</p>
+      <p><strong>Datos adicionales:</strong></p>
+      <p>{{ mascota.datos_adicionales or 'Sin datos adicionales.' }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="content-stack">
+  <section class="section-card">
+    <div class="section-card__head">
+      <h3>Consultas médicas</h3>
+    </div>
+    <div class="table-container table-container--card table-container--inner">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Veterinario</th>
+            <th>Síntomas</th>
+            <th>Diagnóstico</th>
+            <th>Tratamiento</th>
+            <th>Medicamentos</th>
+            <th>Vacuna</th>
+            <th>Análisis</th>
+            <th>Observaciones</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for consulta, veterinario_nombre, medicamento_nombre, vacuna_nombre in consultas_rows %}
+          <tr>
+            <td>{{ consulta.fecha_consulta.strftime('%Y-%m-%d') if consulta.fecha_consulta else '-' }}</td>
+            <td>{{ veterinario_nombre }}</td>
+            <td>{{ consulta.sintomas }}</td>
+            <td>{{ consulta.diagnostico }}</td>
+            <td>{{ consulta.tratamiento }}</td>
+            <td>{{ medicamento_nombre or consulta.medicamentos_administrados or '-' }}</td>
+            <td>{{ vacuna_nombre or '-' }}</td>
+            <td>{{ consulta.tipo_analisis_relacionado or '-' }}</td>
+            <td>{{ consulta.observaciones or '-' }}</td>
+            <td>
+              {% if can_manage_consultas %}
+              <a class="inline-link" href="{{ url_for('expedientes.consultas_editar', mascota_id=mascota.id, consulta_id=consulta.id) }}">Editar</a>
+              {% endif %}
+              {% if can_schedule_followup and consulta_followups.get((consulta.id, 'medicamento')) %}
+              <!-- Botón temporal de demostración de seguimiento. -->
+              <form class="action-form" method="post" action="{{ url_for('expedientes.expedientes_recordar_seguimiento_ahora', seguimiento_id=consulta_followups[(consulta.id, 'medicamento')].id) }}">
+                <input type="hidden" name="mascota_id" value="{{ mascota.id }}">
+                <button class="cive-btn cive-btn--action" type="submit">Recordar medicamento ahora</button>
+              </form>
+              {% endif %}
+              {% if can_schedule_followup and consulta_followups.get((consulta.id, 'vacuna')) %}
+              <!-- Botón temporal de demostración de seguimiento. -->
+              <form class="action-form" method="post" action="{{ url_for('expedientes.expedientes_recordar_seguimiento_ahora', seguimiento_id=consulta_followups[(consulta.id, 'vacuna')].id) }}">
+                <input type="hidden" name="mascota_id" value="{{ mascota.id }}">
+                <button class="cive-btn cive-btn--action" type="submit">Recordar vacuna ahora</button>
+              </form>
+              {% endif %}
+              {% if can_schedule_followup and consulta_followups.get((consulta.id, 'analisis')) %}
+              <!-- Botón temporal de demostración de seguimiento. -->
+              <form class="action-form" method="post" action="{{ url_for('expedientes.expedientes_recordar_seguimiento_ahora', seguimiento_id=consulta_followups[(consulta.id, 'analisis')].id) }}">
+                <input type="hidden" name="mascota_id" value="{{ mascota.id }}">
+                <button class="cive-btn cive-btn--action" type="submit">Recordar análisis ahora</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="10">No hay consultas médicas registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section-card">
+    <div class="section-card__head">
+      <h3>Vacunas y alergias</h3>
+    </div>
+    <div class="table-container table-container--card table-container--inner">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Fecha</th>
+            <th>Nombre</th>
+            <th>Reacción identificada</th>
+            <th>Notas</th>
+            <th>Veterinario</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for registro, veterinario_nombre in vacunas_rows %}
+          <tr>
+            <td>{{ registro.tipo_registro|capitalize }}</td>
+            <td>{{ registro.fecha_registro.strftime('%Y-%m-%d') if registro.fecha_registro else '-' }}</td>
+            <td>{{ registro.nombre }}</td>
+            <td>{{ registro.reaccion_identificada or '-' }}</td>
+            <td>{{ registro.notas_adicionales or '-' }}</td>
+            <td>{{ veterinario_nombre }}</td>
+            <td>
+              {% if can_manage_vacunas %}
+              <a class="inline-link" href="{{ url_for('expedientes.vacunas_editar', mascota_id=mascota.id, registro_id=registro.id) }}">Editar</a>
+              {% endif %}
+              {% if can_schedule_followup and vacuna_followups.get((registro.id, 'vacuna')) %}
+              <!-- Botón temporal de demostración de seguimiento. -->
+              <form class="action-form" method="post" action="{{ url_for('expedientes.expedientes_recordar_seguimiento_ahora', seguimiento_id=vacuna_followups[(registro.id, 'vacuna')].id) }}">
+                <input type="hidden" name="mascota_id" value="{{ mascota.id }}">
+                <button class="cive-btn cive-btn--action" type="submit">Recordar seguimiento ahora</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7">No hay vacunas o alergias registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section-card">
+    <div class="section-card__head">
+      <h3>Análisis clínicos</h3>
+    </div>
+    <div class="table-container table-container--card table-container--inner">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Resultados</th>
+            <th>Adjunto</th>
+            <th>Veterinario</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for analisis, veterinario_nombre in analisis_rows %}
+          <tr>
+            <td>{{ analisis.fecha_analisis.strftime('%Y-%m-%d') if analisis.fecha_analisis else '-' }}</td>
+            <td>{{ analisis.tipo_analisis }}</td>
+            <td>{{ analisis.resultados }}</td>
+            <td>
+              {% if analisis.archivo_adjunto %}
+              <a class="inline-link" href="{{ url_for('static', filename=analisis.archivo_adjunto) }}" target="_blank" rel="noopener">{{ analisis.nombre_archivo or 'Ver adjunto' }}</a>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+            <td>{{ veterinario_nombre }}</td>
+            <td>
+              {% if can_manage_analisis %}
+              <a class="inline-link" href="{{ url_for('expedientes.analisis_editar', mascota_id=mascota.id, analisis_id=analisis.id) }}">Editar</a>
+              {% endif %}
+              {% if can_schedule_followup and analisis_followups.get((analisis.id, 'analisis')) %}
+              <!-- Botón temporal de demostración de seguimiento. -->
+              <form class="action-form" method="post" action="{{ url_for('expedientes.expedientes_recordar_seguimiento_ahora', seguimiento_id=analisis_followups[(analisis.id, 'analisis')].id) }}">
+                <input type="hidden" name="mascota_id" value="{{ mascota.id }}">
+                <button class="cive-btn cive-btn--action" type="submit">Recordar seguimiento ahora</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6">No hay análisis clínicos registrados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section-card">
+    <div class="section-card__head">
+      <h3>Citas relacionadas</h3>
+    </div>
+    <div class="table-container table-container--card table-container--inner">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha/Hora</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+            <th>Veterinario</th>
+            <th>Cliente</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cita, cliente_nombre, veterinario_nombre in citas_rows %}
+          <tr>
+            <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
+            <td>{{ cita.motivo or '-' }}</td>
+            <td>{{ cita.estado|capitalize }}</td>
+            <td>{{ veterinario_nombre }}</td>
+            <td>{{ cliente_nombre }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5">No hay citas vinculadas para esta mascota.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

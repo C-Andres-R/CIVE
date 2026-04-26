@@ -8,12 +8,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">{% if mode == "edit" %}Editar cliente{% else %}Registrar cliente{% endif %}</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == "edit" %}Editar cliente{% else %}Registrar cliente{% endif %}</div>
 </div>
 
 <div class="usuario-form-wrap">
   <div class="usuario-form-card">
+    {% if not self_service %}
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-wrap">
@@ -23,28 +24,30 @@
     </div>
     {% endif %}
     {% endwith %}
+    {% endif %}
 
-    <form class="usuario-form" method="POST"
-      action="{% if mode == 'edit' %}{{ url_for('clientes.clientes_edit', client_id=client_id) }}{% else %}{{ url_for('clientes.clientes_new') }}{% endif %}">
+    <form class="usuario-form" method="POST" novalidate
+      action="{% if self_service %}{{ url_for('clientes.clientes_portal_editar') }}{% elif mode == 'edit' %}{{ url_for('clientes.clientes_editar', cliente_id=cliente_id) }}{% else %}{{ url_for('clientes.clientes_nuevo') }}{% endif %}">
       <div class="cliente-form-grid cliente-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="nombres" value="{{ form_data.nombres }}" required>
+            <input class="usuario-input" type="text" name="nombres" value="{{ datos_formulario.nombres }}" required>
           </div>
+          <small class="field-error" data-field-error="nombres">{{ errores_campo.nombres or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Paterno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ form_data.apellido_paterno }}">
+            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ datos_formulario.apellido_paterno }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Materno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_materno" value="{{ form_data.apellido_materno }}">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ datos_formulario.apellido_materno }}">
           </div>
         </div>
       </div>
@@ -53,21 +56,21 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Calle</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="calle" value="{{ form_data.calle }}">
+            <input class="usuario-input" type="text" name="calle" value="{{ datos_formulario.calle }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Número</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="numero" value="{{ form_data.numero }}">
+            <input class="usuario-input" type="text" name="numero" value="{{ datos_formulario.numero }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Colonia</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="colonia" value="{{ form_data.colonia }}">
+            <input class="usuario-input" type="text" name="colonia" value="{{ datos_formulario.colonia }}">
           </div>
         </div>
       </div>
@@ -76,21 +79,22 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">C.P.</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="codigo_postal" value="{{ form_data.codigo_postal }}" maxlength="5">
+            <input class="usuario-input" type="text" name="codigo_postal" value="{{ datos_formulario.codigo_postal }}" maxlength="5">
           </div>
+          <small class="field-error" data-field-error="codigo_postal">{{ errores_campo.codigo_postal or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Estado</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="estado" value="{{ form_data.estado }}">
+            <input class="usuario-input" type="text" name="estado" value="{{ datos_formulario.estado }}">
           </div>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Entidad</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="entidad" value="{{ form_data.entidad }}">
+            <input class="usuario-input" type="text" name="entidad" value="{{ datos_formulario.entidad }}">
           </div>
         </div>
       </div>
@@ -99,17 +103,35 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Teléfono *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="telefono" value="{{ form_data.telefono }}" required>
+            <input class="usuario-input" type="text" name="telefono" value="{{ datos_formulario.telefono }}" required>
           </div>
+          <small class="field-error" data-field-error="telefono">{{ errores_campo.telefono or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Correo electrónico *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="email" name="correo" value="{{ form_data.correo }}" required>
+            <input class="usuario-input" type="email" name="correo" value="{{ datos_formulario.correo }}" required>
           </div>
+          <small class="field-error" data-field-error="correo">{{ errores_campo.correo or "" }}</small>
         </div>
       </div>
+
+      {% if not self_service %}
+      <div class="cliente-form-grid cliente-form-grid--2">
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Fuente de captación *</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="fuente_captacion" required>
+              <option value="">Seleccione una opción</option>
+              <option value="recomendacion" {% if datos_formulario.fuente_captacion == 'recomendacion' %}selected{% endif %}>Recomendación</option>
+              <option value="redes_sociales" {% if datos_formulario.fuente_captacion == 'redes_sociales' %}selected{% endif %}>Redes sociales</option>
+            </select>
+          </div>
+          <small class="field-error" data-field-error="fuente_captacion">{{ errores_campo.fuente_captacion or "" }}</small>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">
@@ -119,15 +141,195 @@
           <input class="usuario-input" type="password" name="contrasena" {% if mode != "edit" %}required{% endif %}
             placeholder="{% if mode == 'edit' %}Dejar vacío para conservar la actual{% else %}Mínimo 12 caracteres{% endif %}">
         </div>
+        <small class="field-error" data-field-error="contrasena">{{ errores_campo.contrasena or "" }}</small>
       </div>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">
           {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}
         </button>
-        <a class="usuario-btn-link" href="{{ url_for('clientes.clientes_index') }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{% if self_service %}{{ url_for('clientes.clientes_portal') }}{% else %}{{ url_for('clientes.clientes_lista') }}{% endif %}">Cancelar</a>
       </div>
     </form>
   </div>
 </div>
+<script>
+  (() => {
+    // Función de validación anticipada.
+    const form = document.querySelector('.usuario-form');
+    if (!form) return;
+
+    const mode = '{{ mode }}';
+    const nombresInput = form.querySelector('input[name="nombres"]');
+    const apellidoPaternoInput = form.querySelector('input[name="apellido_paterno"]');
+    const apellidoMaternoInput = form.querySelector('input[name="apellido_materno"]');
+    const codigoPostalInput = form.querySelector('input[name="codigo_postal"]');
+    const telefonoInput = form.querySelector('input[name="telefono"]');
+    const correoInput = form.querySelector('input[name="correo"]');
+    const fuenteInput = form.querySelector('select[name="fuente_captacion"]');
+    const contrasenaInput = form.querySelector('input[name="contrasena"]');
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
+
+    const errorEls = {
+      nombres: form.querySelector('[data-field-error="nombres"]'),
+      codigo_postal: form.querySelector('[data-field-error="codigo_postal"]'),
+      telefono: form.querySelector('[data-field-error="telefono"]'),
+      correo: form.querySelector('[data-field-error="correo"]'),
+      fuente_captacion: form.querySelector('[data-field-error="fuente_captacion"]'),
+      contrasena: form.querySelector('[data-field-error="contrasena"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const normalizeText = (value) => (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    const validateNombres = () => {
+      const value = (nombresInput?.value || '').trim();
+      if (!value) {
+        setError('nombres', 'El nombre es obligatorio.');
+        return false;
+      }
+      setError('nombres', '');
+      return true;
+    };
+
+    const validateCodigoPostal = () => {
+      const value = (codigoPostalInput?.value || '').trim();
+      if (value && !/^\d{5}$/.test(value)) {
+        setError('codigo_postal', 'El C.P. debe tener exactamente 5 dígitos.');
+        return false;
+      }
+      setError('codigo_postal', '');
+      return true;
+    };
+
+    const validateTelefono = () => {
+      const value = (telefonoInput?.value || '').trim();
+      if (!value) {
+        setError('telefono', 'El teléfono es obligatorio.');
+        return false;
+      }
+      if (!/^[0-9+\-()\s]{10,20}$/.test(value)) {
+        setError('telefono', 'El teléfono debe tener un formato válido.');
+        return false;
+      }
+      const digits = value.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) {
+        setError('telefono', 'El teléfono debe tener un formato válido.');
+        return false;
+      }
+      setError('telefono', '');
+      return true;
+    };
+
+    const validateCorreo = () => {
+      const value = (correoInput?.value || '').trim();
+      if (!value) {
+        setError('correo', 'El correo es obligatorio.');
+        return false;
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+        setError('correo', 'El correo no tiene un formato válido.');
+        return false;
+      }
+      setError('correo', '');
+      return true;
+    };
+
+    const validateFuente = () => {
+      if (!fuenteInput) return true;
+      const value = (fuenteInput.value || '').trim();
+      if (!value) {
+        setError('fuente_captacion', 'Debes seleccionar una fuente de captación.');
+        return false;
+      }
+      setError('fuente_captacion', '');
+      return true;
+    };
+
+    const validateContrasena = () => {
+      const value = contrasenaInput?.value || '';
+      if (mode !== 'edit' && !value) {
+        setError('contrasena', 'La contraseña es obligatoria.');
+        return false;
+      }
+      if (!value) {
+        setError('contrasena', '');
+        return true;
+      }
+
+      const errores = [];
+      const commonPasswords = new Set(['123456', '123456789', 'password', 'qwerty', 'abc123', 'admin', 'letmein']);
+      const correoNormalizado = normalizeText((correoInput?.value || '').trim());
+      const nombreCompleto = [
+        nombresInput?.value || '',
+        apellidoPaternoInput?.value || '',
+        apellidoMaternoInput?.value || '',
+      ].join(' ');
+      const nombreNormalizado = normalizeText(nombreCompleto);
+      const passwordNormalizada = normalizeText(value.trim());
+
+      if (value.trim().length < 12) errores.push('La contraseña debe tener al menos 12 caracteres.');
+      if (!/[A-Z]/.test(value)) errores.push('La contraseña debe incluir al menos una letra mayúscula.');
+      if (!/[a-z]/.test(value)) errores.push('La contraseña debe incluir al menos una letra minúscula.');
+      if (!/\d/.test(value)) errores.push('La contraseña debe incluir al menos un número.');
+      if (!/[^A-Za-z0-9]/.test(value)) errores.push('La contraseña debe incluir al menos un carácter especial.');
+      if (commonPasswords.has(value.trim().toLowerCase())) errores.push('La contraseña es demasiado común.');
+
+      if (correoNormalizado) {
+        const localPart = correoNormalizado.split('@')[0];
+        if (localPart && passwordNormalizada.includes(localPart)) {
+          errores.push('La contraseña no debe contener parte del correo.');
+        }
+      }
+
+      const nameTokens = nombreNormalizado.match(/[a-z0-9]+/g) || [];
+      if (nameTokens.some((token) => token.length >= 3 && passwordNormalizada.includes(token))) {
+        errores.push('Por seguridad, tu contraseña no puede contener tu nombre.');
+      }
+
+      if (errores.length) {
+        setError('contrasena', errores.join(' '));
+        return false;
+      }
+      setError('contrasena', '');
+      return true;
+    };
+
+    const validateForm = () => {
+      const checks = [
+        validateNombres(),
+        validateCodigoPostal(),
+        validateTelefono(),
+        validateCorreo(),
+        validateFuente(),
+        validateContrasena(),
+      ];
+      return checks.every(Boolean);
+    };
+
+    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, codigoPostalInput, telefonoInput, correoInput, contrasenaInput]
+      .filter(Boolean)
+      .forEach((input) => input.addEventListener('input', validateForm));
+
+    if (fuenteInput) {
+      fuenteInput.addEventListener('change', validateForm);
+    }
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    validateForm();
+  })();
+</script>
 {% endblock %}

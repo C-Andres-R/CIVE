@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Encuestas | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/encuestas.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash-item {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="titulo-pagina">Encuestas</div>
+  <div class="section-subtitle">Responde tus encuestas pendientes y consulta las ya completadas.</div>
+</div>
+
+<section class="encuestas-summary">
+  <article class="datos-kpi">
+    <span>Pendientes</span>
+    <strong>{{ summary.pendientes }}</strong>
+  </article>
+  <article class="datos-kpi">
+    <span>Respondidas</span>
+    <strong>{{ summary.respondidas }}</strong>
+  </article>
+  <article class="datos-kpi">
+    <span>Correos enviados</span>
+    <strong>{{ summary.enviadas }}</strong>
+  </article>
+</section>
+
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Cita</th>
+        <th>Mascota</th>
+        <th>Estado</th>
+        <th>Calificación</th>
+        <th>Clasificación</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for encuesta, cita, mascota_nombre, cliente_nombre in rows %}
+      <tr>
+        <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
+        <td>{{ mascota_nombre }}</td>
+        <td>
+          {% if encuesta.respondido %}
+          <span class="estado-activo">Respondida</span>
+          {% else %}
+          <span class="estado-pendiente">Pendiente</span>
+          {% endif %}
+        </td>
+        <td>{{ encuesta.calificacion or '-' }}</td>
+        <td>{{ clasificacion_por_calificacion(encuesta.calificacion) }}</td>
+        <td>
+          <a class="cive-btn cive-btn--action" href="{{ url_for('encuestas.encuesta_responder', encuesta_id=encuesta.id) }}">
+            {% if encuesta.respondido %}Ver{% else %}Responder{% endif %}
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">No hay encuestas registradas por el momento.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

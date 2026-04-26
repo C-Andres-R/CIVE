@@ -8,8 +8,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">{% if mode == "edit" %}Editar mascota{% else %}Registrar mascota{% endif %}</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == "edit" %}Editar mascota{% else %}Registrar mascota{% endif %}</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -24,41 +24,41 @@
     {% endif %}
     {% endwith %}
 
-    <form class="usuario-form" method="POST" action="{% if mode == 'edit' %}{{ url_for('mascotas.mascotas_edit', mascota_id=mascota_id) }}{% else %}{{ url_for('mascotas.mascotas_new') }}{% endif %}">
+    <form class="usuario-form" method="POST" action="{% if mode == 'edit' %}{{ url_for('mascotas.mascotas_editar', mascota_id=mascota_id) }}{% else %}{{ url_for('mascotas.mascotas_nueva') }}{% endif %}">
       <div class="usuario-form-row">
         <label class="usuario-form-label">Nombre *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="text" name="nombre" value="{{ form_data.nombre }}" maxlength="60" autocomplete="off" required>
+          <input class="usuario-input" type="text" name="nombre" value="{{ datos_formulario.nombre }}" maxlength="60" autocomplete="off" required>
         </div>
-        <small class="field-error" data-field-error="nombre">{{ field_errors.nombre or "" }}</small>
+        <small class="field-error" data-field-error="nombre">{{ errores_campo.nombre or "" }}</small>
       </div>
 
       <div class="split-row">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Fecha nacimiento *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="date" name="fecha_nacimiento" value="{{ form_data.fecha_nacimiento }}" {% if not form_data.usa_edad_aproximada %}required{% endif %}>
+            <input class="usuario-input" type="date" name="fecha_nacimiento" value="{{ datos_formulario.fecha_nacimiento }}" {% if not datos_formulario.usa_edad_aproximada %}required{% endif %}>
           </div>
-          <small class="field-error" data-field-error="fecha_nacimiento">{{ field_errors.fecha_nacimiento or "" }}</small>
+          <small class="field-error" data-field-error="fecha_nacimiento">{{ errores_campo.fecha_nacimiento or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Edad</label>
           <div class="usuario-input-wrap">
-            <select class="usuario-select" name="edad" {% if not form_data.usa_edad_aproximada %}disabled{% endif %}>
-              <option value="">{% if form_data.usa_edad_aproximada %}Seleccione edad{% else %}Se calculará automáticamente{% endif %}</option>
+            <select class="usuario-select" name="edad" {% if not datos_formulario.usa_edad_aproximada %}disabled{% endif %}>
+              <option value="">{% if datos_formulario.usa_edad_aproximada %}Seleccione edad{% else %}Se calculará automáticamente{% endif %}</option>
               {% for age in range(0, 31) %}
-              <option value="{{ age }}" {% if form_data.usa_edad_aproximada and form_data.edad == age|string %}selected{% endif %}>{{ age }}</option>
+              <option value="{{ age }}" {% if datos_formulario.usa_edad_aproximada and datos_formulario.edad == age|string %}selected{% endif %}>{{ age }}</option>
               {% endfor %}
             </select>
           </div>
-          <small class="field-error" data-field-error="edad">{{ field_errors.edad or "" }}</small>
+          <small class="field-error" data-field-error="edad">{{ errores_campo.edad or "" }}</small>
         </div>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-check">
-          <input type="checkbox" name="usa_edad_aproximada" value="1" {% if form_data.usa_edad_aproximada %}checked{% endif %}>
+          <input type="checkbox" name="usa_edad_aproximada" value="1" {% if datos_formulario.usa_edad_aproximada %}checked{% endif %}>
           <span>¿No conoces la fecha de nacimiento de tu mascota? Da clic aquí para ingresar su edad aproximada</span>
         </label>
       </div>
@@ -67,17 +67,17 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Peso (kg) *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="peso" inputmode="decimal" value="{{ form_data.peso }}" required>
+            <input class="usuario-input" type="text" name="peso" inputmode="decimal" value="{{ datos_formulario.peso }}" required>
           </div>
-          <small class="field-error" data-field-error="peso">{{ field_errors.peso or "" }}</small>
+          <small class="field-error" data-field-error="peso">{{ errores_campo.peso or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Raza *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="raza" value="{{ form_data.raza }}" required>
+            <input class="usuario-input" type="text" name="raza" value="{{ datos_formulario.raza }}" required>
           </div>
-          <small class="field-error" data-field-error="raza">{{ field_errors.raza or "" }}</small>
+          <small class="field-error" data-field-error="raza">{{ errores_campo.raza or "" }}</small>
         </div>
       </div>
 
@@ -87,12 +87,12 @@
           <div class="usuario-input-wrap">
             <select class="usuario-select" name="especie" required>
               <option value="">Seleccione especie</option>
-              <option value="perro" {% if form_data.especie == 'perro' %}selected{% endif %}>Perro</option>
-              <option value="gato" {% if form_data.especie == 'gato' %}selected{% endif %}>Gato</option>
-              <option value="otro" {% if form_data.especie == 'otro' %}selected{% endif %}>Otro</option>
+              <option value="perro" {% if datos_formulario.especie == 'perro' %}selected{% endif %}>Perro</option>
+              <option value="gato" {% if datos_formulario.especie == 'gato' %}selected{% endif %}>Gato</option>
+              <option value="otro" {% if datos_formulario.especie == 'otro' %}selected{% endif %}>Otro</option>
             </select>
           </div>
-          <small class="field-error" data-field-error="especie">{{ field_errors.especie or "" }}</small>
+          <small class="field-error" data-field-error="especie">{{ errores_campo.especie or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -100,11 +100,11 @@
           <div class="usuario-input-wrap">
             <select class="usuario-select" name="sexo" required>
               <option value="">Seleccione sexo</option>
-              <option value="macho" {% if form_data.sexo == 'macho' %}selected{% endif %}>Macho</option>
-              <option value="hembra" {% if form_data.sexo == 'hembra' %}selected{% endif %}>Hembra</option>
+              <option value="macho" {% if datos_formulario.sexo == 'macho' %}selected{% endif %}>Macho</option>
+              <option value="hembra" {% if datos_formulario.sexo == 'hembra' %}selected{% endif %}>Hembra</option>
             </select>
           </div>
-          <small class="field-error" data-field-error="sexo">{{ field_errors.sexo or "" }}</small>
+          <small class="field-error" data-field-error="sexo">{{ errores_campo.sexo or "" }}</small>
         </div>
       </div>
 
@@ -114,12 +114,12 @@
           <select class="usuario-select" name="dueno_id" {% if only_self_owner %}disabled{% else %}required{% endif %}>
             <option value="">Seleccione dueño</option>
             {% for c in clientes %}
-            {% set selected = (form_data.dueno_id|string == c.id|string) or (only_self_owner and me_id|string == c.id|string) %}
+            {% set selected = (datos_formulario.dueno_id|string == c.id|string) or (only_self_owner and me_id|string == c.id|string) %}
             <option value="{{ c.id }}" {% if selected %}selected{% endif %}>{{ c.nombre }} ({{ c.correo }})</option>
             {% endfor %}
           </select>
         </div>
-        <small class="field-error" data-field-error="dueno_id">{{ field_errors.dueno_id or "" }}</small>
+        <small class="field-error" data-field-error="dueno_id">{{ errores_campo.dueno_id or "" }}</small>
         {% if only_self_owner %}
         <input type="hidden" name="dueno_id" value="{{ me_id }}">
         <small class="field-note">Como cliente, la mascota queda vinculada a tu cuenta.</small>
@@ -129,15 +129,15 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Datos adicionales</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="datos_adicionales" rows="4">{{ form_data.datos_adicionales }}</textarea>
+          <textarea class="usuario-input" name="datos_adicionales" rows="4">{{ datos_formulario.datos_adicionales }}</textarea>
         </div>
-        <small class="field-error" data-field-error="datos_adicionales">{{ field_errors.datos_adicionales or "" }}</small>
+        <small class="field-error" data-field-error="datos_adicionales">{{ errores_campo.datos_adicionales or "" }}</small>
         <small class="field-note" data-word-counter>0 / 100 palabras</small>
       </div>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}</button>
-        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_index') }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_lista') }}">Cancelar</a>
       </div>
     </form>
   </div>
@@ -161,7 +161,7 @@
     const ownerSelect = form.querySelector('select[name="dueno_id"]');
     const ownerHiddenInput = form.querySelector('input[type="hidden"][name="dueno_id"]');
     const ageLimits = { perro: 30, gato: 30, otro: 50 };
-    let submitAttempted = {{ "true" if field_errors else "false" }};
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
 
     const errorEls = {
       nombre: form.querySelector('[data-field-error="nombre"]'),

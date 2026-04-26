@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte mensual de clientes nuevos | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reportes.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reportes_filters.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Reporte mensual de clientes nuevos</div>
+  <div class="section-subtitle">Visualiza altas por mes y fuente de captación.</div>
+</div>
+
+{% include "_reportes_tabs.html" %}
+
+<div class="content-stack">
+  <form class="filters filters--overlay-errors clientes-nuevos-filters" method="get" action="{{ url_for('reportes.reportes_clientes_nuevos') }}" novalidate>
+    <div class="campo-filtro campo-filtro--full clientes-nuevos-fields">
+      <div class="clientes-nuevos-grid">
+        <div class="campo-filtro clientes-nuevos-month-wrap{% if filtros.use_date_range %} hidden{% endif %}">
+          <label>Mes</label>
+          <select name="month">
+            {% for month, label in month_labels.items() %}
+            <option value="{{ month }}" {% if filtros.month == month|string %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <small class="field-error" data-field-error="month">{{ errores_campo.month or "" }}</small>
+        </div>
+        <div class="campo-filtro clientes-nuevos-year-wrap{% if filtros.use_date_range %} hidden{% endif %}">
+          <label>Año</label>
+          <input type="number" name="year" min="2000" value="{{ filtros.year }}">
+          <small class="field-error" data-field-error="year">{{ errores_campo.year or "" }}</small>
+        </div>
+        <div class="campo-filtro clientes-nuevos-date-wrap{% if not filtros.use_date_range %} hidden{% endif %}">
+          <label>Fecha inicial</label>
+          <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}">
+          <small class="field-error" data-field-error="fecha_inicio">{{ errores_campo.fecha_inicio or "" }}</small>
+        </div>
+        <div class="campo-filtro clientes-nuevos-date-wrap{% if not filtros.use_date_range %} hidden{% endif %}">
+          <label>Fecha final</label>
+          <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}">
+          <small class="field-error" data-field-error="fecha_fin">{{ errores_campo.fecha_fin or "" }}</small>
+        </div>
+      </div>
+    </div>
+    <div class="clientes-nuevos-footer">
+      <div class="campo-filtro clientes-nuevos-toggle">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="use_date_range" {% if filtros.use_date_range %}checked{% endif %}>
+          ¿Deseas generar el reporte con base en un intervalo diferente?
+        </label>
+      </div>
+      <div class="acciones-filtro clientes-nuevos-actions">
+        <button class="cive-btn cive-btn--filter" type="submit">Generar reporte</button>
+        <a class="cive-btn cive-btn--filter" href="{{ url_for('reportes.reportes_clientes_nuevos') }}">Reiniciar</a>
+      </div>
+    </div>
+  </form>
+
+  {% if rows %}
+  <div class="stat-grid clientes-nuevos-stat-grid">
+    <div class="stat-card"><span class="etiqueta-estadistica">Clientes nuevos</span><strong>{{ summary.total }}</strong></div>
+    {% for item in summary.por_fuente %}
+    <div class="stat-card"><span class="etiqueta-estadistica">{{ item.fuente }}</span><strong>{{ item.cantidad }}</strong></div>
+    {% endfor %}
+  </div>
+
+  <div class="citas-tools">
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.pdf }}">Exportar PDF</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.xlsx }}">Exportar Excel</a>
+    <a class="cive-btn cive-btn--tool" href="{{ export_urls.csv }}">Exportar CSV</a>
+  </div>
+
+  <div class="table-container table-container--card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Correo</th>
+          <th>Fecha de registro</th>
+          <th>Fuente de captación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.cliente }}</td>
+          <td>{{ row.correo }}</td>
+          <td>{{ row.fecha_registro }}</td>
+          <td>{{ row.fuente }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+<script>
+  (() => {
+    const form = document.querySelector('.filters');
+    if (!form) return;
+
+    const useDateRangeInput = form.querySelector('input[name="use_date_range"]');
+    const monthWraps = form.querySelectorAll('.clientes-nuevos-month-wrap, .clientes-nuevos-year-wrap');
+    const dateWraps = form.querySelectorAll('.clientes-nuevos-date-wrap');
+    const monthInput = form.querySelector('select[name="month"]');
+    const yearInput = form.querySelector('input[name="year"]');
+    const fechaInicioInput = form.querySelector('input[name="fecha_inicio"]');
+    const fechaFinInput = form.querySelector('input[name="fecha_fin"]');
+    const errorEls = {
+      month: form.querySelector('[data-field-error="month"]'),
+      year: form.querySelector('[data-field-error="year"]'),
+      fecha_inicio: form.querySelector('[data-field-error="fecha_inicio"]'),
+      fecha_fin: form.querySelector('[data-field-error="fecha_fin"]'),
+    };
+    let submitAttempted = Object.values(errorEls).some((el) => el && el.textContent.trim());
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const isoToday = () => {
+      const today = new Date();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    };
+
+    const syncMode = () => {
+      const useDateRange = !!(useDateRangeInput && useDateRangeInput.checked);
+      monthWraps.forEach((wrap) => wrap.classList.toggle('hidden', useDateRange));
+      dateWraps.forEach((wrap) => wrap.classList.toggle('hidden', !useDateRange));
+    };
+
+    const validateMonthYear = () => {
+      const month = Number(monthInput ? monthInput.value : '');
+      const year = Number(yearInput ? yearInput.value : '');
+      const currentYear = new Date().getFullYear();
+      let valid = true;
+
+      if (!month || month < 1 || month > 12) {
+        setError('month', 'Debes seleccionar un mes válido.');
+        valid = false;
+      } else {
+        setError('month', '');
+      }
+
+      if (!year || year < 2000 || year > currentYear) {
+        setError('year', 'Debes seleccionar un año válido.');
+        valid = false;
+      } else {
+        setError('year', '');
+      }
+
+      setError('fecha_inicio', '');
+      setError('fecha_fin', '');
+      return valid;
+    };
+
+    const validateDateRange = () => {
+      const fechaInicio = fechaInicioInput ? fechaInicioInput.value : '';
+      const fechaFin = fechaFinInput ? fechaFinInput.value : '';
+      const today = isoToday();
+      let valid = true;
+
+      if (!fechaInicio) {
+        setError('fecha_inicio', 'Debes seleccionar la fecha inicial.');
+        valid = false;
+      } else if (fechaInicio > today) {
+        setError('fecha_inicio', 'La fecha inicial no puede ser posterior a hoy.');
+        valid = false;
+      } else {
+        setError('fecha_inicio', '');
+      }
+
+      if (!fechaFin) {
+        setError('fecha_fin', 'Debes seleccionar la fecha final.');
+        valid = false;
+      } else if (fechaFin > today) {
+        setError('fecha_fin', 'La fecha final no puede ser posterior a hoy.');
+        valid = false;
+      } else if (fechaInicio && fechaFin < fechaInicio) {
+        setError('fecha_fin', 'La fecha final no puede ser anterior a la fecha inicial.');
+        valid = false;
+      } else {
+        setError('fecha_fin', '');
+      }
+
+      setError('month', '');
+      setError('year', '');
+      return valid;
+    };
+
+    const validateForm = () => {
+      if (useDateRangeInput && useDateRangeInput.checked) {
+        return validateDateRange();
+      }
+      return validateMonthYear();
+    };
+
+    form.querySelectorAll('input, select').forEach((input) => {
+      input.addEventListener('change', () => {
+        syncMode();
+        validateForm();
+      });
+      input.addEventListener('input', validateForm);
+    });
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      syncMode();
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    syncMode();
+  })();
+</script>
+{% endblock %}

@@ -1,15 +1,15 @@
-.chat-page {
+.pagina-chat {
   padding: 24px;
   height: 100%;
   min-height: 0;
   overflow-y: auto;
 }
 
-.chat-page-header {
+.encabezado-pagina-chat {
   margin-bottom: 16px;
 }
 
-.chat-card {
+.tarjeta-chat {
   background: #ffffff;
   border: 1px solid var(--border-dashboard);
   border-radius: 12px;
@@ -21,7 +21,7 @@
   gap: 12px;
 }
 
-.chat-messages {
+.mensajes-chat {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -48,7 +48,7 @@
   margin-left: auto;
 }
 
-.quick-options {
+.opciones-rapidas {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -67,19 +67,19 @@
   background: #f2f4f8;
 }
 
-.chat-input-wrap {
+.contenedor-entrada-chat {
   display: flex;
   gap: 8px;
 }
 
-.chat-input-wrap input {
+.contenedor-entrada-chat input {
   flex: 1;
   border: 1px solid var(--border-dashboard);
   border-radius: 999px;
   padding: 12px 14px;
 }
 
-.chat-input-wrap button {
+.contenedor-entrada-chat button {
   border: none;
   border-radius: 999px;
   padding: 12px 16px;
@@ -179,12 +179,12 @@
 }
 
 @media (max-width: 768px) {
-  .chat-page {
+  .pagina-chat {
     padding: 16px;
     padding-top: 24px;
   }
 
-  .chat-page-header {
+  .encabezado-pagina-chat {
     padding-left: 72px;
   }
 

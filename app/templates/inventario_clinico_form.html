@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Editar insumo clínico{% else %}Registrar insumo clínico{% endif %} | CIVE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mascotas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">{% if mode == 'edit' %}Editar insumo clínico{% else %}Registrar insumo clínico{% endif %}</div>
+</div>
+
+<div class="usuario-form-wrap">
+  <div class="usuario-form-card">
+    <form class="usuario-form" method="POST" novalidate>
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Nombre *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="nombre" value="{{ datos_formulario.nombre }}">
+        </div>
+        <small class="field-error">{{ errores_campo.nombre or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Tipo *</label>
+        <div class="usuario-input-wrap">
+          <select class="usuario-select" name="tipo_insumo">
+            <option value="">Seleccione opción</option>
+            <option value="medicamento" {% if datos_formulario.tipo_insumo == 'medicamento' %}selected{% endif %}>Medicamento</option>
+            <option value="vacuna" {% if datos_formulario.tipo_insumo == 'vacuna' %}selected{% endif %}>Vacuna</option>
+          </select>
+        </div>
+        <small class="field-error">{{ errores_campo.tipo_insumo or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Fecha de caducidad *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="date" name="fecha_caducidad" value="{{ datos_formulario.fecha_caducidad }}">
+        </div>
+        <small class="field-error">{{ errores_campo.fecha_caducidad or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Cantidad en existencia *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="number" min="0" name="cantidad_existencia" value="{{ datos_formulario.cantidad_existencia }}">
+        </div>
+        <small class="field-error">{{ errores_campo.cantidad_existencia or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Precio *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="number" min="0" step="0.01" name="precio" value="{{ datos_formulario.precio }}">
+        </div>
+        <small class="field-error">{{ errores_campo.precio or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label checkbox-inline">
+          <input type="checkbox" name="activo" {% if datos_formulario.activo %}checked{% endif %}>
+          Insumo activo
+        </label>
+      </div>
+
+      <div class="usuario-actions">
+        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <a class="usuario-btn-link" href="{{ url_for('expedientes.inventario_lista') }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

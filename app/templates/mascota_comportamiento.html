@@ -8,8 +8,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Comportamientos especiales</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Comportamientos especiales</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -33,14 +33,14 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Comportamiento *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="comportamiento" rows="6">{{ form_data.comportamiento }}</textarea>
+          <textarea class="usuario-input" name="comportamiento" rows="6">{{ datos_formulario.comportamiento }}</textarea>
         </div>
-        <small class="field-error">{{ field_errors.comportamiento or "" }}</small>
+        <small class="field-error">{{ errores_campo.comportamiento or "" }}</small>
       </div>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Guardar comportamiento</button>
-        <a class="usuario-btn-link" href="{{ url_for('mascotas.mascotas_historial', mascota_id=mascota.id) }}">Cancelar</a>
+        <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
       </div>
     </form>
   </div>

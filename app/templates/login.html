@@ -23,17 +23,18 @@
                 <h1 class="login-title">Inicia sesión</h1>
             </div>
 
-            <form class="login-form" method="POST" action="{{ url_for('pages.login_post')}}" novalidate>
+            <form class="login-form" method="POST" action="{{ url_for('pages.procesar_inicio_sesion')}}" novalidate>
+                <input type="hidden" name="next" value="{{ datos_formulario.next or '' }}">
                 <div class="form-group">
                     <label class="form-label" for="email">email</label>
                     <div class="form-input-wrapper">
-                        <input type="email" id="email" name="correo" class="form-input" value="{{ form_data.correo }}">
+                        <input type="email" id="email" name="correo" class="form-input" value="{{ datos_formulario.correo }}">
                     </div>
-                    <small class="field-error" data-field-error="correo">{{ field_errors.correo or "" }}</small>
+                    <small class="field-error" data-field-error="correo">{{ errores_campo.correo or "" }}</small>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="password">Password</label>
+                    <label class="form-label" for="password">Contraseña</label>
                     <div class="form-input-wrapper">
                         <input
                             type="password"
@@ -49,7 +50,7 @@
                             </svg>
                         </button>
                     </div>
-                    <small class="field-error" data-field-error="contrasena">{{ field_errors.contrasena or "" }}</small>
+                    <small class="field-error" data-field-error="contrasena">{{ errores_campo.contrasena or "" }}</small>
                 </div>
 
                 <div class="form-footer">
@@ -77,14 +78,14 @@
             correo: document.querySelector('[data-field-error="correo"]'),
             contrasena: document.querySelector('[data-field-error="contrasena"]'),
         };
-        let submitAttempted = {{ "true" if field_errors else "false" }};
+        let submitAttempted = {{ "true" if errores_campo else "false" }};
 
         const setError = (field, message) => {
             const el = errorEls[field];
             if (el) el.textContent = submitAttempted ? (message || '') : '';
         };
 
-        const validateCorreo = () => {
+        const validateEmail = () => {
             const value = (emailInput.value || '').trim();
             if (!value) {
                 setError('correo', 'Este campo no puede estar vacío.');
@@ -98,7 +99,7 @@
             return true;
         };
 
-        const validateContrasena = () => {
+        const validatePassword = () => {
             const value = passwordInput.value || '';
             if (!value) {
                 setError('contrasena', 'Este campo no puede estar vacío.');
@@ -108,7 +109,7 @@
             return true;
         };
 
-        const validateForm = () => [validateCorreo(), validateContrasena()].every(Boolean);
+        const validateForm = () => [validateEmail(), validatePassword()].every(Boolean);
 
         passwordToggle.addEventListener('click', (e) => {
             // Alterna entre texto visible y contrasena oculta.

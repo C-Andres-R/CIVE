@@ -1,4 +1,4 @@
-"""alineacion modelos base
+"""alineacion modolos base
 
 Revision ID: fde14f0dacda
 Revises:

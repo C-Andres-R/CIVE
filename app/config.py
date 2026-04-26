@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def build_database_uri() -> str:
+def construir_uri_base_datos() -> str:
     # 1) Railway / producción: URL completa
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -40,7 +40,8 @@ def build_database_uri() -> str:
     )
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = build_database_uri()
+    SQLALCHEMY_DATABASE_URI = construir_uri_base_datos()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-    API_BASE_URL = "http://127.0.0.1:5000"
+    API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+    PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", API_BASE_URL).rstrip("/")

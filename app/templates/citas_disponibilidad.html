@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-title">Consultar disponibilidad</div>
+<div class="encabezado-pagina">
+  <div class="titulo-pagina">Consultar disponibilidad</div>
 </div>
 
 <div class="usuario-form-wrap">
@@ -30,7 +30,7 @@
           <select class="usuario-select" name="veterinario_id" required>
             <option value="">Seleccione veterinario</option>
             {% for vet in veterinarios %}
-            <option value="{{ vet.id }}" {% if form_data.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
+            <option value="{{ vet.id }}" {% if datos_formulario.veterinario_id == vet.id|string %}selected{% endif %}>{{ vet.nombre }}</option>
             {% endfor %}
           </select>
         </div>
@@ -39,13 +39,13 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Fecha *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="date" name="fecha" value="{{ form_data.fecha }}" required>
+          <input class="usuario-input" type="date" name="fecha" value="{{ datos_formulario.fecha }}" required>
         </div>
       </div>
 
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">Consultar</button>
-        <a class="usuario-btn-link" href="{{ url_for('citas.citas_index') }}">Volver a citas</a>
+        <a class="usuario-btn-link" href="{{ url_for('citas.citas_lista') }}">Volver a citas</a>
       </div>
     </form>
 
