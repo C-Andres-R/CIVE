@@ -80,7 +80,7 @@
     <div class="section-card__head">
       <h3>Consultas médicas</h3>
     </div>
-    <div class="table-container table-container--card table-container--inner">
+    <div class="table-container table-container--card table-container--inner table-container--stacked">
       <table class="table">
         <thead>
           <tr>
@@ -99,16 +99,16 @@
         <tbody>
           {% for consulta, veterinario_nombre, medicamento_nombre, vacuna_nombre in consultas_rows %}
           <tr>
-            <td>{{ consulta.fecha_consulta.strftime('%Y-%m-%d') if consulta.fecha_consulta else '-' }}</td>
-            <td>{{ veterinario_nombre }}</td>
-            <td>{{ consulta.sintomas }}</td>
-            <td>{{ consulta.diagnostico }}</td>
-            <td>{{ consulta.tratamiento }}</td>
-            <td>{{ medicamento_nombre or consulta.medicamentos_administrados or '-' }}</td>
-            <td>{{ vacuna_nombre or '-' }}</td>
-            <td>{{ consulta.tipo_analisis_relacionado or '-' }}</td>
-            <td>{{ consulta.observaciones or '-' }}</td>
-            <td>
+            <td data-label="Fecha">{{ consulta.fecha_consulta.strftime('%Y-%m-%d') if consulta.fecha_consulta else '-' }}</td>
+            <td data-label="Veterinario">{{ veterinario_nombre }}</td>
+            <td data-label="Síntomas">{{ consulta.sintomas }}</td>
+            <td data-label="Diagnóstico">{{ consulta.diagnostico }}</td>
+            <td data-label="Tratamiento">{{ consulta.tratamiento }}</td>
+            <td data-label="Medicamentos">{{ medicamento_nombre or consulta.medicamentos_administrados or '-' }}</td>
+            <td data-label="Vacuna">{{ vacuna_nombre or '-' }}</td>
+            <td data-label="Análisis">{{ consulta.tipo_analisis_relacionado or '-' }}</td>
+            <td data-label="Observaciones">{{ consulta.observaciones or '-' }}</td>
+            <td data-label="Acciones">
               {% if can_manage_consultas %}
               <a class="inline-link" href="{{ url_for('expedientes.consultas_editar', mascota_id=mascota.id, consulta_id=consulta.id) }}">Editar</a>
               {% endif %}
@@ -136,7 +136,7 @@
             </td>
           </tr>
           {% else %}
-          <tr>
+          <tr class="table-empty-row">
             <td colspan="10">No hay consultas médicas registradas.</td>
           </tr>
           {% endfor %}
@@ -149,7 +149,7 @@
     <div class="section-card__head">
       <h3>Vacunas y alergias</h3>
     </div>
-    <div class="table-container table-container--card table-container--inner">
+    <div class="table-container table-container--card table-container--inner table-container--stacked">
       <table class="table">
         <thead>
           <tr>
@@ -165,13 +165,13 @@
         <tbody>
           {% for registro, veterinario_nombre in vacunas_rows %}
           <tr>
-            <td>{{ registro.tipo_registro|capitalize }}</td>
-            <td>{{ registro.fecha_registro.strftime('%Y-%m-%d') if registro.fecha_registro else '-' }}</td>
-            <td>{{ registro.nombre }}</td>
-            <td>{{ registro.reaccion_identificada or '-' }}</td>
-            <td>{{ registro.notas_adicionales or '-' }}</td>
-            <td>{{ veterinario_nombre }}</td>
-            <td>
+            <td data-label="Tipo">{{ registro.tipo_registro|capitalize }}</td>
+            <td data-label="Fecha">{{ registro.fecha_registro.strftime('%Y-%m-%d') if registro.fecha_registro else '-' }}</td>
+            <td data-label="Nombre">{{ registro.nombre }}</td>
+            <td data-label="Reacción identificada">{{ registro.reaccion_identificada or '-' }}</td>
+            <td data-label="Notas">{{ registro.notas_adicionales or '-' }}</td>
+            <td data-label="Veterinario">{{ veterinario_nombre }}</td>
+            <td data-label="Acciones">
               {% if can_manage_vacunas %}
               <a class="inline-link" href="{{ url_for('expedientes.vacunas_editar', mascota_id=mascota.id, registro_id=registro.id) }}">Editar</a>
               {% endif %}
@@ -185,7 +185,7 @@
             </td>
           </tr>
           {% else %}
-          <tr>
+          <tr class="table-empty-row">
             <td colspan="7">No hay vacunas o alergias registradas.</td>
           </tr>
           {% endfor %}
@@ -198,7 +198,7 @@
     <div class="section-card__head">
       <h3>Análisis clínicos</h3>
     </div>
-    <div class="table-container table-container--card table-container--inner">
+    <div class="table-container table-container--card table-container--inner table-container--stacked">
       <table class="table">
         <thead>
           <tr>
@@ -213,18 +213,18 @@
         <tbody>
           {% for analisis, veterinario_nombre in analisis_rows %}
           <tr>
-            <td>{{ analisis.fecha_analisis.strftime('%Y-%m-%d') if analisis.fecha_analisis else '-' }}</td>
-            <td>{{ analisis.tipo_analisis }}</td>
-            <td>{{ analisis.resultados }}</td>
-            <td>
+            <td data-label="Fecha">{{ analisis.fecha_analisis.strftime('%Y-%m-%d') if analisis.fecha_analisis else '-' }}</td>
+            <td data-label="Tipo">{{ analisis.tipo_analisis }}</td>
+            <td data-label="Resultados">{{ analisis.resultados }}</td>
+            <td data-label="Adjunto">
               {% if analisis.archivo_adjunto %}
               <a class="inline-link" href="{{ url_for('expedientes.expedientes_descargar_adjunto_analisis', mascota_id=mascota.id, analisis_id=analisis.id) }}" target="_blank" rel="noopener">{{ analisis.nombre_archivo or 'Ver adjunto' }}</a>
               {% else %}
               -
               {% endif %}
             </td>
-            <td>{{ veterinario_nombre }}</td>
-            <td>
+            <td data-label="Veterinario">{{ veterinario_nombre }}</td>
+            <td data-label="Acciones">
               {% if can_manage_analisis %}
               <a class="inline-link" href="{{ url_for('expedientes.analisis_editar', mascota_id=mascota.id, analisis_id=analisis.id) }}">Editar</a>
               {% endif %}
@@ -238,7 +238,7 @@
             </td>
           </tr>
           {% else %}
-          <tr>
+          <tr class="table-empty-row">
             <td colspan="6">No hay análisis clínicos registrados.</td>
           </tr>
           {% endfor %}
@@ -251,7 +251,7 @@
     <div class="section-card__head">
       <h3>Citas relacionadas</h3>
     </div>
-    <div class="table-container table-container--card table-container--inner">
+    <div class="table-container table-container--card table-container--inner table-container--stacked">
       <table class="table">
         <thead>
           <tr>
@@ -265,14 +265,14 @@
         <tbody>
           {% for cita, cliente_nombre, veterinario_nombre in citas_rows %}
           <tr>
-            <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
-            <td>{{ cita.motivo or '-' }}</td>
-            <td>{{ cita.estado|capitalize }}</td>
-            <td>{{ veterinario_nombre }}</td>
-            <td>{{ cliente_nombre }}</td>
+            <td data-label="Fecha/Hora">{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
+            <td data-label="Motivo">{{ cita.motivo or '-' }}</td>
+            <td data-label="Estado">{{ cita.estado|capitalize }}</td>
+            <td data-label="Veterinario">{{ veterinario_nombre }}</td>
+            <td data-label="Cliente">{{ cliente_nombre }}</td>
           </tr>
           {% else %}
-          <tr>
+          <tr class="table-empty-row">
             <td colspan="5">No hay citas vinculadas para esta mascota.</td>
           </tr>
           {% endfor %}
