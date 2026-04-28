@@ -52,7 +52,7 @@
   </form>
 </div>
 
-<div class="table-container">
+<div class="table-container table-container--card table-container--stacked">
   <table class="table">
     <thead>
       <tr>
@@ -69,25 +69,25 @@
     <tbody>
       {% for mascota, dueno_nombre, dueno_activo in mascotas_rows %}
       <tr>
-        <td>{{ mascota.nombre }}</td>
-        <td>{{ mascota.especie|capitalize }}</td>
-        <td>{{ mascota.raza or '-' }}</td>
-        <td>{{ mascota.sexo|capitalize }}</td>
-        <td>{{ '%.2f'|format(mascota.peso or 0) }} kg</td>
-        <td>
+        <td data-label="Nombre">{{ mascota.nombre }}</td>
+        <td data-label="Especie">{{ mascota.especie|capitalize }}</td>
+        <td data-label="Raza">{{ mascota.raza or '-' }}</td>
+        <td data-label="Sexo">{{ mascota.sexo|capitalize }}</td>
+        <td data-label="Peso">{{ '%.2f'|format(mascota.peso or 0) }} kg</td>
+        <td data-label="Dueño">
           {{ dueno_nombre }}
           {% if not dueno_activo %}
           <span class="badge">Dueño inactivo</span>
           {% endif %}
         </td>
-        <td>
+        <td data-label="Estado">
           {% if mascota.estado == 'activa' %}
           <span class="estado-activo">Activa</span>
           {% else %}
           <span class="estado-cancelada">Inactiva</span>
           {% endif %}
         </td>
-        <td>
+        <td data-label="Acciones">
           <details class="actions-dropdown">
             <summary class="resumen-acciones">
               <div class="more-icon"></div>
@@ -122,7 +122,7 @@
         </td>
       </tr>
       {% else %}
-      <tr>
+      <tr class="table-empty-row">
         <td colspan="8">No hay mascotas registradas con esos filtros.</td>
       </tr>
       {% endfor %}
@@ -143,10 +143,12 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const menus = Array.from(document.querySelectorAll('.actions-dropdown'));
     if (!menus.length) return;
 
+    // Función para close all.
     const closeAll = () => {
       menus.forEach((menu) => {
         menu.open = false;
@@ -174,6 +176,7 @@
         link.addEventListener('click', () => {
           // Función de cierre del menú.
           const href = link.getAttribute('href') || '';
+          // Función para target.
           const target = (link.getAttribute('target') || '').toLowerCase();
           const isExternal = /^https?:\/\//i.test(href);
           if (target === '_blank' || isExternal) {
@@ -197,6 +200,7 @@
     });
   })();
 
+  // Bloque para interacciones de la vista.
   (() => {
     const modal = document.getElementById('media-preview-modal');
     if (!modal) return;
@@ -208,6 +212,7 @@
     const backdrop = modal.querySelector('.media-modal__backdrop');
     const previewButtons = document.querySelectorAll('.js-media-preview');
 
+    // Función para close modal.
     const closeModal = () => {
       modal.classList.add('hidden');
       modal.setAttribute('aria-hidden', 'true');
@@ -217,6 +222,7 @@
       image.setAttribute('alt', '');
     };
 
+    // Función para open modal.
     const openModal = (button) => {
       const mascotaNombre = button.dataset.mascotaNombre || 'Mascota';
       const photoPath = button.dataset.photoPath || '';

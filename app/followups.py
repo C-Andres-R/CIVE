@@ -1,3 +1,5 @@
+"""Gestión de seguimientos clínicos programados y su envío automático."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -20,19 +22,19 @@ EVENT_LABELS = {
 
 
 def asegurar_tabla_seguimientos():
-    # Función de tabla de seguimientos.
+    """Crea la tabla de seguimientos si la base todavía no la tiene disponible."""
     inspector = inspect(db.engine)
     if SeguimientoTratamiento.__tablename__ not in inspector.get_table_names():
         SeguimientoTratamiento.__table__.create(bind=db.engine, checkfirst=True)
 
 
 def usuario_puede_programar_seguimiento(me) -> bool:
-    # Función de permisos de seguimiento.
+    """Verifica si el usuario actual tiene permiso para programar seguimientos."""
     return ((me.get("rol") or "").strip().lower()) in {ROLE_ADMIN, ROLE_VETERINARIO}
 
 
 def parsear_fecha_hora_seguimiento(value: str):
-    # Función de fecha de seguimiento.
+    """Convierte el valor del formulario a un `datetime` válido para seguimiento."""
     if not value:
         return None
     try:
@@ -42,14 +44,14 @@ def parsear_fecha_hora_seguimiento(value: str):
 
 
 def fecha_hora_seguimiento_a_formato(value):
-    # Función de fecha de seguimiento.
+    """Regresa una fecha de seguimiento en formato compatible con inputs `datetime-local`."""
     if not value:
         return ""
     return value.strftime("%Y-%m-%dT%H:%M")
 
 
 def obtener_mapa_seguimientos(origen_tipo: str, origen_id: int) -> dict[str, SeguimientoTratamiento]:
-    # Función de consulta de seguimientos.
+    """Obtiene los seguimientos de un origen y los indexa por tipo de evento."""
     rows = (
         db.session.query(SeguimientoTratamiento)
         .filter(
@@ -62,7 +64,7 @@ def obtener_mapa_seguimientos(origen_tipo: str, origen_id: int) -> dict[str, Seg
 
 
 def obtener_mapa_seguimientos_por_ids(origen_tipo: str, origen_ids: list[int]):
-    # Función de consulta masiva de seguimientos.
+    """Obtiene seguimientos de varios orígenes para consultas masivas en listados."""
     if not origen_ids:
         return {}
     rows = (
@@ -77,7 +79,7 @@ def obtener_mapa_seguimientos_por_ids(origen_tipo: str, origen_ids: list[int]):
 
 
 def obtener_seguimiento(origen_tipo: str, origen_id: int, evento_tipo: str) -> SeguimientoTratamiento | None:
-    # Función de consulta de seguimiento.
+    """Busca un seguimiento puntual según origen y tipo de evento."""
     return (
         db.session.query(SeguimientoTratamiento)
         .filter(
@@ -90,7 +92,7 @@ def obtener_seguimiento(origen_tipo: str, origen_id: int, evento_tipo: str) -> S
 
 
 def guardar_seguimiento(*, origen_tipo: str, origen_id: int, evento_tipo: str, mascota_id: int, veterinario_id: int, programado_para, descripcion: str = ""):
-    # Función de programación de seguimiento.
+    """Crea o actualiza un seguimiento clínico programado."""
     row = obtener_seguimiento(origen_tipo, origen_id, evento_tipo)
     if row is None:
         row = SeguimientoTratamiento(
@@ -110,14 +112,14 @@ def guardar_seguimiento(*, origen_tipo: str, origen_id: int, evento_tipo: str, m
 
 
 def eliminar_seguimiento(*, origen_tipo: str, origen_id: int, evento_tipo: str):
-    # Función de cancelación de seguimiento.
+    """Elimina un seguimiento previamente registrado para un evento clínico."""
     row = obtener_seguimiento(origen_tipo, origen_id, evento_tipo)
     if row is not None:
         db.session.delete(row)
 
 
 def validar_programacion_seguimiento(*, requiere: bool, programado_para_raw: str, veterinario: Usuario | None, errores_campo: dict, error_field: str):
-    # Función de validación de seguimiento.
+    """Valida fecha, hora y destinatario antes de programar un seguimiento."""
     if not requiere:
         return {"requiere": False, "programado_para": None}
 
@@ -138,7 +140,7 @@ def validar_programacion_seguimiento(*, requiere: bool, programado_para_raw: str
 
 
 def sincronizar_seguimientos_programados():
-    # Función de seguimiento automático.
+    """Envía todos los seguimientos ya vencidos y actualiza su estado."""
     now = datetime.now()
     rows = (
         db.session.query(SeguimientoTratamiento.id)
@@ -156,7 +158,7 @@ def sincronizar_seguimientos_programados():
 
 
 def _destinatarios_seguimiento(cliente: Usuario | None, veterinario: Usuario | None):
-    # Función de destinatarios de seguimiento.
+    """Construye la lista de correos que recibirán el seguimiento."""
     destinatarios = []
     vistos = set()
     for usuario in (cliente, veterinario):
@@ -168,7 +170,7 @@ def _destinatarios_seguimiento(cliente: Usuario | None, veterinario: Usuario | N
 
 
 def _detalle_origen_seguimiento(seguimiento: SeguimientoTratamiento):
-    # Función de detalle clínico del seguimiento.
+    """Recupera la fecha y el contexto clínico del origen asociado al seguimiento."""
     diagnostico = "sin diagnóstico registrado"
     fecha_original = seguimiento.programado_para
 
@@ -197,7 +199,7 @@ def _detalle_origen_seguimiento(seguimiento: SeguimientoTratamiento):
 
 
 def enviar_seguimiento_ahora(seguimiento_id: int, *, marcar_enviado: bool = True):
-    # Función de envío inmediato de seguimiento.
+    """Envía por correo un seguimiento puntual y opcionalmente lo marca como enviado."""
     from app.routes.chat import _enviar_email_smtp
 
     veterinario = aliased(Usuario)

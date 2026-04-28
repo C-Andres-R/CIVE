@@ -1,7 +1,10 @@
+"""Módulo de encuesta satisfaccion."""
+
 from app.extensions import db
 
 
 class EncuestaSatisfaccion(db.Model):
+    """Clase para encuesta satisfaccion."""
     # Guarda la encuesta de satisfacción asociada a una cita.
     __tablename__ = "encuestas_satisfaccion"
 

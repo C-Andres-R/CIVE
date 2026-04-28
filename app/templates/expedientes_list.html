@@ -51,7 +51,7 @@
   </form>
 </div>
 
-<div class="table-container">
+<div class="table-container table-container--card table-container--stacked">
   <table class="table">
     <thead>
       <tr>
@@ -68,33 +68,33 @@
     <tbody>
       {% for mascota, dueno_nombre, dueno_activo in mascotas_rows %}
       <tr>
-        <td>
+        <td data-label="Mascota">
           <strong>{{ mascota.nombre }}</strong><br>
           <span class="subtext">{{ mascota.especie|capitalize }} / {{ mascota.raza or '-' }}</span>
         </td>
-        <td>
+        <td data-label="Dueño">
           {{ dueno_nombre }}
           {% if not dueno_activo %}
           <span class="badge">Dueño inactivo</span>
           {% endif %}
         </td>
-        <td>
+        <td data-label="Estado">
           {% if mascota.estado == 'activa' %}
           <span class="estado-activo">Activa</span>
           {% else %}
           <span class="estado-cancelada">Inactiva</span>
           {% endif %}
         </td>
-        <td>{{ consultas_summary.get(mascota.id, 0) }}</td>
-        <td>{{ vacunas_summary.get(mascota.id, 0) }}</td>
-        <td>{{ analisis_summary.get(mascota.id, 0) }}</td>
-        <td>{{ ultimas_consultas.get(mascota.id).strftime('%Y-%m-%d') if ultimas_consultas.get(mascota.id) else '-' }}</td>
-        <td>
+        <td data-label="Consultas">{{ consultas_summary.get(mascota.id, 0) }}</td>
+        <td data-label="Vacunas/Alergias">{{ vacunas_summary.get(mascota.id, 0) }}</td>
+        <td data-label="Análisis">{{ analisis_summary.get(mascota.id, 0) }}</td>
+        <td data-label="Última consulta">{{ ultimas_consultas.get(mascota.id).strftime('%Y-%m-%d') if ultimas_consultas.get(mascota.id) else '-' }}</td>
+        <td data-label="Acciones">
           <a class="cive-btn cive-btn--action" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Ver expediente</a>
         </td>
       </tr>
       {% else %}
-      <tr>
+      <tr class="table-empty-row">
         <td colspan="8">No hay expedientes disponibles con esos filtros.</td>
       </tr>
       {% endfor %}

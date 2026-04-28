@@ -21,7 +21,7 @@
 
   <div class="titulo-pagina">Gestión de Clientes</div>
 
-  <div class="citas-tools">
+  <div class="citas-tools clientes-tools">
     {% if can_create %}
     <a class="cive-btn cive-btn--tool" href="{{ url_for('clientes.clientes_nuevo') }}">Registrar cliente</a>
     {% endif %}
@@ -31,7 +31,7 @@
   </div>
 </div>
 
-<div class="table-container">
+<div class="table-container table-container--card table-container--stacked clientes-list-table" style="margin-top: 16px;">
   <table class="table">
     <thead>
       <tr>
@@ -47,19 +47,19 @@
     <tbody>
       {% for client, mascotas_count in clientes_rows %}
       <tr>
-        <td>{{ client.nombre }}</td>
-        <td>{{ client.correo }}</td>
-        <td>{{ client.domicilio or '-' }}</td>
-        <td>{{ client.telefono or '-' }}</td>
-        <td>
+        <td data-label="Nombre">{{ client.nombre }}</td>
+        <td data-label="Correo">{{ client.correo }}</td>
+        <td data-label="Domicilio">{{ client.domicilio or '-' }}</td>
+        <td data-label="Teléfono">{{ client.telefono or '-' }}</td>
+        <td data-label="Estado">
           {% if client.activo %}
           <span class="estado-activo">Activo</span>
           {% else %}
           <span class="estado-cancelada">Inactivo</span>
           {% endif %}
         </td>
-        <td><span class="badge">{{ mascotas_count }}</span></td>
-        <td>
+        <td data-label="Mascotas"><span class="badge">{{ mascotas_count }}</span></td>
+        <td data-label="Acciones">
           <details class="actions-dropdown">
             <summary class="resumen-acciones">
               <div class="more-icon"></div>
@@ -85,11 +85,53 @@
         </td>
       </tr>
       {% else %}
-      <tr>
+      <tr class="table-empty-row">
         <td colspan="7">No hay clientes registrados.</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<script>
+  // Bloque para interacciones de la vista.
+  (() => {
+    const menus = Array.from(document.querySelectorAll('.actions-dropdown'));
+    if (!menus.length) return;
+
+    // Función para close all.
+    const closeAll = () => {
+      menus.forEach((menu) => {
+        menu.open = false;
+      });
+    };
+
+    menus.forEach((menu) => {
+      const summary = menu.querySelector('.resumen-acciones');
+      const links = menu.querySelectorAll('.actions-menu a');
+
+      if (summary) {
+        summary.addEventListener('click', (event) => {
+          event.preventDefault();
+          const willOpen = !menu.open;
+          closeAll();
+          if (willOpen) {
+            menu.open = true;
+          }
+        });
+      }
+
+      links.forEach((link) => {
+        link.addEventListener('click', () => {
+          menu.open = false;
+        });
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.actions-dropdown')) return;
+      closeAll();
+    });
+  })();
+</script>
 {% endblock %}

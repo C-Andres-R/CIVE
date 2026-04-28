@@ -218,7 +218,7 @@
             <td>{{ analisis.resultados }}</td>
             <td>
               {% if analisis.archivo_adjunto %}
-              <a class="inline-link" href="{{ url_for('static', filename=analisis.archivo_adjunto) }}" target="_blank" rel="noopener">{{ analisis.nombre_archivo or 'Ver adjunto' }}</a>
+              <a class="inline-link" href="{{ url_for('expedientes.expedientes_descargar_adjunto_analisis', mascota_id=mascota.id, analisis_id=analisis.id) }}" target="_blank" rel="noopener">{{ analisis.nombre_archivo or 'Ver adjunto' }}</a>
               {% else %}
               -
               {% endif %}

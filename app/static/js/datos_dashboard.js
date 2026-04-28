@@ -1,3 +1,5 @@
+// Script de datos dashboard.
+
 (() => {
   const form = document.querySelector('form[data-datos-filter="date-range"]');
   const dashboard = window.datosDashboard;
@@ -9,16 +11,19 @@
     };
     let submitAttempted = Object.values(errorEls).some((el) => el && el.textContent.trim());
 
+    // Función para iso today.
     const isoToday = () => {
       const today = new Date();
       return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     };
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || "") : "";
     };
 
+    // Función para validate date range.
     const validateDateRange = () => {
       const fechaInicioInput = form.querySelector('input[name="fecha_inicio"]');
       const fechaFinInput = form.querySelector('input[name="fecha_fin"]');
@@ -70,6 +75,7 @@
   const timestampEl = document.getElementById("monitorTimestamp");
   const monitorRows = document.getElementById("monitorRows");
 
+  // Función para refresh monitor.
   async function refreshMonitor() {
     if (!dashboard.monitorUrl || !monitorRows) return;
     if (refreshButton) refreshButton.disabled = true;
@@ -103,6 +109,7 @@
   }
 
   let monitorInterval = null;
+  // Función para start auto refresh.
   function startAutoRefresh() {
     if (monitorInterval) {
       clearInterval(monitorInterval);

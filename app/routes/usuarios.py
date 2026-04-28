@@ -1,3 +1,5 @@
+"""Módulo de usuarios."""
+
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -13,23 +15,28 @@ usuarios_bp = Blueprint("usuarios", __name__)
 LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
 
 def redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 def requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return redirigir_a_inicio_sesion()
     return None
 
 def requiere_administrador_o_deniega(me):
+    """Función para requiere administrador o deniega."""
     if (me.get("rol") or "").lower() != "administrador":
         return render_template("acceso_denegado.html", me=me)
     return None
 
 def es_correo_valido(correo: str) -> bool:
+    """Función para es correo valido."""
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", correo or ""))
 
 
 def es_telefono_valido(phone: str) -> bool:
+    """Función para es telefono valido."""
     if not phone:
         return False
     if not re.match(r"^[0-9+\-()\s]{10,20}$", phone):
@@ -39,23 +46,27 @@ def es_telefono_valido(phone: str) -> bool:
 
 
 def es_cp_valido(cp: str) -> bool:
+    """Función para es cp valido."""
     if not cp:
         return True
     return bool(re.match(r"^\d{5}$", cp))
 
 
 def es_nombre_persona_valido(value: str) -> bool:
+    """Función para es nombre persona valido."""
     if not value:
         return False
     return bool(re.match(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$", value))
 
 
 def nombre_completo(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
+    """Función para nombre completo."""
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
     return " ".join(part for part in parts if part)
 
 
 def direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
+    """Función para direccion completa."""
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -76,6 +87,7 @@ def direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: str
 
 
 def datos_formulario_usuario(form=None, user: Usuario | None = None):
+    """Función para datos formulario usuario."""
     form = form or {}
     user_nombres = (user.nombres if user else "") or ""
     user_apellido_paterno = (user.apellido_paterno if user else "") or ""
@@ -120,6 +132,7 @@ def validar_formulario_usuario(
     current_usuario_id: int | None = None,
     editing_usuario_id: int | None = None,
 ):
+    """Función para validar formulario usuario."""
     errores_campo = {}
     rol = None
 
@@ -182,6 +195,7 @@ def validar_formulario_usuario(
     return errores_campo, rol
 
 def pestana_para_nombre_rol(role_name: str) -> str:
+    """Función para pestana para nombre rol."""
     role = (role_name or "").strip().lower()
     if role == "veterinario":
         return "veterinarios"
@@ -191,6 +205,7 @@ def pestana_para_nombre_rol(role_name: str) -> str:
 
 @usuarios_bp.get("/usuarios")
 def usuarios_lista():
+    """Función para usuarios lista."""
     # Verificamos la sesión antes de consultar cualquier dato.
     r = requiere_inicio_sesion_o_redirige()
     if r:
@@ -237,6 +252,7 @@ def usuarios_lista():
 
 @usuarios_bp.route("/usuarios/nuevo", methods=["GET", "POST"])
 def usuarios_nuevo():
+    """Función para usuarios nuevo."""
     # Crea un nuevo usuario desde el formulario de administración.
     r = requiere_inicio_sesion_o_redirige()
     if r:
@@ -345,6 +361,7 @@ def usuarios_nuevo():
 
 @usuarios_bp.route("/usuarios/<int:usuario_id>/editar", methods=["GET", "POST"])
 def usuarios_editar(usuario_id: int):
+    """Función para usuarios editar."""
     r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -466,6 +483,7 @@ def usuarios_editar(usuario_id: int):
 
 @usuarios_bp.get("/usuarios/<int:usuario_id>")
 def usuarios_detalle(usuario_id: int):
+    """Función para usuarios detalle."""
     r = requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -493,6 +511,7 @@ def usuarios_detalle(usuario_id: int):
 
 @usuarios_bp.post("/usuarios/<int:usuario_id>/toggle")
 def usuarios_alternar(usuario_id: int):
+    """Función para usuarios alternar."""
     # Activa o desactiva un usuario desde el panel de administración.
     r = requiere_inicio_sesion_o_redirige()
     if r:

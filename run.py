@@ -1,3 +1,5 @@
+"""Módulo de run."""
+
 # --- PUNTO DE ENTRADA LOCAL ---
 from flask import Flask
 from app import create_app

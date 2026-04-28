@@ -1,7 +1,10 @@
+"""Módulo de facturacion."""
+
 from app.extensions import db
 
 
 class Facturacion(db.Model):
+    """Clase para facturacion."""
     # Representa un registro de facturración asociado a un cliente.
     __tablename__ = "facturacion"
 

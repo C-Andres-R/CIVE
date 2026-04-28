@@ -1,7 +1,10 @@
+"""Módulo de consulta medica."""
+
 from app.extensions import db
 
 
 class ConsultaMedica(db.Model):
+    """Clase para consulta medica."""
     __tablename__ = "consultas_medicas"
 
     id = db.Column(db.Integer, primary_key=True)

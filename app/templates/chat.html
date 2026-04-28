@@ -84,9 +84,11 @@
   const alternarCrearFaqBtn = document.getElementById("toggle-create-faq");
   const formularioCrearFaq = document.getElementById("create-faq-form");
   const esAdministrador = {{ es_admin|tojson }};
+  // Función para etiqueta opcion agendar.
   const etiquetaOpcionAgendar = (opcionesRapidasEl && opcionesRapidasEl.dataset.scheduleLabel) || "Quiero agendar una cita";
   let pasoEvaluacion = null;
 
+  // Función para append bubble.
   function appendBubble(text, who) {
     // Agrega nuevo mensaje al historial de la conversacion.
     const bubble = document.createElement("div");
@@ -96,13 +98,17 @@
     mensajesEl.scrollTop = mensajesEl.scrollHeight;
   }
 
+  // Función para ask bot.
   async function askBot(question) {
     // Enviar pregunta al servidor y actualizar interfaz con la respuesta.
     appendBubble(question, "user");
     try {
       const resp = await fetch("{{ url_for('chat.consultar_chat') }}", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": window.getCsrfToken ? window.getCsrfToken() : ""
+        },
         body: JSON.stringify({ question })
       });
       const data = await resp.json();
@@ -113,17 +119,20 @@
     }
   }
 
+  // Función para clear dynamic actions.
   function clearDynamicActions() {
     // Limpiar las acciones auxiliares cuando cambia el flujo del chat.
     accionesDinamicasEl.innerHTML = "";
     accionesDinamicasEl.classList.add("hidden");
   }
 
+  // Función para render quick options.
   function renderQuickOptions(options) {
     // Dibujar los capsulas del chat a partir de una lista de preguntas.
     if (!opcionesRapidasEl) return;
     opcionesRapidasEl.innerHTML = "";
     (options || []).forEach((question) => {
+      // Función para value.
       const value = (question || "").trim();
       if (!value) return;
       const btn = document.createElement("button");
@@ -135,6 +144,7 @@
     });
   }
 
+  // Función para build quick options from faq admin.
   function buildQuickOptionsFromFaqAdmin() {
     // En vista admin: sincroniza capsulas con las FAQs visibles en el panel.
     if (!esAdministrador) return null;
@@ -142,6 +152,7 @@
     const seen = new Set();
     const items = [];
     faqInputs.forEach((input) => {
+      // Función para value.
       const value = (input.value || "").trim();
       if (!value) return;
       const key = value.toLowerCase();
@@ -155,6 +166,7 @@
     return items;
   }
 
+  // Función para show rating options.
   function showRatingOptions(options) {
     // Muestra botones rapidos cuando el chat solicita una calificacion.
     accionesDinamicasEl.innerHTML = "";
@@ -169,6 +181,7 @@
     accionesDinamicasEl.classList.remove("hidden");
   }
 
+  // Función para show choice options.
   function showChoiceOptions(options) {
     // Muestra botones rápidos para respuestas cerradas Si/No.
     accionesDinamicasEl.innerHTML = "";
@@ -183,6 +196,7 @@
     accionesDinamicasEl.classList.remove("hidden");
   }
 
+  // Función para update evaluation controls.
   function updateEvaluationControls(data) {
     // Ajusta los controles visibles segun el paso del flujo actual.
     pasoEvaluacion = data.evaluation_step || null;

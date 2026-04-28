@@ -82,11 +82,13 @@
 
 {% block extra_js %}
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const radios = document.querySelectorAll('input[name="conforme"]');
     const detailWrap = document.getElementById('detalle-inconformidad-wrap');
     if (!radios.length || !detailWrap) return;
 
+    // Función para sync detail visibility.
     const syncDetailVisibility = () => {
       const selected = document.querySelector('input[name="conforme"]:checked');
       if (selected && selected.value === 'no') {

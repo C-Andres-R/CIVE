@@ -1,7 +1,10 @@
+"""Módulo de cita."""
+
 from app.extensions import db
 
 
 class Cita(db.Model):
+    """Clase para cita."""
     # Representa una cita médica entre un cliente, su mascota y un veterinario.
     __tablename__ = "citas"
 

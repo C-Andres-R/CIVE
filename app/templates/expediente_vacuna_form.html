@@ -118,6 +118,7 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const tipoSelect = document.querySelector('select[name="tipo_registro"]');
     const tieneReaccionInput = document.querySelector('input[name="tiene_reaccion"]');
@@ -130,8 +131,10 @@
     const followupInput = document.querySelector('input[name="vacuna_requiere_seguimiento"]');
     if (!tipoSelect || !reaccionWrap || !reaccionLabel) return;
 
+    // Función para set hidden.
     const setHidden = (rows, hidden) => rows.forEach((row) => row.classList.toggle('hidden', hidden));
 
+    // Función para sync ui.
     const syncUi = () => {
       const tipo = tipoSelect.value;
       const vacunaConReaccion = !!(tieneReaccionInput && tieneReaccionInput.checked);

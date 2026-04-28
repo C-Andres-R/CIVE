@@ -72,7 +72,7 @@
 }
 
 .usuario-btn-primary {
-  height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   background-color: var(--color-primary);
   border: 2px solid var(--color-primary);
@@ -92,7 +92,7 @@
 }
 
 .usuario-btn-link {
-  height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   display: inline-flex;
   align-items: center;

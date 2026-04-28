@@ -1,3 +1,5 @@
+"""Módulo de chat."""
+
 from __future__ import annotations
 
 import os
@@ -37,52 +39,62 @@ CITAS_PENDIENTES_SESSION_KEY = "chat_pending_appts_state"
 
 
 def _preguntas_frecuentes_table() -> Table:
+    """Función para preguntas frecuentes table."""
     metadata = MetaData()
     return Table("chatbot_faq", metadata, autoload_with=db.engine)
 
 
 def _citas_table() -> Table:
+    """Función para citas table."""
     metadata = MetaData()
     return Table("citas", metadata, autoload_with=db.engine)
 
 
 def _usuarios_table() -> Table:
+    """Función para usuarios table."""
     metadata = MetaData()
     return Table("usuarios", metadata, autoload_with=db.engine)
 
 
 def _recordatorios_table() -> Table:
+    """Función para recordatorios table."""
     metadata = MetaData()
     return Table("recordatorios_citas", metadata, autoload_with=db.engine)
 
 
 def _encuestas_table() -> Table:
+    """Función para encuestas table."""
     metadata = MetaData()
     return Table("encuestas_satisfaccion", metadata, autoload_with=db.engine)
 
 
 def _roles_table() -> Table:
+    """Función para roles table."""
     metadata = MetaData()
     return Table("roles", metadata, autoload_with=db.engine)
 
 
 def _mascotas_table() -> Table:
+    """Función para mascotas table."""
     metadata = MetaData()
     return Table("mascotas", metadata, autoload_with=db.engine)
 
 
 
 def _obtener_usuario_actual():
+    """Función para obtener usuario actual."""
     if not session.get("access_token"):
         return None
     return get_current_user_from_api()
 
 
 def _es_admin(user_info) -> bool:
+    """Función para es admin."""
     return bool(user_info and (user_info.get("rol") or "").strip().lower() == "administrador")
 
 
 def _find_column(table: Table, candidates: list[str]):
+    """Función para find column."""
     for name in candidates:
         if name in table.c:
             return table.c[name]
@@ -90,6 +102,7 @@ def _find_column(table: Table, candidates: list[str]):
 
 
 def _required_columns_without_default(table: Table):
+    """Función para required columns without default."""
     required = []
     for col in table.columns:
         if col.primary_key and col.autoincrement:
@@ -103,6 +116,7 @@ def _required_columns_without_default(table: Table):
 
 
 def _construir_insert_payload(table: Table, question: str, answer: str):
+    """Función para construir insert payload."""
     payload: dict[str, object] = {}
     question_col = _find_column(table, ["pregunta", "question"])
     answer_col = _find_column(table, ["respuesta", "answer"])
@@ -125,6 +139,7 @@ def _construir_insert_payload(table: Table, question: str, answer: str):
 
 
 def _normalizar_texto_pregunta(value: str) -> str:
+    """Función para normalizar texto pregunta."""
     # Normaliza una pregunta para compararla sin diferencias de formato.
     normalized = (value or "").strip().lower()
     normalized = re.sub(r"^[¿?¡!\s]+|[¿?¡!\s]+$", "", normalized)
@@ -133,6 +148,7 @@ def _normalizar_texto_pregunta(value: str) -> str:
 
 
 def _preguntas_frecuentes_pairs():
+    """Función para preguntas frecuentes pairs."""
     table = _preguntas_frecuentes_table()
     question_col = _find_column(table, ["pregunta", "question"])
     answer_col = _find_column(table, ["respuesta", "answer"])
@@ -146,6 +162,7 @@ def _preguntas_frecuentes_pairs():
 
 
 def _chat_quick_options():
+    """Función para chat quick options."""
     options = []
     seen = set()
     for row in _preguntas_frecuentes_pairs():
@@ -164,6 +181,7 @@ def _chat_quick_options():
 
 
 def _asegurar_preguntas_frecuentes_predeterminadas():
+    """Función para asegurar preguntas frecuentes predeterminadas."""
     # Inserta las preguntas frecuentes iniciales si todavía no existen.
     table = _preguntas_frecuentes_table()
     question_col = _find_column(table, ["pregunta", "question"])
@@ -184,6 +202,7 @@ def _asegurar_preguntas_frecuentes_predeterminadas():
 
 
 def _preguntas_frecuentes_rows():
+    """Función para preguntas frecuentes rows."""
     table = _preguntas_frecuentes_table()
     id_col = _find_column(table, ["id"])
     question_col = _find_column(table, ["pregunta", "question"])
@@ -201,55 +220,65 @@ def _preguntas_frecuentes_rows():
 
 
 def _telefono_clinica() -> str:
+    """Función para telefono clinica."""
     return os.getenv("CLINIC_PHONE", "No disponible")
 
 
 def _reiniciar_cita_state() -> None:
+    """Función para reiniciar cita state."""
     # Limpia el estado del flujo de agendado en la sesión.
     session.pop(CITA_SESSION_KEY, None)
 
 
 def _guardar_cita_state(state: dict) -> None:
+    """Función para guardar cita state."""
     # Guarda el estado actual del flujo de agendado en la sesión.
     session[CITA_SESSION_KEY] = state
     session.modified = True
 
 
 def _obtener_cita_state() -> dict | None:
+    """Función para obtener cita state."""
     # Recupera el estado del flujo de agendado desde la sesión.
     state = session.get(CITA_SESSION_KEY)
     return state if isinstance(state, dict) else None
 
 
 def _reiniciar_evaluacion_state() -> None:
+    """Función para reiniciar evaluacion state."""
     # Limpia el estado de la evaluación de servicio en la sesión.
     session.pop(EVALUACION_SESSION_KEY, None)
 
 
 def _guardar_evaluacion_state(state: dict) -> None:
+    """Función para guardar evaluacion state."""
     # Guarda el estado actual de la evaluación de servicio en la sesión.
     session[EVALUACION_SESSION_KEY] = state
     session.modified = True
 
 
 def _obtener_evaluacion_state() -> dict | None:
+    """Función para obtener evaluacion state."""
     # Recupera el estado de la evaluación de servicio desde la sesión.
     state = session.get(EVALUACION_SESSION_KEY)
     return state if isinstance(state, dict) else None
 
 
 def _reiniciar_citas_pendientes_state() -> None:
+    """Función para reiniciar citas pendientes state."""
     # Limpia el estado del flujo de citas pendientes en la sesión.
     session.pop(CITAS_PENDIENTES_SESSION_KEY, None)
 
 
 def _guardar_citas_pendientes_state(state: dict) -> None:
+    """Función para guardar citas pendientes state."""
     # Guarda el estado actual del flujo de citas pendientes en la sesión.
     session[CITAS_PENDIENTES_SESSION_KEY] = state
     session.modified = True
 
 
 def _obtener_citas_pendientes_state() -> dict | None:
+    """Función para obtener citas pendientes state."""
     # Recupera el estado del flujo de citas pendientes desde la sesión.
     state = session.get(CITAS_PENDIENTES_SESSION_KEY)
     return state if isinstance(state, dict) else None
@@ -257,6 +286,7 @@ def _obtener_citas_pendientes_state() -> dict | None:
 
 
 def _ultima_cita_id_para_cliente(cliente_id: int):
+    """Función para ultima cita id para cliente."""
     citas = _citas_table()
     cita_id_col = _find_column(citas, ["id"])
     cita_cliente_col = _find_column(citas, ["cliente_id"])
@@ -272,6 +302,7 @@ def _ultima_cita_id_para_cliente(cliente_id: int):
 
 
 def _iniciar_evaluacion(cliente_id: int, cita_id=None):
+    """Función para iniciar evaluacion."""
     # Inicia el flujo de encuesta de satisfacción al terminar una cita.
     resolved_cita_id = cita_id if cita_id is not None else _ultima_cita_id_para_cliente(cliente_id)
     if resolved_cita_id is None:
@@ -295,6 +326,7 @@ def _iniciar_evaluacion(cliente_id: int, cita_id=None):
 
 
 def _guardar_evaluacion(cliente_id: int, cita_id, calificacion: int, comentario: str):
+    """Función para guardar evaluacion."""
     # Guarda en la base de datos la encuesta de satisfacción respondida.
     encuestas = _encuestas_table()
     col_cliente = _find_column(encuestas, ["cliente_id"])
@@ -328,6 +360,7 @@ def _guardar_evaluacion(cliente_id: int, cita_id, calificacion: int, comentario:
 
 
 def _procesar_evaluacion_step(me, question: str):
+    """Función para procesar evaluacion step."""
     # Procesa cada paso de la evaluación de satisfacción en el chat.
     state = _obtener_evaluacion_state()
     if not state:
@@ -408,6 +441,7 @@ def _procesar_evaluacion_step(me, question: str):
 
 
 def _citas_pendientes_para_cliente(cliente_id: int):
+    """Función para citas pendientes para cliente."""
     citas = _citas_table()
     usuarios = _usuarios_table()
     mascotas = _mascotas_table()
@@ -477,6 +511,7 @@ def _citas_pendientes_para_cliente(cliente_id: int):
 
 
 def _formatear_citas_pendientes(rows: list[dict]) -> str:
+    """Función para formatear citas pendientes."""
     lines = ["Estas son tus citas pendientes:"]
     for idx, row in enumerate(rows, start=1):
         fecha_hora = row["fecha_hora"]
@@ -488,11 +523,13 @@ def _formatear_citas_pendientes(rows: list[dict]) -> str:
 
 
 def _mensaje_confirmacion_citas_pendientes() -> str:
+    """Función para mensaje confirmacion citas pendientes."""
     # Devuelve el texto que guía la confirmación de envío por correo.
     return "¿Quieres que te envíe esta lista por correo?\n1. Sí\n2. No"
 
 
 def _iniciar_citas_pendientes_flow(me):
+    """Función para iniciar citas pendientes flow."""
     # Inicia el flujo para consultar y opcionalmente enviar por correo las citas pendientes.
     try:
         cliente_id = int(me.get("id"))
@@ -518,6 +555,7 @@ def _iniciar_citas_pendientes_flow(me):
 
 
 def _procesar_citas_pendientes_step(me, question: str):
+    """Función para procesar citas pendientes step."""
     # Procesa la confirmación del usuario para enviar por correo la lista de citas pendientes.
     state = _obtener_citas_pendientes_state()
     if not state:
@@ -581,6 +619,7 @@ def _procesar_citas_pendientes_step(me, question: str):
 
 
 def _mascotas_usuario(usuario_id: int):
+    """Función para mascotas usuario."""
     mascotas = _mascotas_table()
     id_col = _find_column(mascotas, ["id"])
     name_col = _find_column(mascotas, ["nombre"])
@@ -602,11 +641,13 @@ def _mascotas_usuario(usuario_id: int):
 
 
 def _normalizar_nombre_mascota(value: str) -> str:
+    """Función para normalizar nombre mascota."""
     # Normaliza nombres de mascota para compararlos sin depender de mayúsculas o espacios extra.
     return re.sub(r"\s+", " ", (value or "").strip().lower())
 
 
 def _mensaje_motivo_cita() -> str:
+    """Función para mensaje motivo cita."""
     # Devuelve el catalogo de motivos permitidos para el flujo de agendado.
     lines = ["Selecciona el motivo de la cita escribiendo el numero de una opcion:"]
     for key, label in MOTIVO_CITA_OPTIONS.items():
@@ -615,6 +656,7 @@ def _mensaje_motivo_cita() -> str:
 
 
 def _condicion_no_cancelada(citas_table: Table):
+    """Función para condicion no cancelada."""
     status_col = _find_column(citas_table, ["estado", "estatus"])
     canceled_col = _find_column(citas_table, ["cancelada"])
 
@@ -632,6 +674,7 @@ def _condicion_no_cancelada(citas_table: Table):
 
 
 def _resolver_veterinario_id(fecha_hora: datetime):
+    """Función para resolver veterinario id."""
     # Asigna un veterinario disponible para una fecha/hora específica basado en la carga de trabajo.
     citas = _citas_table()
     usuarios = _usuarios_table()
@@ -694,6 +737,7 @@ def _resolver_veterinario_id(fecha_hora: datetime):
 
 
 def _enviar_email_smtp(to_correo: str, subject: str, body: str):
+    """Función para enviar email smtp."""
     # Envía un correo usando la configuración SMTP del sistema.
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -722,6 +766,7 @@ def _enviar_email_smtp(to_correo: str, subject: str, body: str):
 
 
 def _iniciar_cita_flow(me):
+    """Función para iniciar cita flow."""
     # Inicia el flujo guiado para agendar una cita desde el chat.
     try:
         usuario_id = int(me.get("id"))
@@ -748,6 +793,7 @@ def _iniciar_cita_flow(me):
 
 
 def _finalizar_cita(me, state):
+    """Función para finalizar cita."""
     # Guarda la cita solicitada y envía las notificaciones correspondientes.
     citas = _citas_table()
 
@@ -878,6 +924,7 @@ def _finalizar_cita(me, state):
 
 
 def _procesar_cita_step(me, question: str):
+    """Función para procesar cita step."""
     # Procesa cada paso del flujo guiado para agendar una cita.
     state = _obtener_cita_state()
     if not state:
@@ -1002,6 +1049,7 @@ def _procesar_cita_step(me, question: str):
 
 @chat_bp.get("/chat")
 def pagina_chat():
+    """Función para pagina chat."""
     me = _obtener_usuario_actual()
     es_admin = _es_admin(me)
 
@@ -1040,6 +1088,7 @@ def pagina_chat():
 
 @chat_bp.post("/chat/ask")
 def consultar_chat():
+    """Función para consultar chat."""
     # Procesa una pregunta del chat y devuelve la respuesta adecuada.
     raw_question = (request.get_json(silent=True) or {}).get("question", "")
     question = raw_question.strip()
@@ -1134,6 +1183,7 @@ def consultar_chat():
 
 @chat_bp.post("/chat/faqs")
 def crear_faq_chat():
+    """Función para crear faq chat."""
     # Crea una nueva pregunta frecuente desde el panel de administración.
     me = _obtener_usuario_actual()
     if not _es_admin(me):
@@ -1159,6 +1209,7 @@ def crear_faq_chat():
 
 @chat_bp.post("/chat/faqs/<int:faq_id>/editar")
 def editar_faq_chat(faq_id: int):
+    """Función para editar faq chat."""
     me = _obtener_usuario_actual()
     if not _es_admin(me):
         return render_template("acceso_denegado.html", me=me), 403
@@ -1193,6 +1244,7 @@ def editar_faq_chat(faq_id: int):
 
 @chat_bp.post("/chat/reminders/send/<int:cita_id>")
 def enviar_reminder_chat(cita_id: int):
+    """Función para enviar reminder chat."""
     # Envía desde el chat un recordatorio de cita por correo.
     me = _obtener_usuario_actual()
     if not _es_admin(me):
@@ -1329,6 +1381,7 @@ def enviar_reminder_chat(cita_id: int):
 
 @chat_bp.get("/chat/reminders/confirm/<string:token>")
 def confirmar_reminder_chat(token: str):
+    """Función para confirmar reminder chat."""
     # Confirma que el cliente recibió el recordatorio enviado.
     try:
         recordatorios = _recordatorios_table()

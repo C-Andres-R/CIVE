@@ -1,3 +1,5 @@
+"""Gestión de citas, recordatorios y reasignaciones de agenda."""
+
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
@@ -47,16 +49,19 @@ ABSENCE_REASON_OPTIONS = {
 
 
 def _redirigir_a_inicio_sesion():
+    """Envía al usuario a la pantalla de login cuando no hay sesión válida."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Valida si la sesión existe antes de continuar con la vista solicitada."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Recupera el usuario actual desde la API y limpia sesión si ya no es válido."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -65,20 +70,24 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Normaliza el nombre del rol del usuario actual."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _permitido(me, hu_code: str) -> bool:
+    """Verifica si el rol actual tiene permiso para una historia de usuario dada."""
     return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _redirigir_cliente_a_portal(me):
+    """Redirige al portal del cliente cuando intenta abrir vistas administrativas."""
     if _nombre_rol(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
 def _parsear_entero(value):
+    """Convierte valores de formulario a entero cuando es posible."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -86,6 +95,7 @@ def _parsear_entero(value):
 
 
 def _parsear_fecha_hora_local(value: str):
+    """Convierte un `datetime-local` del formulario a `datetime` de Python."""
     if not value:
         return None
     try:
@@ -95,6 +105,7 @@ def _parsear_fecha_hora_local(value: str):
 
 
 def _parsear_fecha(value: str):
+    """Convierte una fecha de formulario a un objeto `date`."""
     if not value:
         return None
     try:
@@ -104,14 +115,17 @@ def _parsear_fecha(value: str):
 
 
 def _es_fecha_hora_futura(value: datetime) -> bool:
+    """Indica si una cita quedó programada en una fecha futura."""
     return value > datetime.now()
 
 
 def _condicion_no_cancelada():
+    """Devuelve la condición SQL para filtrar citas que siguen vigentes."""
     return and_(Cita.cancelada.is_(False), Cita.estado != "cancelada")
 
 
 def _es_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclude_cita_id: int | None = None) -> bool:
+    """Función para es veterinario disponible."""
     # Revisa si un veterinario está libre en una fecha y hora específicas.
     q = db.session.query(Cita.id).filter(
         Cita.veterinario_id == veterinario_id,
@@ -124,6 +138,7 @@ def _es_veterinario_disponible(veterinario_id: int, fecha_hora: datetime, exclud
 
 
 def _obtener_usuarios_por_rol(nombre_rol: str):
+    """Función para obtener usuarios por rol."""
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -135,6 +150,7 @@ def _obtener_usuarios_por_rol(nombre_rol: str):
 
 
 def _obtener_mascotas_con_dueno_para_formulario(me):
+    """Función para obtener mascotas con dueno para formulario."""
     role = _nombre_rol(me)
     q = (
         db.session.query(Mascota.id, Mascota.nombre, Mascota.dueno_id, Usuario.nombre.label("dueno_nombre"))
@@ -150,6 +166,7 @@ def _obtener_mascotas_con_dueno_para_formulario(me):
 
 
 def _usuario_puede_modificar_cita(me, cita: Cita) -> bool:
+    """Función para usuario puede modificar cita."""
     role = _nombre_rol(me)
     me_id = _parsear_entero(me.get("id"))
     if role == ROLE_ADMIN:
@@ -162,6 +179,7 @@ def _usuario_puede_modificar_cita(me, cita: Cita) -> bool:
 
 
 def _construir_consulta_lista_citas(me):
+    """Función para construir consulta lista citas."""
     cliente = aliased(Usuario)
     veterinario = aliased(Usuario)
 
@@ -194,6 +212,7 @@ def _construir_consulta_lista_citas(me):
 
 
 def _validar_y_normalizar_formulario(me, form, *, editing_cita_id: int | None = None):
+    """Función para validar y normalizar formulario."""
     errors = []
     errores_campo = {}
 
@@ -276,6 +295,7 @@ def _validar_y_normalizar_formulario(me, form, *, editing_cita_id: int | None = 
 
 
 def _default_datos_formulario():
+    """Función para default datos formulario."""
     return {
         "fecha_hora": "",
         "motivo": "",
@@ -289,6 +309,7 @@ def _default_datos_formulario():
 
 
 def _mapa_duenos(mascotas):
+    """Función para mapa duenos."""
     # Crea un diccionario para resolver el dueño de una mascota en el formulario.
     return {
         str(mascota_id): {
@@ -300,6 +321,7 @@ def _mapa_duenos(mascotas):
 
 
 def _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas):
+    """Función para sincronizar cliente formulario desde mascota."""
     owner_lookup = _mapa_duenos(mascotas)
     owner = owner_lookup.get(str(datos_formulario.get("mascota_id") or ""))
     if owner:
@@ -312,6 +334,7 @@ def _sincronizar_cliente_formulario_desde_mascota(datos_formulario, mascotas):
 
 
 def _construir_datos_seguimiento_cita(form=None, seguimiento=None):
+    """Función para construir datos seguimiento cita."""
     # Función de datos de seguimiento.
     form = form or {}
     if form:
@@ -326,6 +349,7 @@ def _construir_datos_seguimiento_cita(form=None, seguimiento=None):
 
 
 def _destinatarios_recordatorio(cliente: Usuario | None, veterinario: Usuario | None):
+    """Función para destinatarios recordatorio."""
     # Función de recordatorio automático.
     destinatarios = []
     vistos = set()
@@ -338,6 +362,7 @@ def _destinatarios_recordatorio(cliente: Usuario | None, veterinario: Usuario | 
 
 
 def _descripcion_recordatorio(recordatorio: RecordatorioCita | None) -> str:
+    """Función para descripcion recordatorio."""
     # Función de recordatorio automático.
     if not recordatorio:
         return ""
@@ -349,6 +374,7 @@ def _descripcion_recordatorio(recordatorio: RecordatorioCita | None) -> str:
 
 
 def _redirigir_despues_recordatorio(me):
+    """Función para redirigir despues recordatorio."""
     # Función de recordatorio automático.
     if _nombre_rol(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
@@ -356,6 +382,7 @@ def _redirigir_despues_recordatorio(me):
 
 
 def sincronizar_recordatorios_programados():
+    """Función para sincronizar recordatorios programados."""
     # Función de recordatorio automático.
     from app.routes.chat import _enviar_email_smtp
 
@@ -414,12 +441,14 @@ def sincronizar_recordatorios_programados():
 
 
 def _fecha_hora_a_entrada_local(dt: datetime | None) -> str:
+    """Función para fecha hora a entrada local."""
     if not dt:
         return ""
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
 def _validar_filtros_citas(fecha_inicio, fecha_fin):
+    """Función para validar filtros citas."""
     errores_campo = {}
     today = date.today()
 
@@ -434,6 +463,7 @@ def _validar_filtros_citas(fecha_inicio, fecha_fin):
 
 @citas_bp.get("/citas")
 def citas_lista():
+    """Función para citas lista."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -506,6 +536,7 @@ def citas_lista():
 
 @citas_bp.post("/citas/<int:cita_id>/seguimiento/recordar-ahora")
 def citas_recordar_seguimiento_ahora(cita_id: int):
+    """Función para citas recordar seguimiento ahora."""
     # Botón temporal de demostración de seguimiento.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -535,6 +566,7 @@ def citas_recordar_seguimiento_ahora(cita_id: int):
 
 @citas_bp.route("/citas/nueva", methods=["GET", "POST"])
 def citas_nueva():
+    """Función para citas nueva."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -637,6 +669,7 @@ def citas_nueva():
 
 @citas_bp.route("/citas/<int:cita_id>/editar", methods=["GET", "POST"])
 def citas_editar(cita_id: int):
+    """Función para citas editar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -767,6 +800,7 @@ def citas_editar(cita_id: int):
 
 @citas_bp.post("/citas/<int:cita_id>/cancelar")
 def citas_cancelar(cita_id: int):
+    """Función para citas cancelar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -802,6 +836,7 @@ def citas_cancelar(cita_id: int):
 
 @citas_bp.post("/citas/<int:cita_id>/recordatorio")
 def citas_programar_recordatorio(cita_id: int):
+    """Función para citas programar recordatorio."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -881,6 +916,7 @@ def citas_programar_recordatorio(cita_id: int):
 
 
 def _bloques_diarios(target_date: date):
+    """Función para bloques diarios."""
     slots = []
     for hour in range(9, 19):
         slots.append(datetime.combine(target_date, time(hour=hour, minute=0)))
@@ -888,10 +924,12 @@ def _bloques_diarios(target_date: date):
 
 
 def _etiqueta_bloque(dt: datetime) -> str:
+    """Función para etiqueta bloque."""
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
 def _siguientes_sugerencias_disponibles(veterinario_id: int, base_dt: datetime, count: int = 5):
+    """Función para siguientes sugerencias disponibles."""
     suggestions = []
     cursor_date = base_dt.date()
 
@@ -913,6 +951,7 @@ def _siguientes_sugerencias_disponibles(veterinario_id: int, base_dt: datetime, 
 
 @citas_bp.route("/citas/disponibilidad", methods=["GET", "POST"])
 def citas_disponibilidad():
+    """Función para citas disponibilidad."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -1005,6 +1044,7 @@ def citas_disponibilidad():
 
 @citas_bp.route("/citas/reasignar", methods=["GET", "POST"])
 def citas_reasignar():
+    """Función para citas reasignar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r

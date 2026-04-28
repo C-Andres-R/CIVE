@@ -1,7 +1,10 @@
+"""Módulo de seguimiento tratamiento."""
+
 from app.extensions import db
 
 
 class SeguimientoTratamiento(db.Model):
+    """Clase para seguimiento tratamiento."""
     # Representa un seguimiento automático pendiente para el veterinario.
     __tablename__ = "seguimientos_tratamientos"
 

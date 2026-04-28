@@ -1,23 +1,29 @@
+"""Rutas base de acceso, dashboard y cierre de sesión."""
+
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from flask_jwt_extended import create_access_token
 
 from app.auth.service import authenticate_user
+from app.security import clear_authenticated_session, mark_session_authenticated, rotate_csrf_token
 from utils.auth_ui import get_current_user_from_api
 
 pages_bp = Blueprint("pages", __name__)
 
 
 def _safe_next_path(value: str | None):
+    """Normaliza la ruta destino después del login y evita redirecciones externas."""
     candidate = (value or "").strip()
     if candidate.startswith("/") and not candidate.startswith("//"):
         return candidate
     return ""
 
 def requiere_inicio_sesion(view_func):
+    """Protege vistas que solo deben abrirse con una sesión autenticada."""
     # Protege una vista para que solo pueda abrirse con sesión iniciada.
     @wraps(view_func)
     def wrapper(*args, **kwargs):
+        """Valida el token de sesión antes de ejecutar la vista original."""
         if not session.get ("access_token"):
             return redirect(url_for("pages.pagina_inicio_sesion"))
         return view_func(*args, **kwargs)
@@ -26,6 +32,7 @@ def requiere_inicio_sesion(view_func):
 @pages_bp.get("/")
 @pages_bp.get("/login")
 def pagina_inicio_sesion():
+    """Muestra la pantalla de login o redirige al panel si ya existe sesión."""
     next_path = _safe_next_path(request.args.get("next"))
     if session.get("access_token"):
         return redirect(next_path or url_for("pages.pagina_panel"))
@@ -33,6 +40,7 @@ def pagina_inicio_sesion():
 
 @pages_bp.post("/login")
 def procesar_inicio_sesion():
+    """Valida credenciales, crea la sesión web y envía al panel correspondiente."""
     correo = (request.form.get("correo") or "").strip().lower()
     contrasena = request.form.get("contrasena") or ""
     next_path = _safe_next_path(request.form.get("next"))
@@ -57,19 +65,24 @@ def procesar_inicio_sesion():
             "contrasena": "Por favor, verifica la información ingresada.",
         }
         return render_template("login.html", datos_formulario=datos_formulario, errores_campo=errores_campo)
+
+    session.clear()
     access_token = create_access_token(
         identity=str(user.id),
         additional_claims={"rol": rol_nombre}
     )
     session["access_token"] = access_token
+    rotate_csrf_token()
+    mark_session_authenticated()
     return redirect(next_path or url_for("pages.pagina_panel"))
 
 @pages_bp.get("/dashboard")
 @requiere_inicio_sesion
 def pagina_panel():
+    """Redirige al panel inicial según el rol autenticado."""
     me = get_current_user_from_api()
     if not me:
-        session.clear()
+        clear_authenticated_session()
         return redirect(url_for("pages.pagina_inicio_sesion"))
     rol = (me.get("rol") or "").strip().lower()
     if rol == "cliente":
@@ -78,9 +91,10 @@ def pagina_panel():
         return redirect(url_for("citas.citas_lista"))
     return redirect(url_for("datos.datos_dashboard"))
 
-@pages_bp.get("/logout")
+@pages_bp.post("/logout")
 @requiere_inicio_sesion
 def pagina_cerrar_sesion():
+    """Cierra la sesión actual y regresa a la pantalla de inicio de sesión."""
     # Cierra la sesión actual y vuelve al login.
-    session.clear()
+    clear_authenticated_session()
     return redirect(url_for("pages.pagina_inicio_sesion"))

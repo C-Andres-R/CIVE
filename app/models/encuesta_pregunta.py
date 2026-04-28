@@ -1,7 +1,10 @@
+"""Módulo de encuesta pregunta."""
+
 from app.extensions import db
 
 
 class EncuestaPregunta(db.Model):
+    """Clase para encuesta pregunta."""
     # Permite configurar el texto visible de las preguntas base de la encuesta.
     __tablename__ = "encuestas_preguntas"
 

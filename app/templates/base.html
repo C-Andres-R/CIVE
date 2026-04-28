@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}CIVE{% endblock %}</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
@@ -34,7 +35,9 @@
                 <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
                 <a class="nav-item {% if (active_nav or '') == 'expedientes' %}active{% endif %}" href="{{ url_for('expedientes.expedientes_lista') }}">Expedientes</a>
                 <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
-                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
+                <form class="nav-item-form" method="post" action="{{ url_for('pages.pagina_cerrar_sesion') }}">
+                    <button class="nav-item nav-item-button" type="submit">Cerrar sesión</button>
+                </form>
                 {% elif is_veterinario %}
                 <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_lista') }}">Citas</a>
                 <a class="nav-item {% if (active_nav or '') == 'mascotas' %}active{% endif %}" href="{{ url_for('mascotas.mascotas_lista') }}">Mascotas</a>
@@ -43,7 +46,9 @@
                 <a class="nav-item {% if (active_nav or '') == 'reportes' %}active{% endif %}" href="{{ url_for('reportes.reportes_home') }}">Reportes</a>
                 <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
                 <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
-                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
+                <form class="nav-item-form" method="post" action="{{ url_for('pages.pagina_cerrar_sesion') }}">
+                    <button class="nav-item nav-item-button" type="submit">Cerrar sesión</button>
+                </form>
                 {% else %}
                 <a class="nav-item {% if (active_nav or 'usuarios') == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios.usuarios_lista') }}">Usuarios</a>
                 <a class="nav-item {% if (active_nav or '') == 'citas' %}active{% endif %}" href="{{ url_for('citas.citas_lista') }}">Citas</a>
@@ -54,7 +59,9 @@
                 <a class="nav-item {% if (active_nav or '') == 'datos' %}active{% endif %}" href="{{ url_for('datos.datos_dashboard') }}">Datos</a>
                 <a class="nav-item {% if (active_nav or '') == 'encuestas' %}active{% endif %}" href="{{ url_for('encuestas.encuestas_home') }}">Encuestas</a>
                 <a class="nav-item {% if (active_nav or '') == 'chat' %}active{% endif %}" href="{{ url_for('chat.pagina_chat') }}">Chat</a>
-                <a class="nav-item" href="{{ url_for('pages.pagina_cerrar_sesion') }}">Cerrar sesión</a>
+                <form class="nav-item-form" method="post" action="{{ url_for('pages.pagina_cerrar_sesion') }}">
+                    <button class="nav-item nav-item-button" type="submit">Cerrar sesión</button>
+                </form>
                 {% endif %}
             </div>
 
@@ -72,11 +79,39 @@
     <div class="sidebar-overlay"></div>
 
     <script>
+        window.getCsrfToken = () => {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.content : '';
+        };
+
+        window.injectCsrfTokens = (root = document) => {
+            const token = window.getCsrfToken();
+            if (!token) return;
+            root.querySelectorAll('form').forEach((form) => {
+                // Función para method.
+                const method = (form.getAttribute('method') || 'get').toLowerCase();
+                if (method !== 'post') return;
+                let input = form.querySelector('input[name="_csrf_token"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = '_csrf_token';
+                    form.prepend(input);
+                }
+                input.value = token;
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.injectCsrfTokens();
+        });
+
         // Abre y cierra menu lateral en pantallas pequenas.
         const hamburger = document.querySelector('.hamburger');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.querySelector('.sidebar-overlay');
 
+        // Función para toggle menu.
         function toggleMenu() {
             // Sincroniza el boton, el panel y la capa de fondo.
             const isActive = hamburger.classList.toggle('active');

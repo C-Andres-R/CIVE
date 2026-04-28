@@ -1,3 +1,5 @@
+"""Módulo de mascotas."""
+
 from __future__ import annotations
 
 import os
@@ -45,16 +47,19 @@ MAX_AGE_BY_SPECIES = {
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -63,20 +68,24 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _permitido(me, hu_code: str) -> bool:
+    """Función para permitido."""
     return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _redirigir_cliente_a_portal(me):
+    """Función para redirigir cliente a portal."""
     if _nombre_rol(me) == ROLE_CLIENTE:
         return redirect(url_for("clientes.clientes_portal"))
     return None
 
 
 def _parsear_entero(value):
+    """Función para parsear entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -84,6 +93,7 @@ def _parsear_entero(value):
 
 
 def _parsear_flotante(value):
+    """Función para parsear flotante."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -91,6 +101,7 @@ def _parsear_flotante(value):
 
 
 def _parsear_fecha(value: str):
+    """Función para parsear fecha."""
     if not value:
         return None
     try:
@@ -100,6 +111,7 @@ def _parsear_fecha(value: str):
 
 
 def _fecha_nacimiento_desde_edad(age: int):
+    """Función para fecha nacimiento desde edad."""
     today = date.today()
     try:
         return date(today.year - age, today.month, today.day)
@@ -108,6 +120,7 @@ def _fecha_nacimiento_desde_edad(age: int):
 
 
 def _edad_desde_fecha_nacimiento(birthdate: date | None):
+    """Función para edad desde fecha nacimiento."""
     if not birthdate:
         return None
     today = date.today()
@@ -118,6 +131,7 @@ def _edad_desde_fecha_nacimiento(birthdate: date | None):
 
 
 def _formatear_etiqueta_edad(age: int | None):
+    """Función para formatear etiqueta edad."""
     if age is None:
         return ""
     suffix = "año" if age == 1 else "años"
@@ -125,10 +139,12 @@ def _formatear_etiqueta_edad(age: int | None):
 
 
 def _contar_palabras(value: str) -> int:
+    """Función para contar palabras."""
     return len(re.findall(r"\S+", value or ""))
 
 
 def _validar_nombre_mascota(raw_value: str):
+    """Función para validar nombre mascota."""
     value = (raw_value or "").strip()
     if not value:
         return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
@@ -140,6 +156,7 @@ def _validar_nombre_mascota(raw_value: str):
 
 
 def _validar_peso(raw_value: str):
+    """Función para validar peso."""
     value = (raw_value or "").strip()
     if not value:
         return None, "El peso es obligatorio."
@@ -161,6 +178,7 @@ def _validar_peso(raw_value: str):
 
 
 def _validar_edad_aproximada(raw_value: str, especie: str):
+    """Función para validar edad aproximada."""
     value = (raw_value or "").strip()
     if not value:
         return None, "Debes ingresar la fecha de nacimiento o la edad aproximada."
@@ -174,6 +192,7 @@ def _validar_edad_aproximada(raw_value: str, especie: str):
 
 
 def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = None):
+    """Función para construir datos formulario mascota."""
     form = form or {}
     if mascota is not None and not form:
         edad_mostrada = _formatear_etiqueta_edad(_edad_desde_fecha_nacimiento(mascota.fecha_nacimiento))
@@ -215,6 +234,7 @@ def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = Non
 
 
 def _es_cliente_activo(user: Usuario | None) -> bool:
+    """Función para es cliente activo."""
     if not user:
         return False
     if user.eliminado or not user.activo:
@@ -225,6 +245,7 @@ def _es_cliente_activo(user: Usuario | None) -> bool:
 
 
 def _get_clientes_activos():
+    """Función para get clientes activos."""
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -236,6 +257,7 @@ def _get_clientes_activos():
 
 
 def _construir_consulta_mascotas(me):
+    """Función para construir consulta mascotas."""
     q = (
         db.session.query(Mascota, Usuario.nombre.label("dueno_nombre"), Usuario.activo.label("dueno_activo"))
         .join(Usuario, Mascota.dueno_id == Usuario.id)
@@ -250,6 +272,7 @@ def _construir_consulta_mascotas(me):
 
 
 def _usuario_puede_ver_mascota(me, mascota: Mascota) -> bool:
+    """Función para usuario puede ver mascota."""
     # Revisa si el usuario actual puede consultar la mascota indicada.
     role = _nombre_rol(me)
     me_id = _parsear_entero(me.get("id"))
@@ -261,6 +284,7 @@ def _usuario_puede_ver_mascota(me, mascota: Mascota) -> bool:
 
 
 def _validar_formulario_mascota(form, *, for_update: bool = False):
+    """Función para validar formulario mascota."""
     errors = []
     errores_campo = {}
 
@@ -335,6 +359,7 @@ def _validar_formulario_mascota(form, *, for_update: bool = False):
 
 
 def _reflejar_tabla(table_name: str) -> Table | None:
+    """Función para reflejar tabla."""
     if not inspect(db.engine).has_table(table_name):
         return None
     metadata = MetaData()
@@ -342,6 +367,7 @@ def _reflejar_tabla(table_name: str) -> Table | None:
 
 
 def _buscar_columna(table: Table, candidates: list[str]):
+    """Función para buscar columna."""
     for name in candidates:
         if name in table.c:
             return table.c[name]
@@ -349,6 +375,7 @@ def _buscar_columna(table: Table, candidates: list[str]):
 
 
 def _columnas_obligatorias_sin_predeterminado(table: Table):
+    """Función para columnas obligatorias sin predeterminado."""
     required = []
     for col in table.columns:
         if col.primary_key and col.autoincrement:
@@ -362,6 +389,7 @@ def _columnas_obligatorias_sin_predeterminado(table: Table):
 
 
 def _construir_datos_multimedia(table: Table, *, mascota_id: int, rel_file_path: str, filename: str):
+    """Función para construir datos multimedia."""
     payload: dict[str, object] = {}
 
     mascota_col = _buscar_columna(table, ["mascota_id", "id_mascota"])
@@ -404,6 +432,7 @@ def _construir_datos_multimedia(table: Table, *, mascota_id: int, rel_file_path:
 
 
 def _filas_multimedia(table: Table | None, *, mascota_id: int):
+    """Función para filas multimedia."""
     if table is None:
         return []
 
@@ -459,6 +488,7 @@ def _filas_multimedia(table: Table | None, *, mascota_id: int):
 
 
 def _mapa_foto_principal(mascota_ids: list[int]):
+    """Función para mapa foto principal."""
     # Función de vista previa multimedia.
     fotos_table = _reflejar_tabla("fotos_mascota")
     if fotos_table is None:
@@ -477,6 +507,7 @@ def _mapa_foto_principal(mascota_ids: list[int]):
 
 @mascotas_bp.get("/mascotas")
 def mascotas_lista():
+    """Función para mascotas lista."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -527,6 +558,7 @@ def mascotas_lista():
 
 @mascotas_bp.route("/mascotas/nueva", methods=["GET", "POST"])
 def mascotas_nueva():
+    """Función para mascotas nueva."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -605,6 +637,7 @@ def mascotas_nueva():
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/editar", methods=["GET", "POST"])
 def mascotas_editar(mascota_id: int):
+    """Función para mascotas editar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -687,6 +720,7 @@ def mascotas_editar(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/inactivar", methods=["GET", "POST"])
 def mascotas_inactivar(mascota_id: int):
+    """Función para mascotas inactivar."""
     # Inactiva una mascota y guarda la razón indicada.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -759,6 +793,7 @@ def mascotas_inactivar(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/vincular", methods=["GET", "POST"])
 def mascotas_vincular_duenio(mascota_id: int):
+    """Función para mascotas vincular duenio."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -821,6 +856,7 @@ def mascotas_vincular_duenio(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/comportamiento", methods=["GET", "POST"])
 def mascotas_comportamiento(mascota_id: int):
+    """Función para mascotas comportamiento."""
     # Guarda observaciones de comportamiento para una mascota.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -881,6 +917,7 @@ def mascotas_comportamiento(mascota_id: int):
 
 @mascotas_bp.route("/mascotas/<int:mascota_id>/multimedia", methods=["GET", "POST"])
 def mascotas_multimedia(mascota_id: int):
+    """Función para mascotas multimedia."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -983,5 +1020,6 @@ def mascotas_multimedia(mascota_id: int):
 
 @mascotas_bp.get("/mascotas/<int:mascota_id>/historial")
 def mascotas_historial(mascota_id: int):
+    """Función para mascotas historial."""
     # Función de historial completo.
     return redirect(url_for("expedientes.expedientes_reporte", mascota_id=mascota_id))

@@ -1,7 +1,10 @@
+// Script de reportes filters.
+
 (() => {
   const forms = document.querySelectorAll('form[data-report-filter]');
   if (!forms.length) return;
 
+  // Función para iso today.
   const isoToday = () => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -17,11 +20,13 @@
     };
     let submitAttempted = Object.values(errorEls).some((el) => el && el.textContent.trim());
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para validate date range.
     const validateDateRange = () => {
       const fechaInicioInput = form.querySelector('input[name="fecha_inicio"]');
       const fechaFinInput = form.querySelector('input[name="fecha_fin"]');
@@ -56,6 +61,7 @@
       return valid;
     };
 
+    // Función para validate month year.
     const validateMonthYear = () => {
       const monthInput = form.querySelector('[name="month"]');
       const yearInput = form.querySelector('[name="year"]');
@@ -81,6 +87,7 @@
       return valid;
     };
 
+    // Función para validate.
     const validate = () => {
       if (mode === 'month-year') return validateMonthYear();
       return validateDateRange();

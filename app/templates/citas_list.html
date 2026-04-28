@@ -77,6 +77,7 @@
 </div>
 
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.querySelector('.filters');
     if (!form) return;
@@ -89,11 +90,13 @@
     };
     let submitAttempted = {{ "true" if errores_campo else "false" }};
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para validate filters.
     const validateFilters = () => {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -130,7 +133,7 @@
   })();
 </script>
 
-<div class="table-container">
+<div class="table-container table-container--card table-container--stacked">
   <table class="table">
     <thead>
       <tr>
@@ -146,11 +149,11 @@
     <tbody>
       {% for cita, cliente_nombre, mascota_nombre, veterinario_nombre, recordatorio_estado, recordatorio_confirmado, recordatorio_anticipacion_horas, recordatorio_programado_para in citas_rows %}
       <tr>
-        <td>{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ cliente_nombre }}</td>
-        <td>{{ mascota_nombre }}</td>
-        <td>{{ veterinario_nombre }}</td>
-        <td>
+        <td data-label="Fecha/Hora">{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Cliente">{{ cliente_nombre }}</td>
+        <td data-label="Mascota">{{ mascota_nombre }}</td>
+        <td data-label="Veterinario">{{ veterinario_nombre }}</td>
+        <td data-label="Estado">
           {% if cita.estado == 'cancelada' or cita.cancelada %}
           <span class="estado-cancelada">Cancelada</span>
           {% elif cita.estado == 'confirmada' %}
@@ -159,7 +162,7 @@
           <span class="estado-pendiente">Pendiente</span>
           {% endif %}
         </td>
-        <td>
+        <td data-label="Recordatorio">
           {% if recordatorio_estado %}
           {{ recordatorio_estado|capitalize }}
           {% if recordatorio_estado == 'programado' and recordatorio_anticipacion_horas %}
@@ -176,7 +179,7 @@
           -
           {% endif %}
         </td>
-        <td>
+        <td data-label="Acciones">
           <div class="row-actions">
             {% if can_manage and cita.fecha_hora > now and not cita.cancelada and cita.estado != 'cancelada' %}
             <a class="cive-btn cive-btn--action" href="{{ url_for('citas.citas_editar', cita_id=cita.id) }}">Editar</a>
@@ -233,7 +236,7 @@
         </td>
       </tr>
       {% else %}
-      <tr>
+      <tr class="table-empty-row">
         <td colspan="7">No hay citas para los filtros seleccionados.</td>
       </tr>
       {% endfor %}
@@ -242,12 +245,14 @@
 </div>
 
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const toggles = document.querySelectorAll('.js-reminder-toggle');
     const closes = document.querySelectorAll('.js-reminder-close');
     const reminderForms = document.querySelectorAll('.reminder-form');
     const blockedExpedienteButtons = document.querySelectorAll('.js-expediente-blocked');
 
+    // Función para close all.
     const closeAll = () => {
       document.querySelectorAll('.reminder-menu').forEach((menu) => menu.classList.add('hidden'));
     };

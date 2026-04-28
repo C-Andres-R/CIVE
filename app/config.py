@@ -1,10 +1,14 @@
+"""Módulo de config."""
+
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 def construir_uri_base_datos() -> str:
+    """Función para construir uri base datos."""
     # 1) Railway / producción: URL completa
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -40,8 +44,15 @@ def construir_uri_base_datos() -> str:
     )
 
 class Config:
+    """Clase para config."""
     SQLALCHEMY_DATABASE_URI = construir_uri_base_datos()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", API_BASE_URL).rstrip("/")
+    SESSION_IDLE_TIMEOUT_SECONDS = int(os.getenv("SESSION_IDLE_TIMEOUT_SECONDS", "900"))
+    PERMANENT_SESSION_LIFETIME = timedelta(seconds=SESSION_IDLE_TIMEOUT_SECONDS)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = PUBLIC_BASE_URL.startswith("https://")
+    SESSION_REFRESH_EACH_REQUEST = True

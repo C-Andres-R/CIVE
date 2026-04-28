@@ -1,7 +1,10 @@
+"""Módulo de documento mascota."""
+
 from app.extensions import db
 
 
 class DocumentoMascota(db.Model):
+    """Clase para documento mascota."""
     __tablename__ = "documentos_mascota"
 
     id = db.Column(db.Integer, primary_key=True)

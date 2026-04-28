@@ -1,3 +1,5 @@
+"""Módulo de init."""
+
 from .usuario import Usuario
 from .rol import Rol
 from .mascota import Mascota

@@ -116,6 +116,7 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.querySelector('.usuario-form');
     if (!form) return;
@@ -141,11 +142,13 @@
       cita_seguimiento_programado_para: form.querySelector('[data-field-error="cita_seguimiento_programado_para"]'),
     };
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para sync cliente from mascota.
     const syncClienteFromMascota = () => {
       const selected = mascotaInput.options[mascotaInput.selectedIndex];
       const clienteId = selected?.dataset?.clienteId || '';
@@ -153,6 +156,7 @@
       clienteDisplayInput.value = clienteId;
     };
 
+    // Función para validate fecha hora.
     const validateFechaHora = () => {
       const value = fechaInput.value;
       if (!value) {
@@ -181,6 +185,7 @@
       return true;
     };
 
+    // Función para validate motivo.
     const validateMotivo = () => {
       if (!(motivoInput.value || '').trim()) {
         setError('motivo', 'Por favor ingresa el motivo de la cita para continuar.');
@@ -190,6 +195,7 @@
       return true;
     };
 
+    // Función para validate mascota.
     const validateMascota = () => {
       if (!(mascotaInput.value || '').trim()) {
         syncClienteFromMascota();
@@ -207,6 +213,7 @@
       return true;
     };
 
+    // Función para validate veterinario.
     const validateVeterinario = () => {
       if (!(veterinarioInput.value || '').trim()) {
         setError('veterinario_id', 'Este campo no puede estar vacío.');
@@ -216,11 +223,13 @@
       return true;
     };
 
+    // Función para toggle seguimiento.
     const toggleSeguimiento = () => {
       if (!seguimientoCheck || !seguimientoWrap) return;
       seguimientoWrap.classList.toggle('hidden', !seguimientoCheck.checked);
     };
 
+    // Función para validate seguimiento.
     const validateSeguimiento = () => {
       if (!seguimientoCheck || !seguimientoFechaInput) return true;
       if (!seguimientoCheck.checked) {
@@ -241,6 +250,7 @@
       return true;
     };
 
+    // Función para validate form.
     const validateForm = () => {
       const checks = [
         validateFechaHora(),

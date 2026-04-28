@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="CIVE Medical Pets - Login">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Inicia sesión - CIVE Medical Pets</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
@@ -69,6 +70,33 @@
     </div>
 
     <script>
+        window.getCsrfToken = () => {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.content : '';
+        };
+
+        window.injectCsrfTokens = (root = document) => {
+            const token = window.getCsrfToken();
+            if (!token) return;
+            root.querySelectorAll('form').forEach((formNode) => {
+                // Función para method.
+                const method = (formNode.getAttribute('method') || 'get').toLowerCase();
+                if (method !== 'post') return;
+                let input = formNode.querySelector('input[name="_csrf_token"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = '_csrf_token';
+                    formNode.prepend(input);
+                }
+                input.value = token;
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.injectCsrfTokens();
+        });
+
         // Permite mostrar u ocultar la contraseña escrita por el usuario.
         const form = document.querySelector('.login-form');
         const emailInput = document.getElementById('email');
@@ -80,12 +108,15 @@
         };
         let submitAttempted = {{ "true" if errores_campo else "false" }};
 
+        // Función para set error.
         const setError = (field, message) => {
             const el = errorEls[field];
             if (el) el.textContent = submitAttempted ? (message || '') : '';
         };
 
+        // Función para validate email.
         const validateEmail = () => {
+            // Función para value.
             const value = (emailInput.value || '').trim();
             if (!value) {
                 setError('correo', 'Este campo no puede estar vacío.');
@@ -99,6 +130,7 @@
             return true;
         };
 
+        // Función para validate password.
         const validatePassword = () => {
             const value = passwordInput.value || '';
             if (!value) {
@@ -109,6 +141,7 @@
             return true;
         };
 
+        // Función para validate form.
         const validateForm = () => [validateEmail(), validatePassword()].every(Boolean);
 
         passwordToggle.addEventListener('click', (e) => {

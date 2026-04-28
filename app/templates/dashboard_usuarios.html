@@ -41,13 +41,10 @@
 
 </div>
 
-<div class="table-container">
+<div class="table-container table-container--card table-container--stacked">
     <table class="table">
         <thead>
             <tr>
-                <th class="cell-checkbox">
-                    <input type="checkbox" aria-label="Seleccionar todos">
-                </th>
                 <th>Nombre</th>
                 <th>Correo</th>
                 <th>Domicilio</th>
@@ -60,9 +57,7 @@
         <tbody>
             {% for u, rol_nombre, mascotas_count in usuarios_rows %}
             <tr>
-                <td class="cell-checkbox"><input type="checkbox"></td>
-
-                <td class="user-cell">
+                <td class="user-cell" data-label="Nombre">
                     <div class="user-icon">
                         <svg viewBox="0 0 24 24">
                             <path
@@ -72,11 +67,11 @@
                     <span>{{ u.nombre }}</span>
                 </td>
 
-                <td>{{ u.correo }}</td>
-                <td>{{ u.domicilio or '-' }}</td>
-                <td>{{ u.telefono or '-' }}</td>
+                <td data-label="Correo">{{ u.correo }}</td>
+                <td data-label="Domicilio">{{ u.domicilio or '-' }}</td>
+                <td data-label="Teléfono">{{ u.telefono or '-' }}</td>
 
-                <td>
+                <td data-label="Estado">
                     {% if u.activo %}
                     <span class="estado-activo">Activo</span>
                     {% else %}
@@ -84,9 +79,9 @@
                     {% endif %}
                 </td>
 
-                <td><span class="badge">{{ mascotas_count }}</span></td>
+                <td data-label="Mascotas"><span class="badge">{{ mascotas_count }}</span></td>
 
-                <td class="actions">
+                <td class="actions" data-label="Acciones">
                     <details class="actions-dropdown">
                         <summary class="resumen-acciones">
                             <div class="more-icon"></div>
@@ -110,10 +105,63 @@
                     </details>
                 </td>
             </tr>
+            {% else %}
+            <tr class="table-empty-row">
+                <td colspan="7">No hay usuarios registrados para esta categoría.</td>
+            </tr>
             {% endfor %}
         </tbody>
 
     </table>
 </div>
+
+<script>
+  // Bloque para interacciones de la vista.
+  (() => {
+    const menus = Array.from(document.querySelectorAll('.actions-dropdown'));
+    if (!menus.length) return;
+
+    // Función para close all.
+    const closeAll = () => {
+      menus.forEach((menu) => {
+        menu.open = false;
+      });
+    };
+
+    menus.forEach((menu) => {
+      const summary = menu.querySelector('.resumen-acciones');
+      const links = menu.querySelectorAll('.actions-menu a');
+      const buttons = menu.querySelectorAll('.actions-menu button');
+
+      if (summary) {
+        summary.addEventListener('click', (event) => {
+          event.preventDefault();
+          const willOpen = !menu.open;
+          closeAll();
+          if (willOpen) {
+            menu.open = true;
+          }
+        });
+      }
+
+      links.forEach((link) => {
+        link.addEventListener('click', () => {
+          menu.open = false;
+        });
+      });
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          menu.open = false;
+        });
+      });
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.actions-dropdown')) return;
+      closeAll();
+    });
+  })();
+</script>
 
 {% endblock %}

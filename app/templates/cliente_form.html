@@ -42,6 +42,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="text" name="apellido_paterno" value="{{ datos_formulario.apellido_paterno }}">
           </div>
+          <small class="field-error" data-field-error="apellido_paterno">{{ errores_campo.apellido_paterno or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -49,6 +50,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="text" name="apellido_materno" value="{{ datos_formulario.apellido_materno }}">
           </div>
+          <small class="field-error" data-field-error="apellido_materno">{{ errores_campo.apellido_materno or "" }}</small>
         </div>
       </div>
 
@@ -154,6 +156,7 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     // Función de validación anticipada.
     const form = document.querySelector('.usuario-form');
@@ -172,6 +175,8 @@
 
     const errorEls = {
       nombres: form.querySelector('[data-field-error="nombres"]'),
+      apellido_paterno: form.querySelector('[data-field-error="apellido_paterno"]'),
+      apellido_materno: form.querySelector('[data-field-error="apellido_materno"]'),
       codigo_postal: form.querySelector('[data-field-error="codigo_postal"]'),
       telefono: form.querySelector('[data-field-error="telefono"]'),
       correo: form.querySelector('[data-field-error="correo"]'),
@@ -179,27 +184,63 @@
       contrasena: form.querySelector('[data-field-error="contrasena"]'),
     };
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para normalize text.
     const normalizeText = (value) => (value || '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
+    // Función para has only letters.
+    const hasOnlyLetters = (value) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(value);
 
+    // Función para validate nombres.
     const validateNombres = () => {
+      // Función para value.
       const value = (nombresInput?.value || '').trim();
       if (!value) {
         setError('nombres', 'El nombre es obligatorio.');
+        return false;
+      }
+      if (!hasOnlyLetters(value)) {
+        setError('nombres', 'El nombre no puede contener números.');
         return false;
       }
       setError('nombres', '');
       return true;
     };
 
+    // Función para validate apellido paterno.
+    const validateApellidoPaterno = () => {
+      // Función para value.
+      const value = (apellidoPaternoInput?.value || '').trim();
+      if (value && !hasOnlyLetters(value)) {
+        setError('apellido_paterno', 'El apellido paterno no puede contener números.');
+        return false;
+      }
+      setError('apellido_paterno', '');
+      return true;
+    };
+
+    // Función para validate apellido materno.
+    const validateApellidoMaterno = () => {
+      // Función para value.
+      const value = (apellidoMaternoInput?.value || '').trim();
+      if (value && !hasOnlyLetters(value)) {
+        setError('apellido_materno', 'El apellido materno no puede contener números.');
+        return false;
+      }
+      setError('apellido_materno', '');
+      return true;
+    };
+
+    // Función para validate codigo postal.
     const validateCodigoPostal = () => {
+      // Función para value.
       const value = (codigoPostalInput?.value || '').trim();
       if (value && !/^\d{5}$/.test(value)) {
         setError('codigo_postal', 'El C.P. debe tener exactamente 5 dígitos.');
@@ -209,7 +250,9 @@
       return true;
     };
 
+    // Función para validate telefono.
     const validateTelefono = () => {
+      // Función para value.
       const value = (telefonoInput?.value || '').trim();
       if (!value) {
         setError('telefono', 'El teléfono es obligatorio.');
@@ -228,7 +271,9 @@
       return true;
     };
 
+    // Función para validate correo.
     const validateCorreo = () => {
+      // Función para value.
       const value = (correoInput?.value || '').trim();
       if (!value) {
         setError('correo', 'El correo es obligatorio.');
@@ -242,8 +287,10 @@
       return true;
     };
 
+    // Función para validate fuente.
     const validateFuente = () => {
       if (!fuenteInput) return true;
+      // Función para value.
       const value = (fuenteInput.value || '').trim();
       if (!value) {
         setError('fuente_captacion', 'Debes seleccionar una fuente de captación.');
@@ -253,6 +300,7 @@
       return true;
     };
 
+    // Función para validate contrasena.
     const validateContrasena = () => {
       const value = contrasenaInput?.value || '';
       if (mode !== 'edit' && !value) {
@@ -302,9 +350,12 @@
       return true;
     };
 
+    // Función para validate form.
     const validateForm = () => {
       const checks = [
         validateNombres(),
+        validateApellidoPaterno(),
+        validateApellidoMaterno(),
         validateCodigoPostal(),
         validateTelefono(),
         validateCorreo(),

@@ -1,3 +1,5 @@
+"""Módulo de datos."""
+
 from __future__ import annotations
 
 import calendar
@@ -20,16 +22,19 @@ CONSULTA_PRECIO_ESTIMADO = Decimal("300.00")
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -38,10 +43,12 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _parsear_fecha(value: str):
+    """Función para parsear fecha."""
     if not value:
         return None
     try:
@@ -51,14 +58,17 @@ def _parsear_fecha(value: str):
 
 
 def _inicio_mes_actual(hoy: date):
+    """Función para inicio mes actual."""
     return hoy.replace(day=1)
 
 
 def _fin_mes(year: int, month: int) -> date:
+    """Función para fin mes."""
     return date(year, month, calendar.monthrange(year, month)[1])
 
 
 def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
+    """Función para inicio fin datetime."""
     return (
         datetime.combine(fecha_inicio, time.min),
         datetime.combine(fecha_fin, time.max),
@@ -66,6 +76,7 @@ def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
 
 
 def _daterange(fecha_inicio: date, fecha_fin: date):
+    """Función para daterange."""
     current = fecha_inicio
     while current <= fecha_fin:
         yield current
@@ -73,6 +84,7 @@ def _daterange(fecha_inicio: date, fecha_fin: date):
 
 
 def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
+    """Función para validar periodo."""
     errores_campo = {}
     fecha_inicio = _parsear_fecha(fecha_inicio_raw)
     fecha_fin = _parsear_fecha(fecha_fin_raw)
@@ -99,6 +111,7 @@ def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
 
 
 def _clasificar_servicio(consulta: ConsultaMedica) -> str:
+    """Función para clasificar servicio."""
     if (consulta.tipo_analisis_relacionado or "").strip():
         return "Análisis de laboratorio"
     if consulta.vacuna_insumo_id:
@@ -107,11 +120,13 @@ def _clasificar_servicio(consulta: ConsultaMedica) -> str:
 
 
 def _format_currency(value) -> str:
+    """Función para format currency."""
     amount = Decimal(value or 0)
     return f"${amount:.2f}"
 
 
 def _resolve_citas_periodo(fecha_inicio: date, fecha_fin: date, *, include_current_month_future: bool):
+    """Función para resolve citas periodo."""
     if not include_current_month_future:
         return fecha_inicio, fecha_fin
     if fecha_inicio.year == fecha_fin.year and fecha_inicio.month == fecha_fin.month:
@@ -120,6 +135,7 @@ def _resolve_citas_periodo(fecha_inicio: date, fecha_fin: date, *, include_curre
 
 
 def _build_frequency_chart(fecha_inicio: date, fecha_fin: date, *, include_current_month_future: bool):
+    """Función para build frequency chart."""
     fecha_inicio, fecha_fin = _resolve_citas_periodo(
         fecha_inicio,
         fecha_fin,
@@ -204,6 +220,7 @@ def _build_frequency_chart(fecha_inicio: date, fecha_fin: date, *, include_curre
 
 
 def _build_services_chart(fecha_inicio: date, fecha_fin: date):
+    """Función para build services chart."""
     consultas_generales = (
         db.session.query(func.count(ConsultaMedica.id))
         .filter(ConsultaMedica.fecha_consulta >= fecha_inicio, ConsultaMedica.fecha_consulta <= fecha_fin)
@@ -242,6 +259,7 @@ def _build_services_chart(fecha_inicio: date, fecha_fin: date):
 
 
 def _build_quick_stats(fecha_inicio: date, fecha_fin: date, *, include_current_month_future: bool):
+    """Función para build quick stats."""
     citas_inicio, citas_fin = _resolve_citas_periodo(
         fecha_inicio,
         fecha_fin,
@@ -301,6 +319,7 @@ def _build_quick_stats(fecha_inicio: date, fecha_fin: date, *, include_current_m
 
 
 def _build_monitoring(fecha_referencia: date):
+    """Función para build monitoring."""
     start_dt, end_dt = _inicio_fin_datetime(fecha_referencia, fecha_referencia)
 
     citas_hoy = (
@@ -430,11 +449,13 @@ def _build_monitoring(fecha_referencia: date):
 
 
 def _month_range(year: int, month: int):
+    """Función para month range."""
     start = date(year, month, 1)
     return start, _fin_mes(year, month)
 
 
 def _build_prediction(today: date):
+    """Función para build prediction."""
     current_month_start = today.replace(day=1)
     history_months = []
     for offset in range(3, 0, -1):
@@ -505,6 +526,7 @@ def _build_prediction(today: date):
 
 
 def _build_dashboard_context(fecha_inicio: date, fecha_fin: date, *, include_current_month_future: bool):
+    """Función para build dashboard context."""
     frequency_chart = _build_frequency_chart(
         fecha_inicio,
         fecha_fin,
@@ -534,6 +556,7 @@ def _build_dashboard_context(fecha_inicio: date, fecha_fin: date, *, include_cur
 
 @datos_bp.get("/datos")
 def datos_dashboard():
+    """Función para datos dashboard."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -573,6 +596,7 @@ def datos_dashboard():
 
 @datos_bp.get("/datos/monitor")
 def datos_monitor():
+    """Función para datos monitor."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return jsonify({"ok": False, "message": "No autorizado."}), 401

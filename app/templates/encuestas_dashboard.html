@@ -155,6 +155,7 @@
 
 {% block extra_js %}
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.querySelector('[data-encuestas-filter="date-range"]');
     if (!form) return;
@@ -167,11 +168,13 @@
     };
     let submitAttempted = {{ "true" if errores_campo else "false" }};
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para validate filters.
     const validateFilters = () => {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

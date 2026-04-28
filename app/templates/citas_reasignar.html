@@ -99,6 +99,7 @@
 </div>
 
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.getElementById('reasignar-form');
     const fechaInput = document.querySelector('input[name="fecha"]');
@@ -108,6 +109,7 @@
     const vetNuevoSelect = document.getElementById('veterinario_nuevo_id');
     if (!form || !fechaInput || !vetOriginalSelect || !citaSelect || !motivoSelect || !vetNuevoSelect) return;
 
+    // Función para base options.
     const baseOptions = Array.from(citaSelect.options).map((option) => ({
       value: option.value,
       text: option.textContent,
@@ -116,6 +118,7 @@
       selected: option.selected,
     }));
 
+    // Función para sync citas.
     const syncCitas = () => {
       const fecha = fechaInput.value;
       const vetOriginal = vetOriginalSelect.value;
@@ -158,13 +161,16 @@
       veterinario_nuevo_id: form.querySelector('[data-field-error="veterinario_nuevo_id"]'),
     };
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = message || '';
     };
 
+    // Función para clear field error.
     const clearFieldError = (field) => setError(field, '');
 
+    // Función para validate form.
     const validateForm = () => {
       let valid = true;
 

@@ -48,6 +48,42 @@
   z-index: 20;
 }
 
+.clientes-tools {
+  margin-bottom: 16px;
+}
+
+.clientes-list-table {
+  margin-top: 16px;
+}
+
+.campo-filtro--finance-actions {
+  justify-content: flex-start;
+}
+
+.campo-filtro--finance-actions .campo-filtro-spacer {
+  visibility: hidden;
+  min-height: 21px;
+}
+
+.acciones-filtro--finance-generate {
+  align-items: stretch;
+  width: 100%;
+}
+
+.acciones-filtro--finance-generate .cive-btn {
+  height: 48px;
+}
+
+@media (max-width: 900px) {
+  .campo-filtro--finance-actions .campo-filtro-spacer {
+    display: none;
+  }
+
+  .acciones-filtro--finance-generate {
+    padding-top: 0;
+  }
+}
+
 .table-container--inner {
   padding: 0;
 }
@@ -197,7 +233,7 @@
 }
 
 .actions-item {
-  height: 34px;
+  min-height: 44px;
   padding: 0 12px;
   border: 2px solid var(--color-primary);
   border-radius: 10px;

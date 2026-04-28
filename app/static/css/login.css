@@ -140,6 +140,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .forgot-password {
@@ -259,6 +260,10 @@
 
   .form-input {
     font-size: 14px;
+  }
+
+  .forgot-password {
+    text-align: left;
   }
 
   .mensajes-inicio-sesion {

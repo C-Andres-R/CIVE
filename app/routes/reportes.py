@@ -1,3 +1,5 @@
+"""Rutas para reportes administrativos, métricas y exportaciones."""
+
 from __future__ import annotations
 
 import csv
@@ -53,16 +55,19 @@ MONTH_LABELS = {
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -71,10 +76,12 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _parsear_entero(value):
+    """Función para parsear entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -82,6 +89,7 @@ def _parsear_entero(value):
 
 
 def _parsear_fecha(value: str):
+    """Función para parsear fecha."""
     if not value:
         return None
     try:
@@ -91,16 +99,19 @@ def _parsear_fecha(value: str):
 
 
 def _titulo_fuente(source: str | None):
+    """Función para titulo fuente."""
     key = (source or "").strip().lower() or "sin_dato"
     return CLIENT_SOURCE_LABELS.get(key, "Sin dato")
 
 
 def _format_currency(value) -> str:
+    """Función para format currency."""
     amount = Decimal(value or 0)
     return f"${amount:.2f}"
 
 
 def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
+    """Función para validar periodo."""
     errores_campo = {}
     fecha_inicio = _parsear_fecha(fecha_inicio_raw)
     fecha_fin = _parsear_fecha(fecha_fin_raw)
@@ -126,6 +137,7 @@ def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
 
 
 def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
+    """Función para inicio fin datetime."""
     return (
         datetime.combine(fecha_inicio, time.min),
         datetime.combine(fecha_fin, time.max),
@@ -133,6 +145,7 @@ def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
 
 
 def _month_bounds(year: int, month: int):
+    """Función para month bounds."""
     start = date(year, month, 1)
     if month == 12:
         end = date(year + 1, 1, 1) - timedelta(days=1)
@@ -142,10 +155,12 @@ def _month_bounds(year: int, month: int):
 
 
 def _nombre_mes(month: int) -> str:
+    """Función para nombre mes."""
     return MONTH_LABELS.get(month, str(month))
 
 
 def _build_pdf_logo_asset():
+    """Función para build pdf logo asset."""
     # Función de logotipo para reportes PDF.
     logo_path = os.path.join(current_app.root_path, "static", "images", "logo-cive.png")
     if not os.path.exists(logo_path):
@@ -164,6 +179,7 @@ def _build_pdf_logo_asset():
 
 
 def _build_pdf_header(title: str, subtitle: str, title_style, subtitle_style):
+    """Función para build pdf header."""
     # Función de encabezado con logotipo para reportes PDF.
     left_table = Table(
         [[Paragraph(title, title_style)], [Paragraph(subtitle, subtitle_style)]],
@@ -202,6 +218,7 @@ def _build_pdf_header(title: str, subtitle: str, title_style, subtitle_style):
 
 
 def _export_response(*, title: str, subtitle: str, headers: list[str], rows: list[list], export_format: str, filename_base: str):
+    """Función para export response."""
     if export_format == "csv":
         buffer = StringIO()
         writer = csv.writer(buffer)
@@ -269,6 +286,7 @@ def _export_response(*, title: str, subtitle: str, headers: list[str], rows: lis
     )
 
     def _paragraph(value, style):
+        """Función para paragraph."""
         text = str(value or "-").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
         return Paragraph(text, style)
 
@@ -321,6 +339,7 @@ def _export_response(*, title: str, subtitle: str, headers: list[str], rows: lis
 
 
 def _render_export_urls(endpoint: str, filters: dict):
+    """Genera los enlaces de exportación PDF, CSV y Excel para un reporte."""
     return {
         "pdf": url_for(endpoint, **filters, export_format="pdf"),
         "csv": url_for(endpoint, **filters, export_format="csv"),
@@ -329,10 +348,12 @@ def _render_export_urls(endpoint: str, filters: dict):
 
 
 def _require_roles(me, allowed_roles: set[str]):
+    """Valida si el usuario autenticado pertenece a los roles autorizados."""
     return _nombre_rol(me) in allowed_roles
 
 
 def _obtener_veterinarios():
+    """Obtiene veterinarios activos para filtros y reportes operativos."""
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -344,6 +365,7 @@ def _obtener_veterinarios():
 
 
 def _build_report_tabs(me):
+    """Construye las pestañas de reportes visibles según el rol autenticado."""
     role = _nombre_rol(me)
     tabs = [
         {"id": "citas", "label": "Citas", "endpoint": "reportes.reportes_citas_administrativo", "visible": role == ROLE_ADMIN},
@@ -358,6 +380,7 @@ def _build_report_tabs(me):
 
 @reportes_bp.get("/reportes")
 def reportes_home():
+    """Redirige al primer reporte disponible para el rol actual."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -376,6 +399,7 @@ def reportes_home():
 
 @reportes_bp.get("/reportes/citas")
 def reportes_citas_administrativo():
+    """Genera el reporte administrativo de citas por estado y por veterinario."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -467,6 +491,7 @@ def reportes_citas_administrativo():
 
 @reportes_bp.get("/reportes/ingresos")
 def reportes_ingresos():
+    """Función para reportes ingresos."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -592,6 +617,7 @@ def reportes_ingresos():
 
 @reportes_bp.get("/reportes/productividad")
 def reportes_productividad():
+    """Función para reportes productividad."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -726,6 +752,7 @@ def reportes_productividad():
 
 @reportes_bp.get("/reportes/clientes-nuevos")
 def reportes_clientes_nuevos():
+    """Función para reportes clientes nuevos."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -852,6 +879,7 @@ def reportes_clientes_nuevos():
 
 @reportes_bp.get("/reportes/medicamentos")
 def reportes_medicamentos():
+    """Función para reportes medicamentos."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -966,6 +994,7 @@ def reportes_medicamentos():
 
 @reportes_bp.get("/reportes/clientes-frecuentes")
 def reportes_clientes_frecuentes():
+    """Función para reportes clientes frecuentes."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r

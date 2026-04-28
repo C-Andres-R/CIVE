@@ -1,3 +1,5 @@
+"""Módulo de password policy."""
+
 import re
 import unicodedata
 
@@ -14,6 +16,7 @@ COMMON_PASSWORDS = {
 
 
 def validate_password(password: str, *, correo: str = "", nombre: str = "") -> list[str]:
+    """Función para validate password."""
     errors: list[str] = []
     pwd = (password or "").strip()
     pwd_norm = _normalize(pwd)
@@ -49,6 +52,7 @@ def validate_password(password: str, *, correo: str = "", nombre: str = "") -> l
 
 
 def _normalize(value: str) -> str:
+    """Función para normalize."""
     # Normaliza un texto para compararlo sin acentos ni diferencias de mayúsculas.
     normalized = unicodedata.normalize("NFKD", value)
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")

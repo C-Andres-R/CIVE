@@ -1,3 +1,5 @@
+"""Módulo de expedientes."""
+
 from __future__ import annotations
 
 import os
@@ -75,6 +77,7 @@ CONSULTA_BASE_PRICE = Decimal("300.00")
 
 
 def _build_pdf_styles():
+    """Función para build pdf styles."""
     styles = getSampleStyleSheet()
     return {
         "title": ParagraphStyle(
@@ -134,11 +137,13 @@ def _build_pdf_styles():
 
 
 def _pdf_paragraph(value, style):
+    """Función para pdf paragraph."""
     text = str(value or "-").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
     return Paragraph(text, style)
 
 
 def _pdf_table(headers, rows, widths, styles):
+    """Función para pdf table."""
     data = [[_pdf_paragraph(header, styles["cell_header"]) for header in headers]]
     if rows:
         for row in rows:
@@ -171,6 +176,7 @@ def _pdf_table(headers, rows, widths, styles):
 
 
 def _header_with_logo(*, mascota, generated_at, styles):
+    """Función para header with logo."""
     left_content = [
         _pdf_paragraph(f"Reporte clínico de {mascota.nombre}", styles["title"]),
         _pdf_paragraph(f"Generado el {generated_at.strftime('%Y-%m-%d %H:%M')}", styles["subtitle"]),
@@ -210,6 +216,7 @@ def _header_with_logo(*, mascota, generated_at, styles):
 
 
 def _build_pdf_logo_asset():
+    """Función para build pdf logo asset."""
     logo_path = os.path.join(current_app.root_path, "static", "images", "logo-cive.png")
     if not os.path.exists(logo_path):
         return None, None
@@ -229,6 +236,7 @@ def _build_pdf_logo_asset():
 
 
 def _construir_pdf_reporte_clinico(*, mascota, dueno_nombre, generated_at, edad_anos, consultas_rows, vacunas_rows, analisis_rows):
+    """Función para construir pdf reporte clinico."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -321,16 +329,19 @@ def _construir_pdf_reporte_clinico(*, mascota, dueno_nombre, generated_at, edad_
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -339,14 +350,17 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _permitido(me, hu_code: str) -> bool:
+    """Función para permitido."""
     return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _parsear_entero(value):
+    """Función para parsear entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -354,6 +368,7 @@ def _parsear_entero(value):
 
 
 def _parsear_decimal(value: str):
+    """Función para parsear decimal."""
     if value is None:
         return None
     raw = str(value).strip().replace(",", "")
@@ -366,6 +381,7 @@ def _parsear_decimal(value: str):
 
 
 def _parsear_fecha(value: str):
+    """Función para parsear fecha."""
     if not value:
         return None
     try:
@@ -375,6 +391,7 @@ def _parsear_fecha(value: str):
 
 
 def _obtener_veterinarios_activos():
+    """Función para obtener veterinarios activos."""
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -386,6 +403,7 @@ def _obtener_veterinarios_activos():
 
 
 def _obtener_insumos(tipo: str | None = None, *, solo_activos: bool = False):
+    """Función para obtener insumos."""
     q = db.session.query(InsumoClinico)
     if tipo in {"medicamento", "vacuna"}:
         q = q.filter(InsumoClinico.tipo_insumo == tipo)
@@ -395,6 +413,7 @@ def _obtener_insumos(tipo: str | None = None, *, solo_activos: bool = False):
 
 
 def _obtener_mascota_con_dueno(mascota_id: int):
+    """Función para obtener mascota con dueno."""
     dueno = aliased(Usuario)
     return (
         db.session.query(
@@ -411,6 +430,7 @@ def _obtener_mascota_con_dueno(mascota_id: int):
 
 
 def _usuario_puede_ver_mascota(me, mascota: Mascota) -> bool:
+    """Función para usuario puede ver mascota."""
     role = _nombre_rol(me)
     me_id = _parsear_entero(me.get("id"))
     if role in {ROLE_ADMIN, ROLE_VETERINARIO}:
@@ -421,6 +441,7 @@ def _usuario_puede_ver_mascota(me, mascota: Mascota) -> bool:
 
 
 def _obtener_mascota_o_responder(me, mascota_id: int):
+    """Función para obtener mascota o responder."""
     mascota_row = _obtener_mascota_con_dueno(mascota_id)
     if not mascota_row:
         flash("La mascota no existe.", "error")
@@ -434,6 +455,7 @@ def _obtener_mascota_o_responder(me, mascota_id: int):
 
 
 def _validar_fecha_no_futura(fecha, field_name: str, errores_campo: dict):
+    """Función para validar fecha no futura."""
     if not fecha:
         errores_campo[field_name] = "Este campo no puede estar vacío."
         return
@@ -442,6 +464,7 @@ def _validar_fecha_no_futura(fecha, field_name: str, errores_campo: dict):
 
 
 def _validar_veterinario(veterinario_id: int):
+    """Función para validar veterinario."""
     if not veterinario_id:
         return None, "Este campo no puede estar vacío."
 
@@ -458,6 +481,7 @@ def _validar_veterinario(veterinario_id: int):
 
 
 def _validar_archivo_analisis(uploaded):
+    """Función para validar archivo analisis."""
     if not uploaded or not uploaded.filename:
         return None
 
@@ -479,19 +503,42 @@ def _validar_archivo_analisis(uploaded):
 
 
 def _guardar_archivo_analisis(uploaded, mascota_id: int):
+    """Función para guardar archivo analisis."""
     filename = secure_filename(uploaded.filename or "")
     ext = filename.rsplit(".", 1)[-1].lower()
     token = secrets.token_hex(6)
     new_name = f"{token}.{ext}" if ext else f"{token}_{filename}"
-    upload_dir = os.path.join(current_app.root_path, "static", "uploads", "analisis", str(mascota_id))
+    upload_dir = os.path.join(current_app.root_path, "private_uploads", "analisis", str(mascota_id))
     os.makedirs(upload_dir, exist_ok=True)
     abs_path = os.path.join(upload_dir, new_name)
-    rel_path = os.path.join("uploads", "analisis", str(mascota_id), new_name).replace("\\", "/")
+    rel_path = os.path.join("analisis", str(mascota_id), new_name).replace("\\", "/")
     uploaded.save(abs_path)
     return rel_path, filename
 
 
+def _resolver_archivo_analisis(rel_path: str | None):
+    """Función para resolver archivo analisis."""
+    if not rel_path:
+        return None
+
+    normalized = os.path.normpath(rel_path).replace("\\", "/").lstrip("/")
+    if normalized.startswith(".."):
+        return None
+
+    candidates = [os.path.join(current_app.root_path, "private_uploads", normalized)]
+    if normalized.startswith("uploads/"):
+        candidates.append(os.path.join(current_app.root_path, "static", normalized))
+    else:
+        candidates.append(os.path.join(current_app.root_path, "static", "uploads", normalized))
+
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def _resumen_por_mascota(rows):
+    """Función para resumen por mascota."""
     summary = {}
     for mascota_id, total in rows:
         summary[int(mascota_id)] = total
@@ -499,6 +546,7 @@ def _resumen_por_mascota(rows):
 
 
 def _ajustar_existencia_por_cambio(prev_insumo_id: int | None, new_insumo_id: int | None, field_name: str, errores_campo: dict):
+    """Función para ajustar existencia por cambio."""
     if prev_insumo_id == new_insumo_id:
         return
 
@@ -522,6 +570,7 @@ def _ajustar_existencia_por_cambio(prev_insumo_id: int | None, new_insumo_id: in
 
 
 def _datos_formulario_consulta(form=None, consulta: ConsultaMedica | None = None):
+    """Función para datos formulario consulta."""
     form = form or {}
     if consulta is not None and not form:
         return {
@@ -576,6 +625,7 @@ def _datos_formulario_consulta(form=None, consulta: ConsultaMedica | None = None
 
 
 def _datos_formulario_vacuna(form=None, registro: VacunaAlergia | None = None):
+    """Función para datos formulario vacuna."""
     form = form or {}
     if registro is not None and not form:
         return {
@@ -606,6 +656,7 @@ def _datos_formulario_vacuna(form=None, registro: VacunaAlergia | None = None):
 
 
 def _datos_formulario_analisis(form=None, analisis: AnalisisClinico | None = None):
+    """Función para datos formulario analisis."""
     form = form or {}
     if analisis is not None and not form:
         return {
@@ -634,6 +685,7 @@ def _datos_formulario_analisis(form=None, analisis: AnalisisClinico | None = Non
 
 
 def _hidratar_datos_consulta_con_seguimientos(datos_formulario, consulta_id: int | None = None):
+    """Función para hidratar datos consulta con seguimientos."""
     # Función de seguimiento clínico.
     if consulta_id is None:
         return datos_formulario
@@ -654,6 +706,7 @@ def _hidratar_datos_consulta_con_seguimientos(datos_formulario, consulta_id: int
 
 
 def _hidratar_datos_vacuna_con_seguimiento(datos_formulario, registro_id: int | None = None):
+    """Función para hidratar datos vacuna con seguimiento."""
     # Función de seguimiento clínico.
     if registro_id is None:
         return datos_formulario
@@ -666,6 +719,7 @@ def _hidratar_datos_vacuna_con_seguimiento(datos_formulario, registro_id: int | 
 
 
 def _hidratar_datos_analisis_con_seguimiento(datos_formulario, analisis_id: int | None = None):
+    """Función para hidratar datos analisis con seguimiento."""
     # Función de seguimiento clínico.
     if analisis_id is None:
         return datos_formulario
@@ -678,6 +732,7 @@ def _hidratar_datos_analisis_con_seguimiento(datos_formulario, analisis_id: int 
 
 
 def _datos_formulario_insumo(form=None, insumo: InsumoClinico | None = None):
+    """Función para datos formulario insumo."""
     form = form or {}
     if insumo is not None and not form:
         return {
@@ -701,6 +756,7 @@ def _datos_formulario_insumo(form=None, insumo: InsumoClinico | None = None):
 
 @expedientes_bp.get("/expedientes")
 def expedientes_lista():
+    """Función para expedientes lista."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -791,6 +847,7 @@ def expedientes_lista():
 
 @expedientes_bp.get("/expedientes/inventario")
 def inventario_lista():
+    """Función para inventario lista."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -819,15 +876,18 @@ def inventario_lista():
 
 @expedientes_bp.route("/expedientes/inventario/nuevo", methods=["GET", "POST"])
 def inventario_nuevo():
+    """Función para inventario nuevo."""
     return _guardar_insumo()
 
 
 @expedientes_bp.route("/expedientes/inventario/<int:insumo_id>/editar", methods=["GET", "POST"])
 def inventario_editar(insumo_id: int):
+    """Función para inventario editar."""
     return _guardar_insumo(insumo_id=insumo_id)
 
 
 def _guardar_insumo(insumo_id: int | None = None):
+    """Función para guardar insumo."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -912,6 +972,7 @@ def _guardar_insumo(insumo_id: int | None = None):
 @expedientes_bp.get("/expedientes/<int:mascota_id>")
 @expedientes_bp.get("/expedientes/<int:mascota_id>/editar")
 def expedientes_detalle(mascota_id: int):
+    """Función para expedientes detalle."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -1012,6 +1073,7 @@ def expedientes_detalle(mascota_id: int):
 
 @expedientes_bp.post("/expedientes/seguimientos/<int:seguimiento_id>/recordar-ahora")
 def expedientes_recordar_seguimiento_ahora(seguimiento_id: int):
+    """Función para expedientes recordar seguimiento ahora."""
     # Botón temporal de demostración de seguimiento.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -1039,6 +1101,7 @@ def expedientes_recordar_seguimiento_ahora(seguimiento_id: int):
 
 @expedientes_bp.get("/expedientes/<int:mascota_id>/reporte")
 def expedientes_reporte(mascota_id: int):
+    """Función para expedientes reporte."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -1107,17 +1170,58 @@ def expedientes_reporte(mascota_id: int):
     )
 
 
+@expedientes_bp.get("/expedientes/<int:mascota_id>/analisis/<int:analisis_id>/adjunto")
+def expedientes_descargar_adjunto_analisis(mascota_id: int, analisis_id: int):
+    """Función para expedientes descargar adjunto analisis."""
+    r = _requiere_inicio_sesion_o_redirige()
+    if r:
+        return r
+
+    me = _obtener_usuario_o_cerrar_sesion()
+    if not me:
+        return _redirigir_a_inicio_sesion()
+
+    mascota_row, denied_response = _obtener_mascota_o_responder(me, mascota_id)
+    if denied_response:
+        return denied_response
+    mascota = mascota_row[0]
+
+    analisis = (
+        db.session.query(AnalisisClinico)
+        .filter(AnalisisClinico.id == analisis_id, AnalisisClinico.mascota_id == mascota.id)
+        .first()
+    )
+    if not analisis or not analisis.archivo_adjunto:
+        flash("El archivo solicitado no existe.", "error")
+        return redirect(url_for("expedientes.expedientes_detalle", mascota_id=mascota.id))
+
+    abs_path = _resolver_archivo_analisis(analisis.archivo_adjunto)
+    if not abs_path:
+        flash("No fue posible localizar el archivo solicitado.", "error")
+        return redirect(url_for("expedientes.expedientes_detalle", mascota_id=mascota.id))
+
+    return send_file(
+        abs_path,
+        as_attachment=False,
+        download_name=analisis.nombre_archivo or os.path.basename(abs_path),
+        conditional=True,
+    )
+
+
 @expedientes_bp.route("/expedientes/<int:mascota_id>/consultas/nueva", methods=["GET", "POST"])
 def consultas_nueva(mascota_id: int):
+    """Función para consultas nueva."""
     return _guardar_consulta(mascota_id)
 
 
 @expedientes_bp.route("/expedientes/<int:mascota_id>/consultas/<int:consulta_id>/editar", methods=["GET", "POST"])
 def consultas_editar(mascota_id: int, consulta_id: int):
+    """Función para consultas editar."""
     return _guardar_consulta(mascota_id, consulta_id=consulta_id)
 
 
 def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
+    """Función para guardar consulta."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -1345,15 +1449,18 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
 
 @expedientes_bp.route("/expedientes/<int:mascota_id>/vacunas-alergias/nuevo", methods=["GET", "POST"])
 def vacunas_nueva(mascota_id: int):
+    """Función para vacunas nueva."""
     return _guardar_vacuna(mascota_id)
 
 
 @expedientes_bp.route("/expedientes/<int:mascota_id>/vacunas-alergias/<int:registro_id>/editar", methods=["GET", "POST"])
 def vacunas_editar(mascota_id: int, registro_id: int):
+    """Función para vacunas editar."""
     return _guardar_vacuna(mascota_id, registro_id=registro_id)
 
 
 def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
+    """Función para guardar vacuna."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -1508,15 +1615,18 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
 
 @expedientes_bp.route("/expedientes/<int:mascota_id>/analisis/nuevo", methods=["GET", "POST"])
 def analisis_nuevo(mascota_id: int):
+    """Función para analisis nuevo."""
     return _guardar_analisis(mascota_id)
 
 
 @expedientes_bp.route("/expedientes/<int:mascota_id>/analisis/<int:analisis_id>/editar", methods=["GET", "POST"])
 def analisis_editar(mascota_id: int, analisis_id: int):
+    """Función para analisis editar."""
     return _guardar_analisis(mascota_id, analisis_id=analisis_id)
 
 
 def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
+    """Función para guardar analisis."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r

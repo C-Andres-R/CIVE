@@ -1,6 +1,9 @@
+"""Módulo de usuario."""
+
 from app.extensions import db
 
 class Usuario(db.Model):
+    """Clase para usuario."""
     # Representa a un usuario del sistema con sus datos de acceso y rol.
     __tablename__ = "usuarios"
 

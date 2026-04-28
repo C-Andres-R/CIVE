@@ -234,6 +234,7 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const pairs = [
       ['input[name="incluye_medicamento"]', '.medicamento-extra-wrap'],
@@ -246,6 +247,7 @@
       const wrap = document.querySelector(wrapSelector);
       if (!input || !wrap) return;
 
+      // Función para toggle extra.
       const toggleExtra = () => {
         wrap.classList.toggle('hidden', !input.checked);
       };
@@ -265,6 +267,7 @@
       const wrap = document.querySelector(wrapSelector);
       if (!input || !wrap) return;
 
+      // Función para toggle extra.
       const toggleExtra = () => {
         wrap.classList.toggle('hidden', !input.checked);
       };

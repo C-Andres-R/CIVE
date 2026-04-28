@@ -34,6 +34,34 @@ html, body {
   height: 100%;
   font-family: var(--font-family-base);
   color: var(--color-text-dark);
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+a,
+p,
+small,
+span,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
+textarea,
+input,
+select,
+button {
+  font: inherit;
+}
+
+textarea {
+  width: 100%;
+  max-width: 100%;
 }
 
 /* === COMPONENTES COMPARTIDOS (FORM + BOTONES) === */
@@ -87,7 +115,7 @@ html, body {
 
 .usuario-check {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -100,7 +128,7 @@ html, body {
 
 .usuario-btn-primary,
 .usuario-btn-link {
-  height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 10px;
   display: inline-flex;
@@ -109,6 +137,7 @@ html, body {
   font-size: 14px;
   font-weight: var(--font-weight-medium);
   text-decoration: none;
+  text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -142,4 +171,11 @@ html, body {
   border: 1px solid #f5c6cb;
   background: #fdecea;
   color: #611a15;
+}
+
+@media (max-width: 768px) {
+  .usuario-btn-primary,
+  .usuario-btn-link {
+    width: 100%;
+  }
 }

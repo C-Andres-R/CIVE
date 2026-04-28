@@ -178,11 +178,13 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const toggles = document.querySelectorAll('.js-reminder-toggle');
     const closes = document.querySelectorAll('.js-reminder-close');
     const reminderForms = document.querySelectorAll('.reminder-form');
 
+    // Función para close all.
     const closeAll = () => {
       document.querySelectorAll('.reminder-menu').forEach((menu) => menu.classList.add('hidden'));
     };

@@ -1,7 +1,10 @@
+"""Módulo de vacuna alergia."""
+
 from app.extensions import db
 
 
 class VacunaAlergia(db.Model):
+    """Clase para vacuna alergia."""
     __tablename__ = "vacunas_alergias"
 
     id = db.Column(db.Integer, primary_key=True)

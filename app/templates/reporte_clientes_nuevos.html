@@ -104,6 +104,7 @@
   {% endif %}
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.querySelector('.filters');
     if (!form) return;
@@ -123,22 +124,26 @@
     };
     let submitAttempted = Object.values(errorEls).some((el) => el && el.textContent.trim());
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para iso today.
     const isoToday = () => {
       const today = new Date();
       return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     };
 
+    // Función para sync mode.
     const syncMode = () => {
       const useDateRange = !!(useDateRangeInput && useDateRangeInput.checked);
       monthWraps.forEach((wrap) => wrap.classList.toggle('hidden', useDateRange));
       dateWraps.forEach((wrap) => wrap.classList.toggle('hidden', !useDateRange));
     };
 
+    // Función para validate month year.
     const validateMonthYear = () => {
       const month = Number(monthInput ? monthInput.value : '');
       const year = Number(yearInput ? yearInput.value : '');
@@ -164,6 +169,7 @@
       return valid;
     };
 
+    // Función para validate date range.
     const validateDateRange = () => {
       const fechaInicio = fechaInicioInput ? fechaInicioInput.value : '';
       const fechaFin = fechaFinInput ? fechaFinInput.value : '';
@@ -198,6 +204,7 @@
       return valid;
     };
 
+    // Función para validate form.
     const validateForm = () => {
       if (useDateRangeInput && useDateRangeInput.checked) {
         return validateDateRange();

@@ -1,3 +1,5 @@
+"""Módulo de clientes."""
+
 from __future__ import annotations
 
 import re
@@ -35,21 +37,25 @@ PERMISSIONS = {
 PHONE_PATTERN = re.compile(r"^[0-9+\-()\s]{10,20}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CP_PATTERN = re.compile(r"^\d{5}$")
+PERSON_NAME_PATTERN = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$")
 FINANCIAL_STATES = {"pagado", "pendiente", "parcial"}
 CLIENT_SOURCE_OPTIONS = {"recomendacion", "redes_sociales"}
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     me = get_current_user_from_api()
     if not me:
         session.pop("access_token", None)
@@ -58,14 +64,17 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _permitido(me, hu_code: str) -> bool:
+    """Función para permitido."""
     return _nombre_rol(me) in PERMISSIONS.get(hu_code, set())
 
 
 def _parsear_entero(value):
+    """Función para parsear entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -73,23 +82,34 @@ def _parsear_entero(value):
 
 
 def _es_correo_valido(correo: str) -> bool:
+    """Función para es correo valido."""
     return bool(EMAIL_PATTERN.match(correo or ""))
 
 
 def _es_telefono_valido(phone: str) -> bool:
+    """Función para es telefono valido."""
     if not PHONE_PATTERN.match(phone or ""):
         return False
     digits = re.sub(r"\D", "", phone or "")
     return 10 <= len(digits) <= 15
 
 
+def _es_nombre_persona_valido(value: str) -> bool:
+    """Función para es nombre persona valido."""
+    if not value:
+        return False
+    return bool(PERSON_NAME_PATTERN.match(value))
+
+
 def _nombre_completo(nombres: str, apellido_paterno: str, apellido_materno: str) -> str:
+    """Función para nombre completo."""
     # Normaliza el nombre completo a partir de sus componentes.
     parts = [nombres.strip(), apellido_paterno.strip(), apellido_materno.strip()]
     return " ".join(part for part in parts if part)
 
 
 def _direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: str, estado: str, entidad: str) -> str:
+    """Función para direccion completa."""
     street = " ".join(part for part in [calle.strip(), numero.strip()] if part).strip()
     tail = []
     if colonia.strip():
@@ -110,6 +130,7 @@ def _direccion_completa(calle: str, numero: str, colonia: str, codigo_postal: st
 
 
 def _obtener_rol_cliente():
+    """Función para obtener rol cliente."""
     return (
         db.session.query(Rol)
         .filter(func.lower(Rol.nombre) == ROLE_CLIENTE)
@@ -118,6 +139,7 @@ def _obtener_rol_cliente():
 
 
 def _obtener_cliente(cliente_id: int) -> Usuario | None:
+    """Función para obtener cliente."""
     return (
         db.session.query(Usuario)
         .join(Rol, Usuario.rol_id == Rol.id)
@@ -128,6 +150,7 @@ def _obtener_cliente(cliente_id: int) -> Usuario | None:
 
 
 def _cliente_existe_para_acceso(cliente_id: int) -> Usuario | None:
+    """Función para cliente existe para acceso."""
     client = _obtener_cliente(cliente_id)
     if not client or client.eliminado:
         return None
@@ -135,6 +158,7 @@ def _cliente_existe_para_acceso(cliente_id: int) -> Usuario | None:
 
 
 def _puede_acceder_recurso_cliente(me, cliente_id: int, hu_code: str) -> bool:
+    """Función para puede acceder recurso cliente."""
     # Revisa si el usuario actual puede consultar recursos de un cliente.
     if not _permitido(me, hu_code):
         return False
@@ -145,6 +169,7 @@ def _puede_acceder_recurso_cliente(me, cliente_id: int, hu_code: str) -> bool:
 
 
 def _datos_formulario_cliente(form=None, client: Usuario | None = None):
+    """Función para datos formulario cliente."""
     form = form or {}
     client_nombres = (client.nombres if client else "") or ""
     client_apellido_paterno = (client.apellido_paterno if client else "") or ""
@@ -182,6 +207,7 @@ def _validar_formulario_cliente(
     require_source: bool = True,
     current_source: str | None = None,
 ):
+    """Función para validar formulario cliente."""
     errors = []
     errores_campo = {}
 
@@ -201,6 +227,12 @@ def _validar_formulario_cliente(
 
     if not nombres:
         errores_campo["nombres"] = "El nombre es obligatorio."
+    elif not _es_nombre_persona_valido(nombres):
+        errores_campo["nombres"] = "El nombre no puede contener números."
+    if apellido_paterno and not _es_nombre_persona_valido(apellido_paterno):
+        errores_campo["apellido_paterno"] = "El apellido paterno no puede contener números."
+    if apellido_materno and not _es_nombre_persona_valido(apellido_materno):
+        errores_campo["apellido_materno"] = "El apellido materno no puede contener números."
     if codigo_postal and not CP_PATTERN.match(codigo_postal):
         errores_campo["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
     if not telefono:
@@ -262,6 +294,7 @@ def _validar_formulario_cliente(
 
 
 def _consulta_clientes():
+    """Función para consulta clientes."""
     pet_counts = (
         db.session.query(
             Mascota.dueno_id.label("cliente_id"),
@@ -285,6 +318,7 @@ def _consulta_clientes():
 
 
 def _mascotas_cliente(cliente_id: int):
+    """Función para mascotas cliente."""
     return (
         db.session.query(Mascota)
         .filter(Mascota.dueno_id == cliente_id)
@@ -294,6 +328,7 @@ def _mascotas_cliente(cliente_id: int):
 
 
 def _foto_previews_cliente(mascota_ids: list[int]):
+    """Función para foto previews cliente."""
     # Función de vista previa multimedia.
     if not mascota_ids:
         return {}
@@ -317,6 +352,7 @@ def _foto_previews_cliente(mascota_ids: list[int]):
 
 
 def _citas_cliente(cliente_id: int):
+    """Función para citas cliente."""
     # Función de recordatorio automático.
     return (
         db.session.query(
@@ -336,6 +372,7 @@ def _citas_cliente(cliente_id: int):
 
 
 def _filas_financieras_cliente(cliente_id: int):
+    """Función para filas financieras cliente."""
     return (
         db.session.query(Facturacion)
         .filter(Facturacion.cliente_id == cliente_id)
@@ -345,6 +382,7 @@ def _filas_financieras_cliente(cliente_id: int):
 
 
 def _resumen_encuestas_cliente(cliente_id: int):
+    """Función para resumen encuestas cliente."""
     rows = (
         db.session.query(EncuestaSatisfaccion)
         .filter(EncuestaSatisfaccion.cliente_id == cliente_id)
@@ -357,6 +395,7 @@ def _resumen_encuestas_cliente(cliente_id: int):
 
 
 def _parsear_fecha_datetime(value: str):
+    """Función para parsear fecha datetime."""
     if not value:
         return None
     try:
@@ -366,6 +405,7 @@ def _parsear_fecha_datetime(value: str):
 
 
 def _metodos_financieros():
+    """Función para metodos financieros."""
     rows = (
         db.session.query(Facturacion.metodo_pago)
         .filter(Facturacion.metodo_pago.isnot(None))
@@ -377,6 +417,7 @@ def _metodos_financieros():
 
 
 def _filas_financieras_filtradas(cliente_id: int, *, fecha_inicio=None, fecha_fin=None, estado="", metodo_pago=""):
+    """Función para filas financieras filtradas."""
     # Filtra los movimientos financieros del cliente según los criterios capturados.
     q = db.session.query(Facturacion).filter(Facturacion.cliente_id == cliente_id)
     if fecha_inicio:
@@ -391,6 +432,7 @@ def _filas_financieras_filtradas(cliente_id: int, *, fecha_inicio=None, fecha_fi
 
 
 def _resumen_financiero(rows: list[Facturacion]):
+    """Función para resumen financiero."""
     # Resume los totales financieros de un cliente.
     total_pagado = sum((row.monto_pagado or Decimal("0")) for row in rows)
     total_descuento = sum((row.descuento or Decimal("0")) for row in rows)
@@ -408,6 +450,7 @@ def _resumen_financiero(rows: list[Facturacion]):
 
 @clientes_bp.get("/clientes")
 def clientes_lista():
+    """Función para clientes lista."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -441,6 +484,7 @@ def clientes_lista():
 
 @clientes_bp.route("/clientes/finanzas/generar", methods=["GET", "POST"])
 def clientes_finanzas_generar():
+    """Función para clientes finanzas generar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -534,6 +578,7 @@ def clientes_finanzas_generar():
 
 @clientes_bp.route("/clientes/nuevo", methods=["GET", "POST"])
 def clientes_nuevo():
+    """Función para clientes nuevo."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -623,6 +668,7 @@ def clientes_nuevo():
 
 @clientes_bp.route("/clientes/<int:cliente_id>/editar", methods=["GET", "POST"])
 def clientes_editar(cliente_id: int):
+    """Función para clientes editar."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -704,6 +750,7 @@ def clientes_editar(cliente_id: int):
 
 @clientes_bp.route("/clientes/<int:cliente_id>/inactivar", methods=["GET", "POST"])
 def clientes_inactivar(cliente_id: int):
+    """Función para clientes inactivar."""
     # Inactiva un cliente y guarda la razón indicada.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -758,6 +805,7 @@ def clientes_inactivar(cliente_id: int):
 
 @clientes_bp.route("/clientes/<int:cliente_id>/notificar", methods=["GET", "POST"])
 def clientes_notificar(cliente_id: int):
+    """Función para clientes notificar."""
     # Envía una notificación por correo a un cliente.
     r = _requiere_inicio_sesion_o_redirige()
     if r:
@@ -834,6 +882,7 @@ def clientes_notificar(cliente_id: int):
 
 @clientes_bp.get("/clientes/<int:cliente_id>/mascotas")
 def clientes_mascotas(cliente_id: int):
+    """Función para clientes mascotas."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -863,6 +912,7 @@ def clientes_mascotas(cliente_id: int):
 
 @clientes_bp.get("/clientes/<int:cliente_id>/finanzas")
 def clientes_finanzas(cliente_id: int):
+    """Función para clientes finanzas."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -891,6 +941,7 @@ def clientes_finanzas(cliente_id: int):
 
 @clientes_bp.get("/portal-cliente")
 def clientes_portal():
+    """Función para clientes portal."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -929,6 +980,7 @@ def clientes_portal():
 
 @clientes_bp.route("/portal-cliente/editar", methods=["GET", "POST"])
 def clientes_portal_editar():
+    """Función para clientes portal editar."""
     # Función de autoservicio del cliente.
     r = _requiere_inicio_sesion_o_redirige()
     if r:

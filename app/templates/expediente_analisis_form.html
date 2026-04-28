@@ -114,11 +114,13 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const check = document.querySelector('input[name="analisis_requiere_seguimiento"]');
     const wrap = document.querySelector('.analisis-followup-wrap');
     if (!check || !wrap) return;
 
+    // Función para sync ui.
     const syncUi = () => {
       wrap.classList.toggle('hidden', !check.checked);
     };

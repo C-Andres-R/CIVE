@@ -1,7 +1,10 @@
+"""Módulo de recordatorio cita."""
+
 from app.extensions import db
 
 
 class RecordatorioCita(db.Model):
+    """Clase para recordatorio cita."""
     # Representa el estado de envío y confirmación de un recordatorio de cita.
     __tablename__ = "recordatorios_citas"
 

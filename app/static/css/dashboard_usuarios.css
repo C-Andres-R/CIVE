@@ -50,6 +50,18 @@ body {
     transition: background-color 0.2s;
 }
 
+.nav-item-form {
+    margin: 0;
+}
+
+.nav-item-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+}
+
 .nav-item:hover {
     background-color: #f9fafb;
 }
@@ -91,11 +103,15 @@ body {
 
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 24px;
     border-bottom: 1px solid var(--border-dashboard);
 }
 
 .tab {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     font-weight: 500;
     font-size: 16px;
     color: var(--color-text-dark);
@@ -124,13 +140,18 @@ body {
     flex: 1;
     padding: 0 24px 24px;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-container--panel-gap {
+    margin-top: 16px;
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
     background: var(--color-white);
-    min-width: 600px;
+    min-width: 560px;
 }
 
 .table thead th {
@@ -148,6 +169,7 @@ body {
     padding: 16px 12px;
     border-bottom: 1px solid #f2f4f8;
     vertical-align: top;
+    overflow-wrap: anywhere;
 }
 
 .user-cell {
@@ -222,7 +244,7 @@ body {
     border: 1px solid #eee;
     padding: 10px;
     border-radius: 10px;
-    min-width: 180px;
+    min-width: min(220px, calc(100vw - 32px));
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -230,7 +252,7 @@ body {
 }
 
 .actions-item {
-    height: 34px;
+    min-height: 44px;
     padding: 0 12px;
     border: 2px solid var(--color-primary);
     border-radius: 10px;
@@ -333,5 +355,145 @@ body {
         z-index: 1;
         padding-left: 72px;
         padding-top: 24px;
+    }
+
+    .table-container--stacked {
+        padding-left: 72px;
+        padding-right: 24px;
+        padding-top: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .encabezado-pagina {
+        padding-right: 16px;
+        padding-bottom: 0;
+    }
+
+    .tabs {
+        gap: 12px;
+    }
+
+    .tab {
+        padding-bottom: 8px;
+        font-size: 15px;
+    }
+
+    .table-container {
+        padding: 0 16px 16px;
+    }
+
+    .table-container--stacked {
+        padding: 16px 16px 16px 72px;
+    }
+
+    .table {
+        min-width: 0;
+    }
+
+    .table thead th {
+        white-space: normal;
+        font-size: 13px;
+        padding: 12px 10px;
+    }
+
+    .table tbody td {
+        font-size: 13px;
+        padding: 12px 10px;
+    }
+
+    .table-container--stacked {
+        overflow: visible;
+    }
+
+    .table-container--stacked .table {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: transparent;
+    }
+
+    .table-container--stacked .table thead {
+        display: none;
+    }
+
+    .table-container--stacked .table tbody {
+        display: grid;
+        gap: 16px;
+    }
+
+    .table-container--stacked .table tbody tr {
+        display: block;
+        background: var(--color-white);
+        border: 1px solid var(--border-dashboard);
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    .table-container--stacked .table tbody td {
+        display: grid;
+        grid-template-columns: minmax(96px, 120px) minmax(0, 1fr);
+        gap: 8px 12px;
+        align-items: start;
+        width: 100%;
+        padding: 0;
+        border-bottom: none;
+    }
+
+    .table-container--stacked .table tbody td + td {
+        margin-top: 10px;
+    }
+
+    .table-container--stacked .table tbody td::before {
+        content: attr(data-label);
+        color: var(--color-text-light);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+    }
+
+    .table-container--stacked .table tbody td[data-label="Acciones"]::before {
+        margin-top: 6px;
+    }
+
+    .table-container--stacked .table tbody td.cell-checkbox {
+        display: none;
+    }
+
+    .table-container--stacked .table tbody tr.table-empty-row td {
+        display: block;
+        margin: 0;
+    }
+
+    .table-container--stacked .table tbody tr.table-empty-row td::before {
+        content: none;
+    }
+
+    .table-container--stacked .user-cell {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .table-container--stacked .actions,
+    .table-container--stacked .row-actions {
+        width: 100%;
+    }
+
+    .table-container--stacked .actions-dropdown,
+    .table-container--stacked .actions-dropdown summary,
+    .table-container--stacked .actions-dropdown[open] .actions-menu,
+    .table-container--stacked .actions-menu,
+    .table-container--stacked .cive-btn--action {
+        width: 100%;
+    }
+
+    .table-container--stacked .resumen-acciones {
+        justify-content: flex-end;
+    }
+
+    .table-container--stacked .actions-menu {
+        position: static;
+        margin-top: 8px;
     }
 }

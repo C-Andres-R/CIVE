@@ -1,7 +1,10 @@
+"""Módulo de chatbot faq."""
+
 from app.extensions import db
 
 
 class ChatbotFaq(db.Model):
+    """Clase para chatbot faq."""
     # Almacena preguntas frecuentes administrables para el chat.
     __tablename__ = "chatbot_faq"
 

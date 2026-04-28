@@ -1,6 +1,9 @@
+"""Módulo de permiso."""
+
 from app.extensions import db
 
 class Permiso(db.Model):
+    """Clase para permiso."""
     # Representa un permiso que puede asignarse a los roles.
     __tablename__ = 'permisos'
 

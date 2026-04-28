@@ -1,7 +1,10 @@
+"""Módulo de mascota."""
+
 from app.extensions import db
 
 
 class Mascota(db.Model):
+    """Clase para mascota."""
     # Representa a una mascota registrada junto con su dueño y datos clínicos.
     __tablename__ = "mascotas"
 

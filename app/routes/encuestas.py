@@ -1,3 +1,5 @@
+"""Módulo de encuestas."""
+
 from __future__ import annotations
 
 import os
@@ -32,20 +34,24 @@ MAX_COMMENT_LENGTH = 300
 
 
 def _redirigir_a_inicio_sesion():
+    """Función para redirigir a inicio sesion."""
     return redirect(url_for(LOGIN_GET_ENDPOINT))
 
 
 def _redirigir_a_inicio_sesion_con_next(next_path: str):
+    """Función para redirigir a inicio sesion con next."""
     return redirect(url_for(LOGIN_GET_ENDPOINT, next=next_path))
 
 
 def _requiere_inicio_sesion_o_redirige():
+    """Función para requiere inicio sesion o redirige."""
     if not session.get("access_token"):
         return _redirigir_a_inicio_sesion()
     return None
 
 
 def _obtener_usuario_o_cerrar_sesion():
+    """Función para obtener usuario o cerrar sesion."""
     if not session.get("access_token"):
         return None
     me = get_current_user_from_api()
@@ -56,10 +62,12 @@ def _obtener_usuario_o_cerrar_sesion():
 
 
 def _nombre_rol(me) -> str:
+    """Función para nombre rol."""
     return (me.get("rol") or "").strip().lower()
 
 
 def _parsear_entero(value):
+    """Función para parsear entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -67,6 +75,7 @@ def _parsear_entero(value):
 
 
 def _parsear_fecha(value: str):
+    """Función para parsear fecha."""
     if not value:
         return None
     try:
@@ -76,6 +85,7 @@ def _parsear_fecha(value: str):
 
 
 def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
+    """Función para validar periodo."""
     errores_campo = {}
     fecha_inicio = _parsear_fecha(fecha_inicio_raw)
     fecha_fin = _parsear_fecha(fecha_fin_raw)
@@ -100,6 +110,7 @@ def _validar_periodo(fecha_inicio_raw: str, fecha_fin_raw: str):
 
 
 def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
+    """Función para inicio fin datetime."""
     return (
         datetime.combine(fecha_inicio, time.min),
         datetime.combine(fecha_fin, time.max),
@@ -107,6 +118,7 @@ def _inicio_fin_datetime(fecha_inicio: date, fecha_fin: date):
 
 
 def _clasificacion_por_calificacion(calificacion: int | None):
+    """Función para clasificacion por calificacion."""
     if calificacion in {1, 2}:
         return "Experiencia negativa"
     if calificacion == 3:
@@ -117,6 +129,7 @@ def _clasificacion_por_calificacion(calificacion: int | None):
 
 
 def _enviar_email_smtp(to_correo: str, subject: str, body: str):
+    """Función para enviar email smtp."""
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER")
@@ -144,6 +157,7 @@ def _enviar_email_smtp(to_correo: str, subject: str, body: str):
 
 
 def _asegurar_preguntas_base():
+    """Función para asegurar preguntas base."""
     changed = False
     for clave, texto in QUESTION_DEFAULTS.items():
         row = db.session.query(EncuestaPregunta).filter(EncuestaPregunta.clave == clave).first()
@@ -156,6 +170,7 @@ def _asegurar_preguntas_base():
 
 
 def _textos_preguntas():
+    """Función para textos preguntas."""
     _asegurar_preguntas_base()
     rows = (
         db.session.query(EncuestaPregunta)
@@ -169,6 +184,7 @@ def _textos_preguntas():
 
 
 def _query_encuestas_base():
+    """Función para query encuestas base."""
     return (
         db.session.query(
             EncuestaSatisfaccion,
@@ -183,6 +199,7 @@ def _query_encuestas_base():
 
 
 def _encuestas_filtradas_por_periodo(rows, fecha_inicio: date | None, fecha_fin: date | None):
+    """Función para encuestas filtradas por periodo."""
     filtered = []
     for encuesta, cita, mascota_nombre, cliente_nombre in rows:
         referencia = encuesta.fecha_respuesta or encuesta.fecha_programada_envio or cita.fecha_hora
@@ -196,6 +213,7 @@ def _encuestas_filtradas_por_periodo(rows, fecha_inicio: date | None, fecha_fin:
 
 
 def _resumen_dashboard(rows):
+    """Función para resumen dashboard."""
     total = len(rows)
     respondidas = sum(1 for encuesta, *_ in rows if encuesta.respondido)
     pendientes = total - respondidas
@@ -249,6 +267,7 @@ def _resumen_dashboard(rows):
 
 
 def _path_encuesta(encuesta_id: int):
+    """Función para path encuesta."""
     if has_request_context():
         return url_for("encuestas.encuesta_responder", encuesta_id=encuesta_id)
     with current_app.test_request_context():
@@ -256,6 +275,7 @@ def _path_encuesta(encuesta_id: int):
 
 
 def _login_url_para_encuesta(encuesta_id: int):
+    """Función para login url para encuesta."""
     # URL pública de encuesta para correos.
     public_base_url = (current_app.config.get("PUBLIC_BASE_URL") or "").rstrip("/")
     next_path = _path_encuesta(encuesta_id)
@@ -276,6 +296,7 @@ def _login_url_para_encuesta(encuesta_id: int):
 
 
 def _generar_encuestas_pendientes(now: datetime):
+    """Función para generar encuestas pendientes."""
     threshold = now - timedelta(hours=24)
     rows = (
         db.session.query(Cita)
@@ -302,6 +323,7 @@ def _generar_encuestas_pendientes(now: datetime):
 
 
 def _enviar_encuestas_programadas(now: datetime):
+    """Función para enviar encuestas programadas."""
     rows = (
         _query_encuestas_base()
         .filter(EncuestaSatisfaccion.respondido.is_(False))
@@ -338,6 +360,7 @@ def _enviar_encuestas_programadas(now: datetime):
 
 
 def sincronizar_encuestas_programadas():
+    """Función para sincronizar encuestas programadas."""
     try:
         _asegurar_preguntas_base()
         now = datetime.now()
@@ -349,6 +372,7 @@ def sincronizar_encuestas_programadas():
 
 
 def _datos_encuesta_para_cliente(cliente_id: int):
+    """Función para datos encuesta para cliente."""
     return (
         _query_encuestas_base()
         .filter(EncuestaSatisfaccion.cliente_id == cliente_id)
@@ -358,6 +382,7 @@ def _datos_encuesta_para_cliente(cliente_id: int):
 
 
 def _encuesta_por_id(encuesta_id: int):
+    """Función para encuesta por id."""
     return (
         _query_encuestas_base()
         .filter(EncuestaSatisfaccion.id == encuesta_id)
@@ -367,6 +392,7 @@ def _encuesta_por_id(encuesta_id: int):
 
 @encuestas_bp.get("/encuestas")
 def encuestas_home():
+    """Función para encuestas home."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -432,6 +458,7 @@ def encuestas_home():
 
 @encuestas_bp.post("/encuestas/preguntas")
 def encuestas_actualizar_preguntas():
+    """Función para encuestas actualizar preguntas."""
     r = _requiere_inicio_sesion_o_redirige()
     if r:
         return r
@@ -462,6 +489,7 @@ def encuestas_actualizar_preguntas():
 
 @encuestas_bp.route("/encuestas/<int:encuesta_id>/responder", methods=["GET", "POST"])
 def encuesta_responder(encuesta_id: int):
+    """Función para encuesta responder."""
     me = _obtener_usuario_o_cerrar_sesion()
     next_path = _path_encuesta(encuesta_id)
     if not me:

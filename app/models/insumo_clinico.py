@@ -1,7 +1,10 @@
+"""Módulo de insumo clinico."""
+
 from app.extensions import db
 
 
 class InsumoClinico(db.Model):
+    """Clase para insumo clinico."""
     __tablename__ = "insumos_clinicos"
 
     id = db.Column(db.Integer, primary_key=True)

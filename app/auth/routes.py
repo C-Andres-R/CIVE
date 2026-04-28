@@ -1,3 +1,5 @@
+"""Módulo de routes."""
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 
@@ -9,6 +11,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @auth_bp.post("/login")
 def login():
+    """Función para login."""
     # Autentica al usuario y devuelve un token JWT si las credenciales son válidas.
     data = request.get_json(silent=True) or {}
     correo = (data.get("correo") or "").strip().lower()
@@ -36,6 +39,7 @@ def login():
 @auth_bp.get("/me")
 @jwt_required()
 def me():
+    """Función para me."""
     # Devuelve los datos básicos del usuario autenticado.
     user_id = get_jwt_identity()
     claims = get_jwt()
@@ -58,6 +62,7 @@ def me():
 @auth_bp.get("/admin-only")
 @jwt_required()
 def admin_only():
+    """Función para admin only."""
     # Ejemplo de ruta protegida solo para administradores.
     claims = get_jwt()
     if claims.get("rol") != "Administrador":

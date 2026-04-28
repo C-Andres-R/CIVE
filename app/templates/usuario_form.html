@@ -163,6 +163,7 @@
   </div>
 </div>
 <script>
+  // Bloque para interacciones de la vista.
   (() => {
     const form = document.querySelector('.usuario-form');
     if (!form) return;
@@ -192,18 +193,23 @@
       activo: form.querySelector('[data-field-error="activo"]'),
     };
 
+    // Función para set error.
     const setError = (field, message) => {
       const el = errorEls[field];
       if (el) el.textContent = submitAttempted ? (message || '') : '';
     };
 
+    // Función para has only letters.
     const hasOnlyLetters = (value) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(value);
+    // Función para normalize text.
     const normalizeText = (value) => (value || '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
+    // Función para validate nombres.
     const validateNombres = () => {
+      // Función para value.
       const value = (nombresInput.value || '').trim();
       if (!value) {
         setError('nombres', 'El nombre es obligatorio.');
@@ -217,7 +223,9 @@
       return true;
     };
 
+    // Función para validate apellido paterno.
     const validateApellidoPaterno = () => {
+      // Función para value.
       const value = (apellidoPaternoInput.value || '').trim();
       if (!value) {
         setError('apellido_paterno', 'Este campo no puede estar vacío.');
@@ -231,7 +239,9 @@
       return true;
     };
 
+    // Función para validate apellido materno.
     const validateApellidoMaterno = () => {
+      // Función para value.
       const value = (apellidoMaternoInput.value || '').trim();
       if (!value) {
         setError('apellido_materno', 'Este campo no puede estar vacío.');
@@ -245,7 +255,9 @@
       return true;
     };
 
+    // Función para validate codigo postal.
     const validateCodigoPostal = () => {
+      // Función para value.
       const value = (codigoPostalInput.value || '').trim();
       if (value && !/^\d{5}$/.test(value)) {
         setError('codigo_postal', 'El C.P. debe tener exactamente 5 dígitos.');
@@ -255,7 +267,9 @@
       return true;
     };
 
+    // Función para validate telefono.
     const validateTelefono = () => {
+      // Función para value.
       const value = (telefonoInput.value || '').trim();
       if (!value) {
         setError('telefono', 'El teléfono es obligatorio.');
@@ -274,7 +288,9 @@
       return true;
     };
 
+    // Función para validate email.
     const validateEmail = () => {
+      // Función para value.
       const value = (emailInput.value || '').trim();
       if (!value) {
         setError('correo', 'El correo es obligatorio.');
@@ -288,6 +304,7 @@
       return true;
     };
 
+    // Función para validate password.
     const validatePassword = () => {
       const value = passwordInput.value || '';
       if (mode !== 'edit' && !value) {
@@ -337,6 +354,7 @@
       return true;
     };
 
+    // Función para validate rol.
     const validateRol = () => {
       if (!(rolInput.value || '').trim()) {
         setError('rol_id', 'El rol es obligatorio.');
@@ -346,6 +364,7 @@
       return true;
     };
 
+    // Función para validate activo.
     const validateActivo = () => {
       if (activoInput.checked) {
         setError('activo', '');
@@ -353,6 +372,7 @@
       return true;
     };
 
+    // Función para validate form.
     const validateForm = () => {
       const checks = [
         validateNombres(),

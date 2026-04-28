@@ -14,7 +14,7 @@
 </div>
 
 <div class="content-stack">
-  <form class="filters" method="post" action="{{ url_for('clientes.clientes_finanzas_generar') }}" novalidate>
+  <form class="filters filters--finance-generate" method="post" action="{{ url_for('clientes.clientes_finanzas_generar') }}" novalidate>
     <div class="campo-filtro">
       <label>Cliente</label>
       <select name="cliente_id">
@@ -60,9 +60,12 @@
       <small class="field-error">{{ errores_campo.metodo_pago or "" }}</small>
     </div>
 
-    <div class="acciones-filtro">
-      <button class="cive-btn cive-btn--filter" type="submit">Generar</button>
-      <a class="cive-btn cive-btn--filter" href="{{ url_for('clientes.clientes_finanzas_generar') }}">Limpiar</a>
+    <div class="campo-filtro campo-filtro--finance-actions">
+      <span class="campo-filtro-spacer" aria-hidden="true">Acciones</span>
+      <div class="acciones-filtro acciones-filtro--finance-generate">
+        <button class="cive-btn cive-btn--filter" type="submit">Generar</button>
+        <a class="cive-btn cive-btn--filter" href="{{ url_for('clientes.clientes_finanzas_generar') }}">Limpiar</a>
+      </div>
     </div>
   </form>
 
