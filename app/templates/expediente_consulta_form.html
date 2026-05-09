@@ -22,7 +22,7 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="date" name="fecha_consulta" value="{{ datos_formulario.fecha_consulta }}">
         </div>
-        <small class="field-error">{{ errores_campo.fecha_consulta or "" }}</small>
+        <small class="field-error" data-field-error="fecha_consulta">{{ errores_campo.fecha_consulta or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -35,31 +35,31 @@
             {% endfor %}
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_id">{{ errores_campo.veterinario_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Síntomas *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="sintomas">{{ datos_formulario.sintomas }}</textarea>
+          <textarea class="usuario-input" name="sintomas" maxlength="300">{{ datos_formulario.sintomas }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.sintomas or "" }}</small>
+        <small class="field-error" data-field-error="sintomas">{{ errores_campo.sintomas or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Diagnóstico *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="diagnostico">{{ datos_formulario.diagnostico }}</textarea>
+          <textarea class="usuario-input" name="diagnostico" maxlength="300">{{ datos_formulario.diagnostico }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.diagnostico or "" }}</small>
+        <small class="field-error" data-field-error="diagnostico">{{ errores_campo.diagnostico or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Tratamiento *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="tratamiento">{{ datos_formulario.tratamiento }}</textarea>
+          <textarea class="usuario-input" name="tratamiento" maxlength="300">{{ datos_formulario.tratamiento }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.tratamiento or "" }}</small>
+        <small class="field-error" data-field-error="tratamiento">{{ errores_campo.tratamiento or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -80,14 +80,7 @@
               {% endfor %}
             </select>
           </div>
-          <small class="field-error">{{ errores_campo.insumo_clinico_id or "" }}</small>
-        </div>
-
-        <div class="usuario-form-row">
-          <label class="usuario-form-label">Medicamentos administrados</label>
-          <div class="usuario-input-wrap text-area-wrap">
-            <textarea class="usuario-input" name="medicamentos_administrados">{{ datos_formulario.medicamentos_administrados }}</textarea>
-          </div>
+          <small class="field-error" data-field-error="insumo_clinico_id">{{ errores_campo.insumo_clinico_id or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
@@ -95,16 +88,33 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="date" name="fecha_administracion" value="{{ datos_formulario.fecha_administracion }}">
           </div>
-          <small class="field-error">{{ errores_campo.fecha_administracion or "" }}</small>
+          <small class="field-error" data-field-error="fecha_administracion">{{ errores_campo.fecha_administracion or "" }}</small>
         </div>
 
         <div class="split-row">
           <div class="usuario-form-row">
             <label class="usuario-form-label">Dosis</label>
             <div class="usuario-input-wrap">
-              <input class="usuario-input" type="text" name="dosis" value="{{ datos_formulario.dosis }}">
+              <select class="usuario-select" name="dosis_numero">
+                <option value="">Cantidad</option>
+                {% for numero in range(1, 101) %}
+                <option value="{{ numero }}" {% if datos_formulario.dosis_numero == numero|string %}selected{% endif %}>{{ numero }}</option>
+                {% endfor %}
+              </select>
             </div>
-            <small class="field-error">{{ errores_campo.dosis or "" }}</small>
+            <small class="field-error" data-field-error="dosis">{{ errores_campo.dosis or "" }}</small>
+          </div>
+
+          <div class="usuario-form-row">
+            <label class="usuario-form-label">Unidad</label>
+            <div class="usuario-input-wrap">
+              <select class="usuario-select" name="dosis_unidad">
+                <option value="">Seleccione unidad</option>
+                {% for unidad in dosis_unidades %}
+                <option value="{{ unidad }}" {% if datos_formulario.dosis_unidad == unidad %}selected{% endif %}>{{ unidad|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
           </div>
 
           <div class="usuario-form-row">
@@ -112,7 +122,8 @@
             <div class="usuario-input-wrap">
               <input class="usuario-input" type="text" name="periodo_administracion" value="{{ datos_formulario.periodo_administracion }}">
             </div>
-            <small class="field-error">{{ errores_campo.periodo_administracion or "" }}</small>
+            <small class="field-error" data-field-error="periodo_administracion">{{ errores_campo.periodo_administracion or "" }}</small>
+            <small class="field-note" data-periodo-counter>0 / 100 palabras</small>
           </div>
         </div>
 
@@ -129,7 +140,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="datetime-local" name="medicamento_seguimiento_programado_para" value="{{ datos_formulario.medicamento_seguimiento_programado_para }}">
           </div>
-          <small class="field-error">{{ errores_campo.medicamento_seguimiento_programado_para or "" }}</small>
+          <small class="field-error" data-field-error="medicamento_seguimiento_programado_para">{{ errores_campo.medicamento_seguimiento_programado_para or "" }}</small>
         </div>
         {% endif %}
       </div>
@@ -152,7 +163,7 @@
               {% endfor %}
             </select>
           </div>
-          <small class="field-error">{{ errores_campo.vacuna_insumo_id or "" }}</small>
+          <small class="field-error" data-field-error="vacuna_insumo_id">{{ errores_campo.vacuna_insumo_id or "" }}</small>
         </div>
 
         {% if can_schedule_followup %}
@@ -168,7 +179,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="datetime-local" name="vacuna_seguimiento_programado_para" value="{{ datos_formulario.vacuna_seguimiento_programado_para }}">
           </div>
-          <small class="field-error">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
+          <small class="field-error" data-field-error="vacuna_seguimiento_programado_para">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
         </div>
         {% endif %}
       </div>
@@ -191,7 +202,7 @@
               {% endfor %}
             </select>
           </div>
-          <small class="field-error">{{ errores_campo.tipo_analisis_relacionado or "" }}</small>
+          <small class="field-error" data-field-error="tipo_analisis_relacionado">{{ errores_campo.tipo_analisis_relacionado or "" }}</small>
         </div>
 
         {% if can_schedule_followup %}
@@ -207,7 +218,7 @@
           <div class="usuario-input-wrap">
             <input class="usuario-input" type="datetime-local" name="analisis_seguimiento_programado_para" value="{{ datos_formulario.analisis_seguimiento_programado_para }}">
           </div>
-          <small class="field-error">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
+          <small class="field-error" data-field-error="analisis_seguimiento_programado_para">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
         </div>
         {% endif %}
       </div>
@@ -222,12 +233,24 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Observaciones</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="observaciones">{{ datos_formulario.observaciones }}</textarea>
+          <textarea class="usuario-input" name="observaciones" maxlength="300">{{ datos_formulario.observaciones }}</textarea>
         </div>
+        <small class="field-error" data-field-error="observaciones">{{ errores_campo.observaciones or "" }}</small>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Captcha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" value="Resuelve: {{ captcha.question }}" readonly>
+        </div>
+        <div class="usuario-input-wrap" style="margin-top: 8px;">
+          <input class="usuario-input" type="text" name="captcha_answer" inputmode="numeric" autocomplete="off" placeholder="Escribe el resultado">
+        </div>
+        <small class="field-error" data-field-error="captcha">{{ errores_campo.captcha or "" }}</small>
       </div>
 
       <div class="usuario-actions">
-        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
       </div>
     </form>
@@ -236,6 +259,226 @@
 <script>
   // Bloque para interacciones de la vista.
   (() => {
+    const form = document.querySelector('.usuario-form');
+    if (!form) return;
+
+    const submitButton = form.querySelector('[data-submit-button]');
+    const fechaConsultaInput = form.querySelector('input[name="fecha_consulta"]');
+    const veterinarioInput = form.querySelector('select[name="veterinario_id"]');
+    const sintomasInput = form.querySelector('textarea[name="sintomas"]');
+    const diagnosticoInput = form.querySelector('textarea[name="diagnostico"]');
+    const tratamientoInput = form.querySelector('textarea[name="tratamiento"]');
+    const incluyeMedicamentoInput = form.querySelector('input[name="incluye_medicamento"]');
+    const insumoInput = form.querySelector('select[name="insumo_clinico_id"]');
+    const fechaAdministracionInput = form.querySelector('input[name="fecha_administracion"]');
+    const dosisNumeroInput = form.querySelector('select[name="dosis_numero"]');
+    const dosisUnidadInput = form.querySelector('select[name="dosis_unidad"]');
+    const periodoInput = form.querySelector('input[name="periodo_administracion"]');
+    const incluyeVacunaInput = form.querySelector('input[name="incluye_vacuna"]');
+    const vacunaInput = form.querySelector('select[name="vacuna_insumo_id"]');
+    const incluyeAnalisisInput = form.querySelector('input[name="incluye_analisis"]');
+    const analisisInput = form.querySelector('select[name="tipo_analisis_relacionado"]');
+    const observacionesInput = form.querySelector('textarea[name="observaciones"]');
+    const captchaInput = form.querySelector('input[name="captcha_answer"]');
+    const periodoCounter = form.querySelector('[data-periodo-counter]');
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
+
+    const errorEls = {
+      fecha_consulta: form.querySelector('[data-field-error="fecha_consulta"]'),
+      veterinario_id: form.querySelector('[data-field-error="veterinario_id"]'),
+      sintomas: form.querySelector('[data-field-error="sintomas"]'),
+      diagnostico: form.querySelector('[data-field-error="diagnostico"]'),
+      tratamiento: form.querySelector('[data-field-error="tratamiento"]'),
+      insumo_clinico_id: form.querySelector('[data-field-error="insumo_clinico_id"]'),
+      fecha_administracion: form.querySelector('[data-field-error="fecha_administracion"]'),
+      dosis: form.querySelector('[data-field-error="dosis"]'),
+      periodo_administracion: form.querySelector('[data-field-error="periodo_administracion"]'),
+      medicamento_seguimiento_programado_para: form.querySelector('[data-field-error="medicamento_seguimiento_programado_para"]'),
+      vacuna_insumo_id: form.querySelector('[data-field-error="vacuna_insumo_id"]'),
+      vacuna_seguimiento_programado_para: form.querySelector('[data-field-error="vacuna_seguimiento_programado_para"]'),
+      tipo_analisis_relacionado: form.querySelector('[data-field-error="tipo_analisis_relacionado"]'),
+      analisis_seguimiento_programado_para: form.querySelector('[data-field-error="analisis_seguimiento_programado_para"]'),
+      observaciones: form.querySelector('[data-field-error="observaciones"]'),
+      captcha: form.querySelector('[data-field-error="captcha"]'),
+    };
+
+    const setError = (field, message) => {
+      const el = errorEls[field];
+      if (el) el.textContent = submitAttempted ? (message || '') : '';
+    };
+
+    const countWords = (value) => {
+      const words = (value || '').trim().match(/\S+/g);
+      return words ? words.length : 0;
+    };
+
+    const isFutureDate = (value) => {
+      if (!value) return false;
+      const today = new Date();
+      const currentDate = new Date(`${today.toISOString().slice(0, 10)}T00:00:00`);
+      const selectedDate = new Date(`${value}T00:00:00`);
+      return selectedDate.getTime() > currentDate.getTime();
+    };
+
+    const validateRequiredText = (input, field, requiredMessage, maxLength, tooLongMessage) => {
+      const value = (input?.value || '').trim();
+      if (!value) {
+        setError(field, requiredMessage);
+        return false;
+      }
+      if (value.length > maxLength) {
+        setError(field, tooLongMessage);
+        return false;
+      }
+      setError(field, '');
+      return true;
+    };
+
+    const validateFechaConsulta = () => {
+      const value = (fechaConsultaInput?.value || '').trim();
+      if (!value) {
+        setError('fecha_consulta', 'Este campo no puede estar vacío.');
+        return false;
+      }
+      if (isFutureDate(value)) {
+        setError('fecha_consulta', 'La fecha no puede ser futura.');
+        return false;
+      }
+      setError('fecha_consulta', '');
+      return true;
+    };
+
+    const validateVeterinario = () => {
+      if (!(veterinarioInput?.value || '').trim()) {
+        setError('veterinario_id', 'Debes seleccionar un veterinario.');
+        return false;
+      }
+      setError('veterinario_id', '');
+      return true;
+    };
+
+    const validateMedicamento = () => {
+      const incluyeMedicamento = !!incluyeMedicamentoInput?.checked;
+      if (!incluyeMedicamento) {
+        setError('insumo_clinico_id', '');
+        setError('fecha_administracion', '');
+        setError('dosis', '');
+        setError('periodo_administracion', '');
+        if (periodoCounter) periodoCounter.textContent = `${countWords(periodoInput?.value || '')} / 100 palabras`;
+        return true;
+      }
+
+      let valid = true;
+      if (!(insumoInput?.value || '').trim()) {
+        setError('insumo_clinico_id', 'Debes seleccionar un medicamento.');
+        valid = false;
+      } else {
+        setError('insumo_clinico_id', '');
+      }
+
+      const fechaAdministracion = (fechaAdministracionInput?.value || '').trim();
+      if (!fechaAdministracion) {
+        setError('fecha_administracion', 'Debes indicar la fecha de administración.');
+        valid = false;
+      } else if (isFutureDate(fechaAdministracion)) {
+        setError('fecha_administracion', 'La fecha no puede ser futura.');
+        valid = false;
+      } else {
+        setError('fecha_administracion', '');
+      }
+
+      const dosisNumero = (dosisNumeroInput?.value || '').trim();
+      const dosisUnidad = (dosisUnidadInput?.value || '').trim();
+      if (!dosisNumero) {
+        setError('dosis', 'Debes indicar la dosis del medicamento.');
+        valid = false;
+      } else if (!/^\d+$/.test(dosisNumero) || Number(dosisNumero) < 1 || Number(dosisNumero) > 100) {
+        setError('dosis', 'Debes seleccionar una dosis entre 1 y 100.');
+        valid = false;
+      } else if (!dosisUnidad) {
+        setError('dosis', 'Debes seleccionar la unidad de la dosis.');
+        valid = false;
+      } else {
+        setError('dosis', '');
+      }
+
+      const periodo = (periodoInput?.value || '').trim();
+      const periodoWords = countWords(periodo);
+      if (periodoCounter) periodoCounter.textContent = `${periodoWords} / 100 palabras`;
+      if (!periodo) {
+        setError('periodo_administracion', 'Debes indicar el período de administración.');
+        valid = false;
+      } else if (periodoWords > 100) {
+        setError('periodo_administracion', 'El período de administración no puede exceder 100 palabras.');
+        valid = false;
+      } else if (periodo.length > 120) {
+        setError('periodo_administracion', 'El período de administración no puede exceder 120 caracteres.');
+        valid = false;
+      } else {
+        setError('periodo_administracion', '');
+      }
+
+      return valid;
+    };
+
+    const validateVacuna = () => {
+      if (incluyeVacunaInput?.checked && !(vacunaInput?.value || '').trim()) {
+        setError('vacuna_insumo_id', 'Debes seleccionar una vacuna válida.');
+        return false;
+      }
+      setError('vacuna_insumo_id', '');
+      return true;
+    };
+
+    const validateAnalisis = () => {
+      if (incluyeAnalisisInput?.checked && !(analisisInput?.value || '').trim()) {
+        setError('tipo_analisis_relacionado', 'Debes seleccionar un análisis válido.');
+        return false;
+      }
+      setError('tipo_analisis_relacionado', '');
+      return true;
+    };
+
+    const validateObservaciones = () => {
+      const value = (observacionesInput?.value || '').trim();
+      if (value.length > 300) {
+        setError('observaciones', 'El campo de observaciones no puede exceder 300 caracteres.');
+        return false;
+      }
+      setError('observaciones', '');
+      return true;
+    };
+
+    const validateCaptcha = () => {
+      const value = (captchaInput?.value || '').trim();
+      if (!value) {
+        setError('captcha', 'Debes resolver el captcha para continuar.');
+        return false;
+      }
+      if (!/^\d+$/.test(value)) {
+        setError('captcha', 'El captcha debe responderse con números.');
+        return false;
+      }
+      setError('captcha', '');
+      return true;
+    };
+
+    const validateForm = () => {
+      const checks = [
+        validateFechaConsulta(),
+        validateVeterinario(),
+        validateRequiredText(sintomasInput, 'sintomas', 'Debes describir los síntomas para continuar.', 300, 'El campo de síntomas no puede exceder 300 caracteres.'),
+        validateRequiredText(diagnosticoInput, 'diagnostico', 'Debes capturar el diagnóstico para continuar.', 300, 'El diagnóstico no puede exceder 300 caracteres.'),
+        validateRequiredText(tratamientoInput, 'tratamiento', 'Debes capturar el tratamiento para continuar.', 300, 'El tratamiento no puede exceder 300 caracteres.'),
+        validateMedicamento(),
+        validateVacuna(),
+        validateAnalisis(),
+        validateObservaciones(),
+        validateCaptcha(),
+      ];
+      return checks.every(Boolean);
+    };
+
     const pairs = [
       ['input[name="incluye_medicamento"]', '.medicamento-extra-wrap'],
       ['input[name="incluye_vacuna"]', '.vacuna-extra-wrap'],
@@ -275,6 +518,46 @@
       input.addEventListener('change', toggleExtra);
       toggleExtra();
     });
+
+    incluyeMedicamentoInput?.addEventListener('change', () => {
+      if (incluyeMedicamentoInput.checked) return;
+      if (insumoInput) insumoInput.value = '';
+      if (fechaAdministracionInput) fechaAdministracionInput.value = '';
+      if (dosisNumeroInput) dosisNumeroInput.value = '';
+      if (dosisUnidadInput) dosisUnidadInput.value = '';
+      if (periodoInput) periodoInput.value = '';
+    });
+
+    [fechaConsultaInput, sintomasInput, diagnosticoInput, tratamientoInput, fechaAdministracionInput, periodoInput, observacionesInput, captchaInput]
+      .filter(Boolean)
+      .forEach((input) => input.addEventListener('input', validateForm));
+
+    [veterinarioInput, insumoInput, dosisNumeroInput, dosisUnidadInput, vacunaInput, analisisInput]
+      .filter(Boolean)
+      .forEach((input) => input.addEventListener('change', validateForm));
+
+    [incluyeMedicamentoInput, incluyeVacunaInput, incluyeAnalisisInput]
+      .filter(Boolean)
+      .forEach((input) => input.addEventListener('change', () => {
+        validateForm();
+      }));
+
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+
+    submitButton?.addEventListener('click', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+
+    validateForm();
   })();
 </script>
 {% endblock %}

@@ -5,6 +5,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/citas.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -31,7 +32,7 @@
   </div>
 </div>
 
-<div class="table-container table-container--card table-container--stacked clientes-list-table" style="margin-top: 16px;">
+<div class="table-container table-container--card table-container--stacked clientes-list-table" style="margin-top: 16px;" data-pagination-root data-page-size="5">
   <table class="table">
     <thead>
       <tr>
@@ -44,9 +45,9 @@
         <th></th>
       </tr>
     </thead>
-    <tbody>
+    <tbody data-pagination-body>
       {% for client, mascotas_count in clientes_rows %}
-      <tr>
+      <tr data-pagination-row>
         <td data-label="Nombre">{{ client.nombre }}</td>
         <td data-label="Correo">{{ client.correo }}</td>
         <td data-label="Domicilio">{{ client.domicilio or '-' }}</td>
@@ -91,6 +92,7 @@
       {% endfor %}
     </tbody>
   </table>
+  <div class="section-pagination" data-pagination-nav hidden></div>
 </div>
 
 <script>
@@ -131,6 +133,121 @@
     document.addEventListener('click', (event) => {
       if (event.target.closest('.actions-dropdown')) return;
       closeAll();
+    });
+
+    // Función para construir items de paginación.
+    const buildPageItems = (totalPages, currentPage) => {
+      const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+      const sortedPages = Array.from(pages)
+        .filter((page) => page >= 1 && page <= totalPages)
+        .sort((left, right) => left - right);
+
+      const items = [];
+      sortedPages.forEach((page, index) => {
+        const previous = sortedPages[index - 1];
+        if (index > 0 && page - previous > 1) {
+          items.push('ellipsis');
+        }
+        items.push(page);
+      });
+      return items;
+    };
+
+    // Función para crear botón de paginación.
+    const createNavButton = ({ label, page, disabled = false, active = false, isEllipsis = false }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'section-pagination__button';
+
+      if (isEllipsis) {
+        button.textContent = '...';
+        button.disabled = true;
+        button.classList.add('section-pagination__button--ellipsis');
+        return button;
+      }
+
+      button.textContent = label;
+      button.dataset.page = String(page);
+      button.setAttribute('aria-label', `Ir a la página ${page}`);
+
+      if (disabled) {
+        button.disabled = true;
+      }
+      if (active) {
+        button.classList.add('is-active');
+        button.setAttribute('aria-current', 'page');
+      }
+      return button;
+    };
+
+    document.querySelectorAll('[data-pagination-root]').forEach((section) => {
+      const pageSize = Number(section.dataset.pageSize || 5);
+      const body = section.querySelector('[data-pagination-body]');
+      const nav = section.querySelector('[data-pagination-nav]');
+      const rows = Array.from(section.querySelectorAll('[data-pagination-row]'));
+
+      if (!body || !nav || rows.length <= pageSize) {
+        return;
+      }
+
+      const totalPages = Math.ceil(rows.length / pageSize);
+      let currentPage = 1;
+
+      const renderPage = (page) => {
+        currentPage = page;
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+
+        rows.forEach((row, index) => {
+          row.hidden = index < start || index >= end;
+        });
+
+        nav.innerHTML = '';
+        nav.hidden = false;
+
+        const summary = document.createElement('div');
+        summary.className = 'section-pagination__summary';
+        summary.textContent = `Mostrando ${start + 1}-${Math.min(end, rows.length)} de ${rows.length}`;
+        nav.appendChild(summary);
+
+        const controls = document.createElement('div');
+        controls.className = 'section-pagination__controls';
+        controls.appendChild(createNavButton({
+          label: 'Anterior',
+          page: Math.max(1, currentPage - 1),
+          disabled: currentPage === 1,
+        }));
+
+        buildPageItems(totalPages, currentPage).forEach((item) => {
+          controls.appendChild(
+            item === 'ellipsis'
+              ? createNavButton({ label: '...', isEllipsis: true })
+              : createNavButton({ label: String(item), page: item, active: item === currentPage })
+          );
+        });
+
+        controls.appendChild(createNavButton({
+          label: 'Siguiente',
+          page: Math.min(totalPages, currentPage + 1),
+          disabled: currentPage === totalPages,
+        }));
+
+        nav.appendChild(controls);
+      };
+
+      nav.addEventListener('click', (event) => {
+        const target = event.target.closest('button[data-page]');
+        if (!target) {
+          return;
+        }
+
+        const nextPage = Number(target.dataset.page);
+        if (!Number.isNaN(nextPage) && nextPage !== currentPage) {
+          renderPage(nextPage);
+        }
+      });
+
+      renderPage(1);
     });
   })();
 </script>

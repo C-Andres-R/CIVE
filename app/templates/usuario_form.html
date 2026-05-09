@@ -30,7 +30,7 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Nombres *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="nombres" value="{{ datos_formulario.nombres }}">
+            <input class="usuario-input" type="text" name="nombres" value="{{ datos_formulario.nombres }}" maxlength="30">
           </div>
           <small class="field-error" data-field-error="nombres">{{ errores_campo.nombres or "" }}</small>
         </div>
@@ -38,7 +38,7 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Paterno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ datos_formulario.apellido_paterno }}">
+            <input class="usuario-input" type="text" name="apellido_paterno" value="{{ datos_formulario.apellido_paterno }}" maxlength="20">
           </div>
           <small class="field-error" data-field-error="apellido_paterno">{{ errores_campo.apellido_paterno or "" }}</small>
         </div>
@@ -46,7 +46,7 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Apellido Materno</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="apellido_materno" value="{{ datos_formulario.apellido_materno }}">
+            <input class="usuario-input" type="text" name="apellido_materno" value="{{ datos_formulario.apellido_materno }}" maxlength="20">
           </div>
           <small class="field-error" data-field-error="apellido_materno">{{ errores_campo.apellido_materno or "" }}</small>
         </div>
@@ -56,26 +56,19 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Calle</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="calle" value="{{ datos_formulario.calle }}">
+            <input class="usuario-input" type="text" name="calle" value="{{ datos_formulario.calle }}" maxlength="30">
           </div>
+          <small class="field-error" data-field-error="calle">{{ errores_campo.calle or "" }}</small>
         </div>
 
         <div class="usuario-form-row">
           <label class="usuario-form-label">Número</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="numero" value="{{ datos_formulario.numero }}">
+            <input class="usuario-input" type="text" name="numero" value="{{ datos_formulario.numero }}" maxlength="10" inputmode="numeric" pattern="\d{1,10}">
           </div>
+          <small class="field-error" data-field-error="numero">{{ errores_campo.numero or "" }}</small>
         </div>
 
-        <div class="usuario-form-row">
-          <label class="usuario-form-label">Colonia</label>
-          <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="colonia" value="{{ datos_formulario.colonia }}">
-          </div>
-        </div>
-      </div>
-
-      <div class="usuario-form-grid usuario-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">C.P.</label>
           <div class="usuario-input-wrap">
@@ -83,19 +76,36 @@
           </div>
           <small class="field-error" data-field-error="codigo_postal">{{ errores_campo.codigo_postal or "" }}</small>
         </div>
+      </div>
 
+      <div class="usuario-form-grid usuario-form-grid--3">
         <div class="usuario-form-row">
           <label class="usuario-form-label">Estado</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="estado" value="{{ datos_formulario.estado }}">
+            <select class="usuario-select" name="estado" data-selected="{{ datos_formulario.estado }}">
+              <option value="">Seleccione un estado</option>
+            </select>
           </div>
         </div>
 
         <div class="usuario-form-row">
-          <label class="usuario-form-label">Entidad</label>
+          <label class="usuario-form-label">Municipio/Alcaldía</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="entidad" value="{{ datos_formulario.entidad }}">
+            <select class="usuario-select" name="entidad" data-selected="{{ datos_formulario.entidad }}">
+              <option value="">Seleccione un municipio o alcaldía</option>
+            </select>
           </div>
+          <small class="field-error" data-field-error="entidad">{{ errores_campo.entidad or "" }}</small>
+        </div>
+
+        <div class="usuario-form-row">
+          <label class="usuario-form-label">Colonia</label>
+          <div class="usuario-input-wrap">
+            <select class="usuario-select" name="colonia" data-selected="{{ datos_formulario.colonia }}">
+              <option value="">Seleccione una colonia</option>
+            </select>
+          </div>
+          <small class="field-error" data-field-error="colonia">{{ errores_campo.colonia or "" }}</small>
         </div>
       </div>
 
@@ -103,7 +113,7 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Teléfono *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="text" name="telefono" value="{{ datos_formulario.telefono }}">
+            <input class="usuario-input" type="text" name="telefono" value="{{ datos_formulario.telefono }}" maxlength="10" inputmode="numeric" pattern="\d{10}">
           </div>
           <small class="field-error" data-field-error="telefono">{{ errores_campo.telefono or "" }}</small>
         </div>
@@ -111,7 +121,7 @@
         <div class="usuario-form-row">
           <label class="usuario-form-label">Correo *</label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="email" name="correo" value="{{ datos_formulario.correo }}">
+            <input class="usuario-input" type="email" name="correo" value="{{ datos_formulario.correo }}" maxlength="255">
           </div>
           <small class="field-error" data-field-error="correo">{{ errores_campo.correo or "" }}</small>
         </div>
@@ -123,7 +133,7 @@
             {% if mode == "edit" %}Nueva contraseña (opcional){% else %}Contraseña *{% endif %}
           </label>
           <div class="usuario-input-wrap">
-            <input class="usuario-input" type="password" name="contrasena"
+            <input class="usuario-input" type="password" name="contrasena" maxlength="72"
               placeholder="{% if mode == 'edit' %}Dejar vacío para mantener la actual{% else %}Mínimo 12 caracteres{% endif %}">
           </div>
           <small class="field-error" data-field-error="contrasena">{{ errores_campo.contrasena or "" }}</small>
@@ -152,6 +162,17 @@
       </label>
       <small class="field-error" data-field-error="activo">{{ errores_campo.activo or "" }}</small>
 
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Captcha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" value="Resuelve: {{ captcha.question }}" readonly>
+        </div>
+        <div class="usuario-input-wrap" style="margin-top: 8px;">
+          <input class="usuario-input" type="text" name="captcha_answer" inputmode="numeric" autocomplete="off" placeholder="Escribe el resultado">
+        </div>
+        <small class="field-error" data-field-error="captcha">{{ errores_campo.captcha or "" }}</small>
+      </div>
+
       <div class="usuario-actions">
         <button class="usuario-btn-primary" type="submit">
           {% if mode == "edit" %}Actualizar{% else %}Guardar{% endif %}
@@ -173,24 +194,37 @@
     const nombresInput = form.querySelector('input[name="nombres"]');
     const apellidoPaternoInput = form.querySelector('input[name="apellido_paterno"]');
     const apellidoMaternoInput = form.querySelector('input[name="apellido_materno"]');
+    const calleInput = form.querySelector('input[name="calle"]');
+    const numeroInput = form.querySelector('input[name="numero"]');
     const codigoPostalInput = form.querySelector('input[name="codigo_postal"]');
+    const coloniaInput = form.querySelector('select[name="colonia"]');
+    const estadoInput = form.querySelector('select[name="estado"]');
+    const entidadInput = form.querySelector('select[name="entidad"]');
     const telefonoInput = form.querySelector('input[name="telefono"]');
     const emailInput = form.querySelector('input[name="correo"]');
     const passwordInput = form.querySelector('input[name="contrasena"]');
     const rolInput = form.querySelector('select[name="rol_id"]');
     const activoInput = form.querySelector('input[name="activo"]');
+    const captchaInput = form.querySelector('input[name="captcha_answer"]');
+    const addressCatalogUrl = '{{ url_for("static", filename="data/mexico-address-catalog.json") }}';
     let submitAttempted = {{ "true" if errores_campo else "false" }};
+    let addressCatalog = null;
 
     const errorEls = {
       nombres: form.querySelector('[data-field-error="nombres"]'),
       apellido_paterno: form.querySelector('[data-field-error="apellido_paterno"]'),
       apellido_materno: form.querySelector('[data-field-error="apellido_materno"]'),
+      calle: form.querySelector('[data-field-error="calle"]'),
+      numero: form.querySelector('[data-field-error="numero"]'),
       codigo_postal: form.querySelector('[data-field-error="codigo_postal"]'),
+      entidad: form.querySelector('[data-field-error="entidad"]'),
+      colonia: form.querySelector('[data-field-error="colonia"]'),
       telefono: form.querySelector('[data-field-error="telefono"]'),
       correo: form.querySelector('[data-field-error="correo"]'),
       contrasena: form.querySelector('[data-field-error="contrasena"]'),
       rol_id: form.querySelector('[data-field-error="rol_id"]'),
       activo: form.querySelector('[data-field-error="activo"]'),
+      captcha: form.querySelector('[data-field-error="captcha"]'),
     };
 
     // Función para set error.
@@ -207,12 +241,123 @@
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
+    // Función para set select options.
+    const setSelectOptions = (select, options, placeholder, selectedValue = '') => {
+      if (!select) return;
+      const currentValue = selectedValue || select.dataset.selected || '';
+      select.innerHTML = '';
+
+      const placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = placeholder;
+      select.appendChild(placeholderOption);
+
+      options.forEach((optionValue) => {
+        const option = document.createElement('option');
+        option.value = optionValue;
+        option.textContent = optionValue;
+        if (optionValue === currentValue) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+
+      if (currentValue && !options.includes(currentValue)) {
+        const fallbackOption = document.createElement('option');
+        fallbackOption.value = currentValue;
+        fallbackOption.textContent = currentValue;
+        fallbackOption.selected = true;
+        select.appendChild(fallbackOption);
+      }
+    };
+
+    // Función para sort values.
+    const sortValues = (values) => [...values].sort((left, right) => left.localeCompare(right, 'es', { sensitivity: 'base' }));
+
+    // Función para get selected state catalog.
+    const getSelectedStateCatalog = () => {
+      if (!addressCatalog || !estadoInput) return null;
+      return addressCatalog[estadoInput.value] || null;
+    };
+
+    // Función para populate entidades.
+    const populateEntidadOptions = (selectedValue = '') => {
+      const stateCatalog = getSelectedStateCatalog();
+      const entidades = stateCatalog ? sortValues(Object.keys(stateCatalog)) : [];
+      setSelectOptions(entidadInput, entidades, 'Seleccione un municipio o alcaldía', selectedValue);
+      if (entidades.length === 0) {
+        entidadInput.value = '';
+      }
+    };
+
+    // Función para populate colonias.
+    const populateColoniaOptions = (selectedValue = '') => {
+      const stateCatalog = getSelectedStateCatalog();
+      const colonias = stateCatalog && entidadInput.value ? sortValues(stateCatalog[entidadInput.value] || []) : [];
+      setSelectOptions(coloniaInput, colonias, 'Seleccione una colonia', selectedValue);
+      if (colonias.length === 0) {
+        coloniaInput.value = '';
+      }
+    };
+
+    // Función para initialize address selects.
+    const initializeAddressCatalog = async () => {
+      if (!estadoInput || !entidadInput || !coloniaInput) return;
+
+      try {
+        const response = await fetch(addressCatalogUrl, { credentials: 'same-origin' });
+        if (!response.ok) {
+          throw new Error(`Address catalog request failed: ${response.status}`);
+        }
+
+        addressCatalog = await response.json();
+        const states = sortValues(Object.keys(addressCatalog));
+        setSelectOptions(estadoInput, states, 'Seleccione un estado', estadoInput.dataset.selected || '');
+
+        populateEntidadOptions(entidadInput.dataset.selected || '');
+        populateColoniaOptions(coloniaInput.dataset.selected || '');
+      } catch (error) {
+        console.error(error);
+        setSelectOptions(estadoInput, [], 'No se pudo cargar el catálogo', '');
+        setSelectOptions(entidadInput, [], 'No se pudo cargar el catálogo', '');
+        setSelectOptions(coloniaInput, [], 'No se pudo cargar el catálogo', '');
+      }
+    };
+
+    // Función para validate entidad dependency.
+    const validateEntidadDependency = () => {
+      if ((estadoInput.value || '').trim()) {
+        setError('entidad', '');
+        return true;
+      }
+      setError('entidad', 'Debes seleccionar un Estado para editar esta opción');
+      return false;
+    };
+
+    // Función para validate colonia dependency.
+    const validateColoniaDependency = () => {
+      if (!(estadoInput.value || '').trim()) {
+        setError('colonia', 'Debes seleccionar un Estado para editar esta opción');
+        return false;
+      }
+      if (!(entidadInput.value || '').trim()) {
+        setError('colonia', 'Debes seleccionar un Municipio/Alcaldía para editar esta opción');
+        return false;
+      }
+      setError('colonia', '');
+      return true;
+    };
+
     // Función para validate nombres.
     const validateNombres = () => {
       // Función para value.
       const value = (nombresInput.value || '').trim();
       if (!value) {
         setError('nombres', 'El nombre es obligatorio.');
+        return false;
+      }
+      if (value.length > 30) {
+        setError('nombres', 'El nombre no puede exceder 30 caracteres.');
         return false;
       }
       if (!hasOnlyLetters(value)) {
@@ -231,6 +376,10 @@
         setError('apellido_paterno', 'Este campo no puede estar vacío.');
         return false;
       }
+      if (value.length > 20) {
+        setError('apellido_paterno', 'El apellido paterno no puede exceder 20 caracteres.');
+        return false;
+      }
       if (!hasOnlyLetters(value)) {
         setError('apellido_paterno', 'El campo no puede contener números.');
         return false;
@@ -247,11 +396,41 @@
         setError('apellido_materno', 'Este campo no puede estar vacío.');
         return false;
       }
+      if (value.length > 20) {
+        setError('apellido_materno', 'El apellido materno no puede exceder 20 caracteres.');
+        return false;
+      }
       if (!hasOnlyLetters(value)) {
         setError('apellido_materno', 'El campo no puede contener números.');
         return false;
       }
       setError('apellido_materno', '');
+      return true;
+    };
+
+    // Función para validate calle.
+    const validateCalle = () => {
+      const value = (calleInput.value || '').trim();
+      if (value.length > 30) {
+        setError('calle', 'La calle no puede exceder 30 caracteres.');
+        return false;
+      }
+      setError('calle', '');
+      return true;
+    };
+
+    // Función para validate numero.
+    const validateNumero = () => {
+      const value = (numeroInput.value || '').trim();
+      if (value.length > 10) {
+        setError('numero', 'El número no puede exceder 10 caracteres.');
+        return false;
+      }
+      if (value && !/^\d+$/.test(value)) {
+        setError('numero', 'El número solo puede contener dígitos.');
+        return false;
+      }
+      setError('numero', '');
       return true;
     };
 
@@ -275,13 +454,12 @@
         setError('telefono', 'El teléfono es obligatorio.');
         return false;
       }
-      if (!/^[0-9+\-()\s]{10,20}$/.test(value)) {
-        setError('telefono', 'El teléfono debe tener un formato válido.');
+      if (value.length > 10) {
+        setError('telefono', 'El teléfono no puede exceder 10 dígitos.');
         return false;
       }
-      const digits = value.replace(/\D/g, '');
-      if (digits.length < 10 || digits.length > 15) {
-        setError('telefono', 'El teléfono debe tener un formato válido.');
+      if (!/^\d{10}$/.test(value)) {
+        setError('telefono', 'El teléfono debe contener exactamente 10 dígitos.');
         return false;
       }
       setError('telefono', '');
@@ -294,6 +472,10 @@
       const value = (emailInput.value || '').trim();
       if (!value) {
         setError('correo', 'El correo es obligatorio.');
+        return false;
+      }
+      if (value.length > 255) {
+        setError('correo', 'El correo no puede exceder 255 caracteres.');
         return false;
       }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
@@ -314,6 +496,10 @@
       if (!value) {
         setError('contrasena', '');
         return true;
+      }
+      if (value.length > 72) {
+        setError('contrasena', 'La contraseña no puede exceder 72 caracteres.');
+        return false;
       }
 
       const passwordErrors = [];
@@ -372,27 +558,82 @@
       return true;
     };
 
+    // Función para validate captcha.
+    const validateCaptcha = () => {
+      const value = (captchaInput.value || '').trim();
+      if (!value) {
+        setError('captcha', 'Debes resolver el captcha para continuar.');
+        return false;
+      }
+      if (!/^\d+$/.test(value)) {
+        setError('captcha', 'El captcha debe responderse con números.');
+        return false;
+      }
+      setError('captcha', '');
+      return true;
+    };
+
     // Función para validate form.
     const validateForm = () => {
       const checks = [
         validateNombres(),
         validateApellidoPaterno(),
         validateApellidoMaterno(),
+        validateCalle(),
+        validateNumero(),
         validateCodigoPostal(),
         validateTelefono(),
         validateEmail(),
         validatePassword(),
         validateRol(),
         validateActivo(),
+        validateCaptcha(),
       ];
       return checks.every(Boolean);
     };
 
-    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, codigoPostalInput, telefonoInput, emailInput, passwordInput].forEach((input) => {
+    [nombresInput, apellidoPaternoInput, apellidoMaternoInput, calleInput, numeroInput, codigoPostalInput, telefonoInput, emailInput, passwordInput, captchaInput].forEach((input) => {
       input.addEventListener('input', validateForm);
     });
     rolInput.addEventListener('change', validateForm);
     activoInput.addEventListener('change', validateForm);
+    estadoInput?.addEventListener('change', () => {
+      entidadInput.dataset.selected = '';
+      coloniaInput.dataset.selected = '';
+      setError('entidad', '');
+      setError('colonia', '');
+      populateEntidadOptions('');
+      populateColoniaOptions('');
+    });
+    entidadInput?.addEventListener('change', () => {
+      coloniaInput.dataset.selected = '';
+      setError('colonia', '');
+      populateColoniaOptions('');
+    });
+    entidadInput?.addEventListener('pointerdown', () => {
+      if (!(estadoInput.value || '').trim()) {
+        submitAttempted = true;
+        validateEntidadDependency();
+      }
+    });
+    entidadInput?.addEventListener('focus', () => {
+      if (!(estadoInput.value || '').trim()) {
+        submitAttempted = true;
+        validateEntidadDependency();
+      }
+    });
+    coloniaInput?.addEventListener('pointerdown', () => {
+      if (!(estadoInput.value || '').trim() || !(entidadInput.value || '').trim()) {
+        submitAttempted = true;
+        validateColoniaDependency();
+      }
+    });
+    coloniaInput?.addEventListener('focus', () => {
+      if (!(estadoInput.value || '').trim() || !(entidadInput.value || '').trim()) {
+        submitAttempted = true;
+        validateColoniaDependency();
+      }
+    });
 
     form.addEventListener('submit', (event) => {
       submitAttempted = true;
@@ -401,6 +642,15 @@
       }
     });
 
+    submitButton?.addEventListener('click', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+
+    initializeAddressCatalog();
     validateForm();
   })();
 </script>

@@ -8,9 +8,10 @@ from datetime import datetime, date
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from werkzeug.security import generate_password_hash
 
+from app.captcha import build_captcha, validate_captcha
 from app.auth.password_policy import validate_password
 from app.extensions import db
 from app.models import Cita, EncuestaSatisfaccion, Facturacion, FotoMascota, Mascota, RecordatorioCita, Rol, Usuario
@@ -34,12 +35,38 @@ PERMISSIONS = {
     "hu024": {ROLE_CLIENTE},
 }
 
-PHONE_PATTERN = re.compile(r"^[0-9+\-()\s]{10,20}$")
+PHONE_PATTERN = re.compile(r"^\d{10}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CP_PATTERN = re.compile(r"^\d{5}$")
 PERSON_NAME_PATTERN = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$")
 FINANCIAL_STATES = {"pagado", "pendiente", "parcial"}
 CLIENT_SOURCE_OPTIONS = {"recomendacion", "redes_sociales"}
+MAX_NOMBRES_LENGTH = 30
+MAX_APELLIDO_LENGTH = 20
+MAX_CALLE_LENGTH = 30
+MAX_NUMERO_LENGTH = 10
+MAX_COLONIA_LENGTH = 120
+MAX_ESTADO_LENGTH = 80
+MAX_ENTIDAD_LENGTH = 80
+MAX_CORREO_LENGTH = 255
+MAX_TELEFONO_LENGTH = 10
+MAX_NOMBRE_COMPLETO_LENGTH = 255
+MAX_DOMICILIO_LENGTH = 255
+
+
+def _captcha_scope_cliente_create() -> str:
+    """Construye el scope del captcha para alta de cliente."""
+    return "clientes-create"
+
+
+def _captcha_scope_cliente_edit(cliente_id: int) -> str:
+    """Construye el scope del captcha para edición de cliente."""
+    return f"clientes-edit:{cliente_id}"
+
+
+def _excede_longitud(value: str, limit: int) -> bool:
+    """Función para excede longitud."""
+    return len((value or "").strip()) > limit
 
 
 def _redirigir_a_inicio_sesion():
@@ -88,10 +115,14 @@ def _es_correo_valido(correo: str) -> bool:
 
 def _es_telefono_valido(phone: str) -> bool:
     """Función para es telefono valido."""
-    if not PHONE_PATTERN.match(phone or ""):
-        return False
-    digits = re.sub(r"\D", "", phone or "")
-    return 10 <= len(digits) <= 15
+    return bool(PHONE_PATTERN.match(phone or ""))
+
+
+def _es_numero_calle_valido(value: str) -> bool:
+    """Función para es numero calle valido."""
+    if not value:
+        return True
+    return bool(re.fullmatch(r"\d{1,10}", value))
 
 
 def _es_nombre_persona_valido(value: str) -> bool:
@@ -227,20 +258,42 @@ def _validar_formulario_cliente(
 
     if not nombres:
         errores_campo["nombres"] = "El nombre es obligatorio."
+    elif _excede_longitud(nombres, MAX_NOMBRES_LENGTH):
+        errores_campo["nombres"] = f"El nombre no puede exceder {MAX_NOMBRES_LENGTH} caracteres."
     elif not _es_nombre_persona_valido(nombres):
         errores_campo["nombres"] = "El nombre no puede contener números."
-    if apellido_paterno and not _es_nombre_persona_valido(apellido_paterno):
+    if apellido_paterno and _excede_longitud(apellido_paterno, MAX_APELLIDO_LENGTH):
+        errores_campo["apellido_paterno"] = f"El apellido paterno no puede exceder {MAX_APELLIDO_LENGTH} caracteres."
+    elif apellido_paterno and not _es_nombre_persona_valido(apellido_paterno):
         errores_campo["apellido_paterno"] = "El apellido paterno no puede contener números."
-    if apellido_materno and not _es_nombre_persona_valido(apellido_materno):
+    if apellido_materno and _excede_longitud(apellido_materno, MAX_APELLIDO_LENGTH):
+        errores_campo["apellido_materno"] = f"El apellido materno no puede exceder {MAX_APELLIDO_LENGTH} caracteres."
+    elif apellido_materno and not _es_nombre_persona_valido(apellido_materno):
         errores_campo["apellido_materno"] = "El apellido materno no puede contener números."
+    if calle and _excede_longitud(calle, MAX_CALLE_LENGTH):
+        errores_campo["calle"] = f"La calle no puede exceder {MAX_CALLE_LENGTH} caracteres."
+    if numero and _excede_longitud(numero, MAX_NUMERO_LENGTH):
+        errores_campo["numero"] = f"El número no puede exceder {MAX_NUMERO_LENGTH} caracteres."
+    elif numero and not _es_numero_calle_valido(numero):
+        errores_campo["numero"] = "El número solo puede contener dígitos."
+    if colonia and _excede_longitud(colonia, MAX_COLONIA_LENGTH):
+        errores_campo["colonia"] = f"La colonia no puede exceder {MAX_COLONIA_LENGTH} caracteres."
+    if estado and _excede_longitud(estado, MAX_ESTADO_LENGTH):
+        errores_campo["estado"] = f"El estado no puede exceder {MAX_ESTADO_LENGTH} caracteres."
+    if entidad and _excede_longitud(entidad, MAX_ENTIDAD_LENGTH):
+        errores_campo["entidad"] = f"El municipio o alcaldía no puede exceder {MAX_ENTIDAD_LENGTH} caracteres."
     if codigo_postal and not CP_PATTERN.match(codigo_postal):
         errores_campo["codigo_postal"] = "El C.P. debe tener exactamente 5 dígitos."
     if not telefono:
         errores_campo["telefono"] = "El teléfono es obligatorio."
+    elif _excede_longitud(telefono, MAX_TELEFONO_LENGTH):
+        errores_campo["telefono"] = f"El teléfono no puede exceder {MAX_TELEFONO_LENGTH} caracteres."
     elif not _es_telefono_valido(telefono):
-        errores_campo["telefono"] = "El teléfono debe tener un formato válido."
+        errores_campo["telefono"] = "El teléfono debe contener exactamente 10 dígitos."
     if not correo:
         errores_campo["correo"] = "El correo es obligatorio."
+    elif _excede_longitud(correo, MAX_CORREO_LENGTH):
+        errores_campo["correo"] = f"El correo no puede exceder {MAX_CORREO_LENGTH} caracteres."
     elif not _es_correo_valido(correo):
         errores_campo["correo"] = "El correo no tiene un formato válido."
     if require_source:
@@ -260,6 +313,21 @@ def _validar_formulario_cliente(
         if password_errors:
             errores_campo["contrasena"] = " ".join(password_errors)
 
+    nombre = _nombre_completo(nombres, apellido_paterno, apellido_materno)
+    domicilio = _direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
+
+    if nombre and _excede_longitud(nombre, MAX_NOMBRE_COMPLETO_LENGTH):
+        errores_campo["nombres"] = (
+            "La combinación de nombres y apellidos no puede exceder "
+            f"{MAX_NOMBRE_COMPLETO_LENGTH} caracteres."
+        )
+
+    if domicilio and _excede_longitud(domicilio, MAX_DOMICILIO_LENGTH):
+        errores_campo["calle"] = (
+            "La dirección completa no puede exceder "
+            f"{MAX_DOMICILIO_LENGTH} caracteres."
+        )
+
     if correo:
         duplicate_query = db.session.query(Usuario.id).filter(func.lower(Usuario.correo) == correo.lower())
         if cliente_id is not None:
@@ -268,9 +336,6 @@ def _validar_formulario_cliente(
             errores_campo["correo"] = "Ya existe un cliente con ese correo."
 
     errors.extend(errores_campo.values())
-
-    nombre = _nombre_completo(nombres, apellido_paterno, apellido_materno)
-    domicilio = _direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
 
     payload = {
         "nombres": nombres,
@@ -598,10 +663,18 @@ def clientes_nuevo():
             mode="create",
             datos_formulario=_datos_formulario_cliente(),
             errores_campo={},
+            captcha=build_captcha(_captcha_scope_cliente_create()),
         )
 
     errors, errores_campo, payload = _validar_formulario_cliente(request.form, require_password=True)
     datos_formulario = _datos_formulario_cliente(request.form)
+    captcha_scope = _captcha_scope_cliente_create()
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
+    errors = list(errores_campo.values())
 
     if errors:
         return render_template(
@@ -611,6 +684,7 @@ def clientes_nuevo():
             mode="create",
             datos_formulario=datos_formulario,
             errores_campo=errores_campo,
+            captcha=build_captcha(captcha_scope),
         )
 
     role = _obtener_rol_cliente()
@@ -623,6 +697,7 @@ def clientes_nuevo():
             mode="create",
             datos_formulario=datos_formulario,
             errores_campo={},
+            captcha=build_captcha(captcha_scope),
         )
 
     client = Usuario(
@@ -660,6 +735,18 @@ def clientes_nuevo():
             mode="create",
             datos_formulario=datos_formulario,
             errores_campo={},
+            captcha=build_captcha(captcha_scope),
+        )
+    except DataError:
+        db.session.rollback()
+        return render_template(
+            "cliente_form.html",
+            me=me,
+            active_nav="clientes",
+            mode="create",
+            datos_formulario=datos_formulario,
+            errores_campo={"nombres": "Revisa la longitud de los datos capturados antes de guardar."},
+            captcha=build_captcha(captcha_scope),
         )
 
     flash("Cliente registrado correctamente.", "success")
@@ -694,10 +781,18 @@ def clientes_editar(cliente_id: int):
             cliente_id=client.id,
             datos_formulario=_datos_formulario_cliente(client=client),
             errores_campo={},
+            captcha=build_captcha(_captcha_scope_cliente_edit(client.id)),
         )
 
     errors, errores_campo, payload = _validar_formulario_cliente(request.form, cliente_id=client.id, require_password=False)
     datos_formulario = _datos_formulario_cliente(request.form, client)
+    captcha_scope = _captcha_scope_cliente_edit(client.id)
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
+    errors = list(errores_campo.values())
 
     if errors:
         return render_template(
@@ -709,6 +804,7 @@ def clientes_editar(cliente_id: int):
             cliente_id=client.id,
             datos_formulario=datos_formulario,
             errores_campo=errores_campo,
+            captcha=build_captcha(captcha_scope),
         )
 
     client.nombres = payload["nombres"]
@@ -742,6 +838,20 @@ def clientes_editar(cliente_id: int):
             cliente_id=client.id,
             datos_formulario=datos_formulario,
             errores_campo={},
+            captcha=build_captcha(captcha_scope),
+        )
+    except DataError:
+        db.session.rollback()
+        return render_template(
+            "cliente_form.html",
+            me=me,
+            active_nav="clientes",
+            mode="edit",
+            client=client,
+            cliente_id=client.id,
+            datos_formulario=datos_formulario,
+            errores_campo={"nombres": "Revisa la longitud de los datos capturados antes de guardar."},
+            captcha=build_captcha(captcha_scope),
         )
 
     flash("Cliente actualizado correctamente.", "success")
@@ -1009,6 +1119,7 @@ def clientes_portal_editar():
             datos_formulario=_datos_formulario_cliente(client=client),
             errores_campo={},
             self_service=True,
+            captcha=build_captcha(_captcha_scope_cliente_edit(client.id)),
         )
 
     errors, errores_campo, payload = _validar_formulario_cliente(
@@ -1019,6 +1130,13 @@ def clientes_portal_editar():
         current_source=client.fuente_captacion,
     )
     datos_formulario = _datos_formulario_cliente(request.form, client)
+    captcha_scope = _captcha_scope_cliente_edit(client.id)
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
+    errors = list(errores_campo.values())
 
     if errors:
         return render_template(
@@ -1031,6 +1149,7 @@ def clientes_portal_editar():
             datos_formulario=datos_formulario,
             errores_campo=errores_campo,
             self_service=True,
+            captcha=build_captcha(captcha_scope),
         )
 
     client.nombres = payload["nombres"]
@@ -1064,6 +1183,7 @@ def clientes_portal_editar():
             datos_formulario=datos_formulario,
             errores_campo={},
             self_service=True,
+            captcha=build_captcha(captcha_scope),
         )
 
     flash("Tus datos se actualizaron correctamente.", "success")

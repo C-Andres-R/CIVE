@@ -22,6 +22,7 @@ from sqlalchemy.orm import aliased
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
+from app.captcha import build_captcha, validate_captcha
 from app.followups import (
     enviar_seguimiento_ahora,
     eliminar_seguimiento,
@@ -74,6 +75,103 @@ TIPO_ANALISIS_OPTIONS = [
     "Otro",
 ]
 CONSULTA_BASE_PRICE = Decimal("300.00")
+MAX_INSUMO_NOMBRE_LENGTH = 120
+MAX_INVENTARIO_CANTIDAD = 99999
+MAX_PRECIO = Decimal("30000.00")
+MAX_CONSULTA_TEXTO_LENGTH = 300
+MAX_OBSERVACIONES_LENGTH = 300
+MAX_DOSIS_CANTIDAD = 100
+MAX_PERIODO_ADMINISTRACION_LENGTH = 120
+MAX_PERIODO_ADMINISTRACION_WORDS = 100
+MAX_ALERGIA_NOMBRE_LENGTH = 120
+MAX_REACCION_LENGTH = 300
+MAX_NOTAS_ADICIONALES_LENGTH = 300
+MAX_RESULTADOS_LENGTH = 300
+MAX_NOTAS_ADJUNTO_LENGTH = 300
+DOSIS_UNIDADES_OPTIONS = [
+    "pastillas",
+    "tabletas",
+    "cápsulas",
+    "gramos",
+    "miligramos",
+    "ml",
+    "gotas",
+    "ampolletas",
+    "inyecciones",
+    "sobres",
+]
+
+
+def _validar_longitud_maxima(value: str, field_name: str, max_length: int, errores_campo: dict, label: str):
+    """Función para validar longitud maxima."""
+    if value and len(value.strip()) > max_length:
+        errores_campo[field_name] = f"{label} no puede exceder {max_length} caracteres."
+
+
+def _contar_palabras(value: str) -> int:
+    """Cuenta palabras usando espacios en blanco como separador."""
+    return len((value or "").strip().split())
+
+
+def _descomponer_dosis(dosis: str | None) -> tuple[str, str]:
+    """Separa una dosis almacenada como texto en cantidad y unidad."""
+    value = (dosis or "").strip()
+    if not value:
+        return "", ""
+    parts = value.split(maxsplit=1)
+    if len(parts) != 2:
+        return value, ""
+    cantidad, unidad = parts
+    return cantidad.strip(), unidad.strip()
+
+
+def _normalizar_dosis(cantidad_raw: str, unidad_raw: str) -> str:
+    """Construye la dosis normalizada para persistencia."""
+    cantidad = (cantidad_raw or "").strip()
+    unidad = (unidad_raw or "").strip()
+    if not cantidad or not unidad:
+        return ""
+    return f"{cantidad} {unidad}"
+
+
+def _captcha_scope_inventario_create() -> str:
+    """Construye el scope del captcha para alta de inventario."""
+    return "inventario-create"
+
+
+def _captcha_scope_inventario_edit(insumo_id: int) -> str:
+    """Construye el scope del captcha para edición de inventario."""
+    return f"inventario-edit-{insumo_id}"
+
+
+def _captcha_scope_consulta_create(mascota_id: int) -> str:
+    """Construye el scope del captcha para alta de consulta."""
+    return f"consultas-create:{mascota_id}"
+
+
+def _captcha_scope_consulta_edit(consulta_id: int) -> str:
+    """Construye el scope del captcha para edición de consulta."""
+    return f"consultas-edit:{consulta_id}"
+
+
+def _captcha_scope_vacuna_create(mascota_id: int) -> str:
+    """Construye el scope del captcha para alta de vacuna o alergia."""
+    return f"vacunas-create:{mascota_id}"
+
+
+def _captcha_scope_vacuna_edit(registro_id: int) -> str:
+    """Construye el scope del captcha para edición de vacuna o alergia."""
+    return f"vacunas-edit:{registro_id}"
+
+
+def _captcha_scope_analisis_create(mascota_id: int) -> str:
+    """Construye el scope del captcha para alta de análisis."""
+    return f"analisis-create:{mascota_id}"
+
+
+def _captcha_scope_analisis_edit(analisis_id: int) -> str:
+    """Construye el scope del captcha para edición de análisis."""
+    return f"analisis-edit:{analisis_id}"
 
 
 def _build_pdf_styles():
@@ -573,6 +671,7 @@ def _datos_formulario_consulta(form=None, consulta: ConsultaMedica | None = None
     """Función para datos formulario consulta."""
     form = form or {}
     if consulta is not None and not form:
+        dosis_numero, dosis_unidad = _descomponer_dosis(consulta.dosis)
         return {
             "fecha_consulta": consulta.fecha_consulta.isoformat() if consulta.fecha_consulta else "",
             "veterinario_id": str(consulta.veterinario_id or ""),
@@ -580,10 +679,11 @@ def _datos_formulario_consulta(form=None, consulta: ConsultaMedica | None = None
             "diagnostico": consulta.diagnostico or "",
             "tratamiento": consulta.tratamiento or "",
             "incluye_medicamento": bool(consulta.insumo_clinico_id),
-            "medicamentos_administrados": consulta.medicamentos_administrados or "",
             "insumo_clinico_id": str(consulta.insumo_clinico_id or ""),
             "fecha_administracion": consulta.fecha_administracion.isoformat() if consulta.fecha_administracion else "",
             "dosis": consulta.dosis or "",
+            "dosis_numero": dosis_numero,
+            "dosis_unidad": dosis_unidad,
             "periodo_administracion": consulta.periodo_administracion or "",
             "incluye_vacuna": bool(consulta.vacuna_insumo_id),
             "vacuna_insumo_id": str(consulta.vacuna_insumo_id or ""),
@@ -605,10 +705,11 @@ def _datos_formulario_consulta(form=None, consulta: ConsultaMedica | None = None
         "diagnostico": (form.get("diagnostico") or "").strip(),
         "tratamiento": (form.get("tratamiento") or "").strip(),
         "incluye_medicamento": (form.get("incluye_medicamento") or "").strip().lower() in {"1", "true", "on", "yes"},
-        "medicamentos_administrados": (form.get("medicamentos_administrados") or "").strip(),
         "insumo_clinico_id": str(_parsear_entero(form.get("insumo_clinico_id")) or ""),
         "fecha_administracion": (form.get("fecha_administracion") or "").strip(),
-        "dosis": (form.get("dosis") or "").strip(),
+        "dosis_numero": (form.get("dosis_numero") or "").strip(),
+        "dosis_unidad": (form.get("dosis_unidad") or "").strip(),
+        "dosis": _normalizar_dosis(form.get("dosis_numero") or "", form.get("dosis_unidad") or ""),
         "periodo_administracion": (form.get("periodo_administracion") or "").strip(),
         "incluye_vacuna": (form.get("incluye_vacuna") or "").strip().lower() in {"1", "true", "on", "yes"},
         "vacuna_insumo_id": str(_parsear_entero(form.get("vacuna_insumo_id")) or ""),
@@ -905,6 +1006,7 @@ def _guardar_insumo(insumo_id: int | None = None):
         return redirect(url_for("expedientes.inventario_lista"))
 
     if request.method == "GET":
+        captcha_scope = _captcha_scope_inventario_edit(insumo.id) if insumo else _captcha_scope_inventario_create()
         return render_template(
             "inventario_clinico_form.html",
             me=me,
@@ -913,13 +1015,17 @@ def _guardar_insumo(insumo_id: int | None = None):
             insumo_id=insumo.id if insumo else None,
             datos_formulario=_datos_formulario_insumo(insumo=insumo),
             errores_campo={},
+            captcha=build_captcha(captcha_scope),
         )
 
     datos_formulario = _datos_formulario_insumo(request.form)
     errores_campo = {}
+    captcha_scope = _captcha_scope_inventario_edit(insumo.id) if insumo else _captcha_scope_inventario_create()
 
     if not datos_formulario["nombre"]:
         errores_campo["nombre"] = "Debes capturar el nombre para continuar."
+    else:
+        _validar_longitud_maxima(datos_formulario["nombre"], "nombre", MAX_INSUMO_NOMBRE_LENGTH, errores_campo, "El nombre")
 
     if datos_formulario["tipo_insumo"] not in {"medicamento", "vacuna"}:
         errores_campo["tipo_insumo"] = "Debes seleccionar un tipo de insumo válido."
@@ -935,12 +1041,22 @@ def _guardar_insumo(insumo_id: int | None = None):
         errores_campo["cantidad_existencia"] = "Debes capturar una cantidad válida."
     elif cantidad_existencia < 0:
         errores_campo["cantidad_existencia"] = "La cantidad no puede ser menor a 0."
+    elif cantidad_existencia > MAX_INVENTARIO_CANTIDAD:
+        errores_campo["cantidad_existencia"] = f"La cantidad no puede exceder {MAX_INVENTARIO_CANTIDAD} unidades."
 
     precio = _parsear_decimal(datos_formulario["precio"])
     if precio is None:
         errores_campo["precio"] = "Debes capturar un precio válido."
     elif precio < 0:
         errores_campo["precio"] = "El precio no puede ser menor a 0."
+    elif precio > MAX_PRECIO:
+        errores_campo["precio"] = f"El precio no puede exceder ${MAX_PRECIO}."
+
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     if errores_campo:
         return render_template(
@@ -951,6 +1067,7 @@ def _guardar_insumo(insumo_id: int | None = None):
             insumo_id=insumo.id if insumo else None,
             datos_formulario=datos_formulario,
             errores_campo=errores_campo,
+            captcha=build_captcha(captcha_scope),
         )
 
     if insumo is None:
@@ -1257,6 +1374,7 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
     if request.method == "GET":
         datos_formulario = _datos_formulario_consulta(consulta=consulta)
         datos_formulario = _hidratar_datos_consulta_con_seguimientos(datos_formulario, consulta.id if consulta else None)
+        captcha_scope = _captcha_scope_consulta_edit(consulta.id) if consulta else _captcha_scope_consulta_create(mascota.id)
         return render_template(
             "expediente_consulta_form.html",
             me=me,
@@ -1270,11 +1388,14 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
             medicamentos=medicamentos,
             vacunas=vacunas,
             tipos_analisis=TIPO_ANALISIS_OPTIONS,
+            dosis_unidades=DOSIS_UNIDADES_OPTIONS,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     datos_formulario = _datos_formulario_consulta(request.form)
     errores_campo = {}
+    captcha_scope = _captcha_scope_consulta_edit(consulta.id) if consulta else _captcha_scope_consulta_create(mascota.id)
 
     fecha_consulta = _parsear_fecha(datos_formulario["fecha_consulta"])
     _validar_fecha_no_futura(fecha_consulta, "fecha_consulta", errores_campo)
@@ -1286,10 +1407,16 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
 
     if not datos_formulario["sintomas"]:
         errores_campo["sintomas"] = "Debes describir los síntomas para continuar."
+    else:
+        _validar_longitud_maxima(datos_formulario["sintomas"], "sintomas", MAX_CONSULTA_TEXTO_LENGTH, errores_campo, "El campo de síntomas")
     if not datos_formulario["diagnostico"]:
         errores_campo["diagnostico"] = "Debes capturar el diagnóstico para continuar."
+    else:
+        _validar_longitud_maxima(datos_formulario["diagnostico"], "diagnostico", MAX_CONSULTA_TEXTO_LENGTH, errores_campo, "El diagnóstico")
     if not datos_formulario["tratamiento"]:
         errores_campo["tratamiento"] = "Debes capturar el tratamiento para continuar."
+    else:
+        _validar_longitud_maxima(datos_formulario["tratamiento"], "tratamiento", MAX_CONSULTA_TEXTO_LENGTH, errores_campo, "El tratamiento")
 
     insumo_clinico_id = _parsear_entero(datos_formulario["insumo_clinico_id"]) if datos_formulario["incluye_medicamento"] else None
     insumo = None
@@ -1303,12 +1430,44 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
     fecha_administracion = _parsear_fecha(datos_formulario["fecha_administracion"])
     if datos_formulario["incluye_medicamento"] and insumo_clinico_id:
         _validar_fecha_no_futura(fecha_administracion, "fecha_administracion", errores_campo)
-        if not datos_formulario["dosis"]:
+        dosis_numero = _parsear_entero(datos_formulario["dosis_numero"])
+        if not datos_formulario["dosis_numero"]:
             errores_campo["dosis"] = "Debes indicar la dosis del medicamento."
+        elif dosis_numero is None or dosis_numero < 1 or dosis_numero > MAX_DOSIS_CANTIDAD:
+            errores_campo["dosis"] = f"Debes seleccionar una dosis entre 1 y {MAX_DOSIS_CANTIDAD}."
+        elif datos_formulario["dosis_unidad"] not in DOSIS_UNIDADES_OPTIONS:
+            errores_campo["dosis"] = "Debes seleccionar la unidad de la dosis."
         if not datos_formulario["periodo_administracion"]:
             errores_campo["periodo_administracion"] = "Debes indicar el período de administración."
-    elif any([datos_formulario["fecha_administracion"], datos_formulario["dosis"], datos_formulario["periodo_administracion"]]):
+        elif _contar_palabras(datos_formulario["periodo_administracion"]) > MAX_PERIODO_ADMINISTRACION_WORDS:
+            errores_campo["periodo_administracion"] = (
+                f"El período de administración no puede exceder {MAX_PERIODO_ADMINISTRACION_WORDS} palabras."
+            )
+        elif len(datos_formulario["periodo_administracion"]) > MAX_PERIODO_ADMINISTRACION_LENGTH:
+            errores_campo["periodo_administracion"] = (
+                f"El período de administración no puede exceder {MAX_PERIODO_ADMINISTRACION_LENGTH} caracteres."
+            )
+    elif any([
+        datos_formulario["fecha_administracion"],
+        datos_formulario["dosis_numero"],
+        datos_formulario["dosis_unidad"],
+        datos_formulario["periodo_administracion"],
+    ]):
         errores_campo["insumo_clinico_id"] = "Debes seleccionar un medicamento para registrar su administración."
+
+    _validar_longitud_maxima(
+        datos_formulario["observaciones"],
+        "observaciones",
+        MAX_OBSERVACIONES_LENGTH,
+        errores_campo,
+        "El campo de observaciones",
+    )
+
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     vacuna_insumo_id = _parsear_entero(datos_formulario["vacuna_insumo_id"]) if datos_formulario["incluye_vacuna"] else None
     if datos_formulario["incluye_vacuna"]:
@@ -1360,7 +1519,9 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
             medicamentos=medicamentos,
             vacunas=vacunas,
             tipos_analisis=TIPO_ANALISIS_OPTIONS,
+            dosis_unidades=DOSIS_UNIDADES_OPTIONS,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     _ajustar_existencia_por_cambio(previous_insumo_id, insumo_clinico_id, "insumo_clinico_id", errores_campo)
@@ -1380,7 +1541,9 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
             medicamentos=medicamentos,
             vacunas=vacunas,
             tipos_analisis=TIPO_ANALISIS_OPTIONS,
+            dosis_unidades=DOSIS_UNIDADES_OPTIONS,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     if consulta is None:
@@ -1392,7 +1555,7 @@ def _guardar_consulta(mascota_id: int, consulta_id: int | None = None):
     consulta.sintomas = datos_formulario["sintomas"]
     consulta.diagnostico = datos_formulario["diagnostico"]
     consulta.tratamiento = datos_formulario["tratamiento"]
-    consulta.medicamentos_administrados = datos_formulario["medicamentos_administrados"] or None
+    consulta.medicamentos_administrados = None
     consulta.insumo_clinico_id = insumo_clinico_id
     consulta.vacuna_insumo_id = vacuna_insumo_id
     consulta.tipo_analisis_relacionado = tipo_analisis_relacionado or None
@@ -1488,6 +1651,7 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
 
     veterinarios = _obtener_veterinarios_activos()
     vacunas_catalogo = _obtener_insumos("vacuna", solo_activos=True)
+    captcha_scope = _captcha_scope_vacuna_edit(registro.id) if registro else _captcha_scope_vacuna_create(mascota.id)
 
     if request.method == "GET":
         datos_formulario = _datos_formulario_vacuna(registro=registro)
@@ -1504,6 +1668,7 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
             veterinarios=veterinarios,
             vacunas_catalogo=vacunas_catalogo,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     datos_formulario = _datos_formulario_vacuna(request.form)
@@ -1513,7 +1678,10 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
         errores_campo["tipo_registro"] = "Debes seleccionar un tipo de registro válido."
 
     fecha_registro = _parsear_fecha(datos_formulario["fecha_registro"])
-    _validar_fecha_no_futura(fecha_registro, "fecha_registro", errores_campo)
+    if not fecha_registro:
+        errores_campo["fecha_registro"] = "Debes seleccionar una fecha. Si el registro es del mismo día, selecciona nuevamente la fecha de hoy."
+    elif fecha_registro > date.today():
+        errores_campo["fecha_registro"] = "La fecha no puede ser posterior a hoy."
 
     veterinario_id = _parsear_entero(datos_formulario["veterinario_id"])
     _, veterinario_error = _validar_veterinario(veterinario_id)
@@ -1531,13 +1699,45 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
     else:
         if not datos_formulario["nombre"]:
             errores_campo["nombre"] = "Debes capturar el nombre de la alergia para continuar."
+        else:
+            _validar_longitud_maxima(datos_formulario["nombre"], "nombre", MAX_ALERGIA_NOMBRE_LENGTH, errores_campo, "El nombre de la alergia")
         nombre = datos_formulario["nombre"]
 
     if datos_formulario["tipo_registro"] == "alergia":
         if not datos_formulario["reaccion_identificada"]:
             errores_campo["reaccion_identificada"] = "Debes describir la reacción alérgica."
+        else:
+            _validar_longitud_maxima(
+                datos_formulario["reaccion_identificada"],
+                "reaccion_identificada",
+                MAX_REACCION_LENGTH,
+                errores_campo,
+                "La reacción identificada",
+            )
     elif datos_formulario["tipo_registro"] == "vacuna" and not datos_formulario["tiene_reaccion"]:
         datos_formulario["reaccion_identificada"] = ""
+    elif datos_formulario["reaccion_identificada"]:
+        _validar_longitud_maxima(
+            datos_formulario["reaccion_identificada"],
+            "reaccion_identificada",
+            MAX_REACCION_LENGTH,
+            errores_campo,
+            "La reacción identificada",
+        )
+
+    _validar_longitud_maxima(
+        datos_formulario["notas_adicionales"],
+        "notas_adicionales",
+        MAX_NOTAS_ADICIONALES_LENGTH,
+        errores_campo,
+        "El campo de notas adicionales",
+    )
+
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     seguimiento_vacuna = {"requiere": False, "programado_para": None}
     if usuario_puede_programar_seguimiento(me):
@@ -1562,6 +1762,7 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
             veterinarios=veterinarios,
             vacunas_catalogo=vacunas_catalogo,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     new_insumo_id = insumo_clinico_id if datos_formulario["tipo_registro"] == "vacuna" else None
@@ -1580,6 +1781,7 @@ def _guardar_vacuna(mascota_id: int, registro_id: int | None = None):
             veterinarios=veterinarios,
             vacunas_catalogo=vacunas_catalogo,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     if registro is None:
@@ -1651,6 +1853,7 @@ def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
             return redirect(url_for("expedientes.expedientes_detalle", mascota_id=mascota.id))
 
     veterinarios = _obtener_veterinarios_activos()
+    captcha_scope = _captcha_scope_analisis_edit(analisis.id) if analisis else _captcha_scope_analisis_create(mascota.id)
 
     if request.method == "GET":
         datos_formulario = _datos_formulario_analisis(analisis=analisis)
@@ -1667,13 +1870,17 @@ def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
             veterinarios=veterinarios,
             tipos_analisis=TIPO_ANALISIS_OPTIONS,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     datos_formulario = _datos_formulario_analisis(request.form)
     errores_campo = {}
 
     fecha_analisis = _parsear_fecha(datos_formulario["fecha_analisis"])
-    _validar_fecha_no_futura(fecha_analisis, "fecha_analisis", errores_campo)
+    if not fecha_analisis:
+        errores_campo["fecha_analisis"] = "Debes seleccionar una fecha. Si el registro es del mismo día, selecciona nuevamente la fecha de hoy."
+    elif fecha_analisis > date.today():
+        errores_campo["fecha_analisis"] = "La fecha no puede ser posterior a hoy."
 
     veterinario_id = _parsear_entero(datos_formulario["veterinario_id"])
     _, veterinario_error = _validar_veterinario(veterinario_id)
@@ -1684,6 +1891,15 @@ def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
         errores_campo["tipo_analisis"] = "Debes seleccionar un tipo de análisis válido."
     if not datos_formulario["resultados"]:
         errores_campo["resultados"] = "Debes registrar los resultados para continuar."
+    else:
+        _validar_longitud_maxima(datos_formulario["resultados"], "resultados", MAX_RESULTADOS_LENGTH, errores_campo, "El campo de resultados")
+    _validar_longitud_maxima(
+        datos_formulario["documentos_adjuntos"],
+        "documentos_adjuntos",
+        MAX_NOTAS_ADJUNTO_LENGTH,
+        errores_campo,
+        "El campo de notas del adjunto",
+    )
     precio = analisis.precio if analisis else Decimal("0.00")
     if _nombre_rol(me) == ROLE_ADMIN:
         precio = _parsear_decimal(datos_formulario["precio"])
@@ -1691,11 +1907,19 @@ def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
             errores_campo["precio"] = "Debes capturar un precio válido."
         elif precio < 0:
             errores_campo["precio"] = "El precio no puede ser menor a 0."
+        elif precio > MAX_PRECIO:
+            errores_campo["precio"] = f"El precio no puede exceder ${MAX_PRECIO}."
 
     uploaded = request.files.get("archivo_adjunto")
     archivo_error = _validar_archivo_analisis(uploaded)
     if archivo_error:
         errores_campo["archivo_adjunto"] = archivo_error
+
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     seguimiento_analisis = {"requiere": False, "programado_para": None}
     if usuario_puede_programar_seguimiento(me):
@@ -1721,6 +1945,7 @@ def _guardar_analisis(mascota_id: int, analisis_id: int | None = None):
             veterinarios=veterinarios,
             tipos_analisis=TIPO_ANALISIS_OPTIONS,
             can_schedule_followup=usuario_puede_programar_seguimiento(me),
+            captcha=build_captcha(captcha_scope),
         )
 
     if analisis is None:

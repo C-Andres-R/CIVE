@@ -8,6 +8,21 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/expedientes.css') }}">
 {% endblock %}
 
+{% macro render_expandable_text(value, fallback='-') -%}
+  {% set text = (value or '').strip() %}
+  {% if not text %}
+    {{ fallback }}
+  {% elif text|length <= 90 %}
+    {{ text }}
+  {% else %}
+    <div class="expandable-text" data-expandable-text>
+      <span class="expandable-text__preview">{{ text[:90] ~ '...' }}</span>
+      <span class="expandable-text__full" hidden>{{ text }}</span>
+      <button class="expandable-text__toggle" type="button" data-expandable-toggle aria-expanded="false">Desplegar</button>
+    </div>
+  {% endif %}
+{%- endmacro %}
+
 {% block content %}
 <div class="encabezado-pagina">
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -76,7 +91,7 @@
 </div>
 
 <div class="content-stack">
-  <section class="section-card">
+  <section class="section-card" data-pagination-root data-page-size="5">
     <div class="section-card__head">
       <h3>Consultas médicas</h3>
     </div>
@@ -96,18 +111,18 @@
             <th></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-pagination-body>
           {% for consulta, veterinario_nombre, medicamento_nombre, vacuna_nombre in consultas_rows %}
-          <tr>
+          <tr data-pagination-row>
             <td data-label="Fecha">{{ consulta.fecha_consulta.strftime('%Y-%m-%d') if consulta.fecha_consulta else '-' }}</td>
             <td data-label="Veterinario">{{ veterinario_nombre }}</td>
-            <td data-label="Síntomas">{{ consulta.sintomas }}</td>
-            <td data-label="Diagnóstico">{{ consulta.diagnostico }}</td>
-            <td data-label="Tratamiento">{{ consulta.tratamiento }}</td>
+            <td data-label="Síntomas">{{ render_expandable_text(consulta.sintomas) }}</td>
+            <td data-label="Diagnóstico">{{ render_expandable_text(consulta.diagnostico) }}</td>
+            <td data-label="Tratamiento">{{ render_expandable_text(consulta.tratamiento) }}</td>
             <td data-label="Medicamentos">{{ medicamento_nombre or consulta.medicamentos_administrados or '-' }}</td>
             <td data-label="Vacuna">{{ vacuna_nombre or '-' }}</td>
             <td data-label="Análisis">{{ consulta.tipo_analisis_relacionado or '-' }}</td>
-            <td data-label="Observaciones">{{ consulta.observaciones or '-' }}</td>
+            <td data-label="Observaciones">{{ render_expandable_text(consulta.observaciones) }}</td>
             <td data-label="Acciones">
               {% if can_manage_consultas %}
               <a class="inline-link" href="{{ url_for('expedientes.consultas_editar', mascota_id=mascota.id, consulta_id=consulta.id) }}">Editar</a>
@@ -143,9 +158,10 @@
         </tbody>
       </table>
     </div>
+    <div class="section-pagination" data-pagination-nav hidden></div>
   </section>
 
-  <section class="section-card">
+  <section class="section-card" data-pagination-root data-page-size="5">
     <div class="section-card__head">
       <h3>Vacunas y alergias</h3>
     </div>
@@ -162,9 +178,9 @@
             <th></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-pagination-body>
           {% for registro, veterinario_nombre in vacunas_rows %}
-          <tr>
+          <tr data-pagination-row>
             <td data-label="Tipo">{{ registro.tipo_registro|capitalize }}</td>
             <td data-label="Fecha">{{ registro.fecha_registro.strftime('%Y-%m-%d') if registro.fecha_registro else '-' }}</td>
             <td data-label="Nombre">{{ registro.nombre }}</td>
@@ -192,9 +208,10 @@
         </tbody>
       </table>
     </div>
+    <div class="section-pagination" data-pagination-nav hidden></div>
   </section>
 
-  <section class="section-card">
+  <section class="section-card" data-pagination-root data-page-size="5">
     <div class="section-card__head">
       <h3>Análisis clínicos</h3>
     </div>
@@ -210,9 +227,9 @@
             <th></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-pagination-body>
           {% for analisis, veterinario_nombre in analisis_rows %}
-          <tr>
+          <tr data-pagination-row>
             <td data-label="Fecha">{{ analisis.fecha_analisis.strftime('%Y-%m-%d') if analisis.fecha_analisis else '-' }}</td>
             <td data-label="Tipo">{{ analisis.tipo_analisis }}</td>
             <td data-label="Resultados">{{ analisis.resultados }}</td>
@@ -245,9 +262,10 @@
         </tbody>
       </table>
     </div>
+    <div class="section-pagination" data-pagination-nav hidden></div>
   </section>
 
-  <section class="section-card">
+  <section class="section-card" data-pagination-root data-page-size="5">
     <div class="section-card__head">
       <h3>Citas relacionadas</h3>
     </div>
@@ -262,9 +280,9 @@
             <th>Cliente</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody data-pagination-body>
           {% for cita, cliente_nombre, veterinario_nombre in citas_rows %}
-          <tr>
+          <tr data-pagination-row>
             <td data-label="Fecha/Hora">{{ cita.fecha_hora.strftime('%Y-%m-%d %H:%M') if cita.fecha_hora else '-' }}</td>
             <td data-label="Motivo">{{ cita.motivo or '-' }}</td>
             <td data-label="Estado">{{ cita.estado|capitalize }}</td>
@@ -279,6 +297,155 @@
         </tbody>
       </table>
     </div>
+    <div class="section-pagination" data-pagination-nav hidden></div>
   </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', (event) => {
+      const toggle = event.target.closest('[data-expandable-toggle]');
+      if (!toggle) {
+        return;
+      }
+
+      const root = toggle.closest('[data-expandable-text]');
+      if (!root) {
+        return;
+      }
+
+      const preview = root.querySelector('.expandable-text__preview');
+      const full = root.querySelector('.expandable-text__full');
+      const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+      if (!preview || !full) {
+        return;
+      }
+
+      preview.hidden = !isExpanded;
+      full.hidden = isExpanded;
+      toggle.textContent = isExpanded ? 'Desplegar' : 'Contraer';
+      toggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+    });
+
+    const buildPageItems = (totalPages, currentPage) => {
+      if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+      }
+
+      const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+      const sortedPages = Array.from(pages)
+        .filter((page) => page >= 1 && page <= totalPages)
+        .sort((left, right) => left - right);
+
+      const items = [];
+      sortedPages.forEach((page, index) => {
+        const previous = sortedPages[index - 1];
+        if (index > 0 && page - previous > 1) {
+          items.push('ellipsis');
+        }
+        items.push(page);
+      });
+      return items;
+    };
+
+    const createNavButton = ({ label, page, disabled = false, active = false, isEllipsis = false }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'section-pagination__button';
+
+      if (isEllipsis) {
+        button.textContent = '...';
+        button.disabled = true;
+        button.classList.add('section-pagination__button--ellipsis');
+        return button;
+      }
+
+      button.textContent = label;
+      button.dataset.page = String(page);
+      button.setAttribute('aria-label', `Ir a la página ${page}`);
+
+      if (disabled) {
+        button.disabled = true;
+      }
+      if (active) {
+        button.classList.add('is-active');
+        button.setAttribute('aria-current', 'page');
+      }
+      return button;
+    };
+
+    document.querySelectorAll('[data-pagination-root]').forEach((section) => {
+      const pageSize = Number(section.dataset.pageSize || 5);
+      const body = section.querySelector('[data-pagination-body]');
+      const nav = section.querySelector('[data-pagination-nav]');
+      const rows = Array.from(section.querySelectorAll('[data-pagination-row]'));
+
+      if (!body || !nav || rows.length <= pageSize) {
+        return;
+      }
+
+      const totalPages = Math.ceil(rows.length / pageSize);
+      let currentPage = 1;
+
+      const renderPage = (page) => {
+        currentPage = page;
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+
+        rows.forEach((row, index) => {
+          row.hidden = index < start || index >= end;
+        });
+
+        nav.innerHTML = '';
+        nav.hidden = false;
+
+        const summary = document.createElement('div');
+        summary.className = 'section-pagination__summary';
+        summary.textContent = `Mostrando ${start + 1}-${Math.min(end, rows.length)} de ${rows.length}`;
+        nav.appendChild(summary);
+
+        const controls = document.createElement('div');
+        controls.className = 'section-pagination__controls';
+        controls.appendChild(createNavButton({
+          label: 'Anterior',
+          page: Math.max(1, currentPage - 1),
+          disabled: currentPage === 1,
+        }));
+
+        buildPageItems(totalPages, currentPage).forEach((item) => {
+          controls.appendChild(
+            item === 'ellipsis'
+              ? createNavButton({ label: '...', isEllipsis: true })
+              : createNavButton({ label: String(item), page: item, active: item === currentPage })
+          );
+        });
+
+        controls.appendChild(createNavButton({
+          label: 'Siguiente',
+          page: Math.min(totalPages, currentPage + 1),
+          disabled: currentPage === totalPages,
+        }));
+
+        nav.appendChild(controls);
+      };
+
+      nav.addEventListener('click', (event) => {
+        const target = event.target.closest('button[data-page]');
+        if (!target) {
+          return;
+        }
+
+        const nextPage = Number(target.dataset.page);
+        if (!Number.isNaN(nextPage) && nextPage !== currentPage) {
+          renderPage(nextPage);
+        }
+      });
+
+      renderPage(1);
+    });
+  });
+</script>
 {% endblock %}

@@ -22,7 +22,7 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="date" name="fecha_analisis" value="{{ datos_formulario.fecha_analisis }}">
         </div>
-        <small class="field-error">{{ errores_campo.fecha_analisis or "" }}</small>
+        <small class="field-error" data-field-error="fecha_analisis">{{ errores_campo.fecha_analisis or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -35,7 +35,7 @@
             {% endfor %}
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_id">{{ errores_campo.veterinario_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -48,24 +48,24 @@
             {% endfor %}
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.tipo_analisis or "" }}</small>
+        <small class="field-error" data-field-error="tipo_analisis">{{ errores_campo.tipo_analisis or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Resultados *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="resultados">{{ datos_formulario.resultados }}</textarea>
+          <textarea class="usuario-input" name="resultados" maxlength="300">{{ datos_formulario.resultados }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.resultados or "" }}</small>
+        <small class="field-error" data-field-error="resultados">{{ errores_campo.resultados or "" }}</small>
       </div>
 
       {% if (me.rol or '')|lower == 'administrador' %}
       <div class="usuario-form-row">
         <label class="usuario-form-label">Precio *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="number" min="0" step="0.01" name="precio" value="{{ datos_formulario.precio }}">
+          <input class="usuario-input" type="number" min="0" max="30000" step="0.01" name="precio" value="{{ datos_formulario.precio }}">
         </div>
-        <small class="field-error">{{ errores_campo.precio or "" }}</small>
+        <small class="field-error" data-field-error="precio">{{ errores_campo.precio or "" }}</small>
       </div>
       {% endif %}
 
@@ -74,7 +74,7 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="file" name="archivo_adjunto" accept=".pdf,.png,.jpg,.jpeg">
         </div>
-        <small class="field-error">{{ errores_campo.archivo_adjunto or "" }}</small>
+        <small class="field-error" data-field-error="archivo_adjunto">{{ errores_campo.archivo_adjunto or "" }}</small>
         {% if datos_formulario.nombre_archivo %}
         <small class="field-note">Archivo actual: {{ datos_formulario.nombre_archivo }}</small>
         {% else %}
@@ -85,8 +85,9 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Notas del adjunto</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="documentos_adjuntos">{{ datos_formulario.documentos_adjuntos }}</textarea>
+          <textarea class="usuario-input" name="documentos_adjuntos" maxlength="300">{{ datos_formulario.documentos_adjuntos }}</textarea>
         </div>
+        <small class="field-error" data-field-error="documentos_adjuntos">{{ errores_campo.documentos_adjuntos or "" }}</small>
       </div>
 
       {% if can_schedule_followup %}
@@ -102,12 +103,27 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="datetime-local" name="analisis_seguimiento_programado_para" value="{{ datos_formulario.analisis_seguimiento_programado_para }}">
         </div>
-        <small class="field-error">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
+        <small class="field-error" data-field-error="analisis_seguimiento_programado_para">{{ errores_campo.analisis_seguimiento_programado_para or "" }}</small>
       </div>
       {% endif %}
 
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Captcha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" value="Resuelve: {{ captcha.question }}" readonly aria-readonly="true">
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Resultado *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="captcha_answer" inputmode="numeric" autocomplete="off">
+        </div>
+        <small class="field-error" data-field-error="captcha">{{ errores_campo.captcha or "" }}</small>
+      </div>
+
       <div class="usuario-actions">
-        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
       </div>
     </form>
@@ -116,16 +132,176 @@
 <script>
   // Bloque para interacciones de la vista.
   (() => {
+    const form = document.querySelector('.usuario-form');
     const check = document.querySelector('input[name="analisis_requiere_seguimiento"]');
     const wrap = document.querySelector('.analisis-followup-wrap');
-    if (!check || !wrap) return;
+    const fechaInput = document.querySelector('input[name="fecha_analisis"]');
+    const veterinarioSelect = document.querySelector('select[name="veterinario_id"]');
+    const tipoAnalisisSelect = document.querySelector('select[name="tipo_analisis"]');
+    const resultadosInput = document.querySelector('textarea[name="resultados"]');
+    const notasAdjuntoInput = document.querySelector('textarea[name="documentos_adjuntos"]');
+    const precioInput = document.querySelector('input[name="precio"]');
+    const captchaInput = document.querySelector('input[name="captcha_answer"]');
+    const seguimientoInput = document.querySelector('input[name="analisis_seguimiento_programado_para"]');
+    const submitButton = document.querySelector('[data-submit-button]');
+    const errorEls = Object.fromEntries(
+      Array.from(document.querySelectorAll('[data-field-error]')).map((node) => [node.dataset.fieldError, node])
+    );
+    let submitAttempted = false;
+    if (!form) return;
 
     // Función para sync ui.
     const syncUi = () => {
-      wrap.classList.toggle('hidden', !check.checked);
+      if (check && wrap) {
+        wrap.classList.toggle('hidden', !check.checked);
+      }
     };
 
-    check.addEventListener('change', syncUi);
+    // Función para definir error.
+    const setError = (field, message) => {
+      const node = errorEls[field];
+      if (!node) return;
+      node.textContent = message || '';
+      node.style.color = message ? '#d92d20' : '';
+    };
+
+    // Función para validar fecha no futura.
+    const isFutureDate = (value) => {
+      if (!value) return false;
+      const selected = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(selected.getTime())) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return selected.getTime() > today.getTime();
+    };
+
+    // Función para validar captcha.
+    const validateCaptcha = () => {
+      const value = (captchaInput?.value || '').trim();
+      if (!value) {
+        setError('captcha', 'Debes resolver el captcha para continuar.');
+        return false;
+      }
+      if (!/^[0-9]+$/.test(value)) {
+        setError('captcha', 'El captcha debe responderse con números.');
+        return false;
+      }
+      setError('captcha', '');
+      return true;
+    };
+
+    // Función para validar formulario.
+    const validateForm = () => {
+      let isValid = true;
+      const fecha = (fechaInput?.value || '').trim();
+      if (!fecha) {
+        setError('fecha_analisis', 'Debes seleccionar una fecha. Si el registro es del mismo día, selecciona nuevamente la fecha de hoy.');
+        isValid = false;
+      } else if (isFutureDate(fecha)) {
+        setError('fecha_analisis', 'La fecha no puede ser posterior a hoy.');
+        isValid = false;
+      } else {
+        setError('fecha_analisis', '');
+      }
+
+      if (!(veterinarioSelect?.value || '').trim()) {
+        setError('veterinario_id', 'Este campo no puede estar vacío.');
+        isValid = false;
+      } else {
+        setError('veterinario_id', '');
+      }
+
+      if (!(tipoAnalisisSelect?.value || '').trim()) {
+        setError('tipo_analisis', 'Debes seleccionar un tipo de análisis válido.');
+        isValid = false;
+      } else {
+        setError('tipo_analisis', '');
+      }
+
+      const resultados = (resultadosInput?.value || '').trim();
+      if (!resultados) {
+        setError('resultados', 'Debes registrar los resultados para continuar.');
+        isValid = false;
+      } else if (resultados.length > 300) {
+        setError('resultados', 'El campo de resultados no puede exceder 300 caracteres.');
+        isValid = false;
+      } else {
+        setError('resultados', '');
+      }
+
+      const notas = (notasAdjuntoInput?.value || '').trim();
+      if (notas.length > 300) {
+        setError('documentos_adjuntos', 'El campo de notas del adjunto no puede exceder 300 caracteres.');
+        isValid = false;
+      } else {
+        setError('documentos_adjuntos', '');
+      }
+
+      if (precioInput) {
+        const precio = (precioInput.value || '').trim();
+        if (!precio) {
+          setError('precio', 'Debes capturar un precio válido.');
+          isValid = false;
+        } else if (Number.isNaN(Number(precio))) {
+          setError('precio', 'Debes capturar un precio válido.');
+          isValid = false;
+        } else if (Number(precio) < 0) {
+          setError('precio', 'El precio no puede ser menor a 0.');
+          isValid = false;
+        } else if (Number(precio) > 30000) {
+          setError('precio', 'El precio no puede exceder $30000.00.');
+          isValid = false;
+        } else {
+          setError('precio', '');
+        }
+      }
+
+      if (check && check.checked) {
+        if (!(seguimientoInput?.value || '').trim()) {
+          setError('analisis_seguimiento_programado_para', 'Debes indicar la fecha y hora del seguimiento.');
+          isValid = false;
+        } else {
+          setError('analisis_seguimiento_programado_para', '');
+        }
+      } else {
+        setError('analisis_seguimiento_programado_para', '');
+      }
+
+      if (!validateCaptcha()) {
+        isValid = false;
+      }
+
+      return isValid;
+    };
+
+    if (check) {
+      check.addEventListener('change', () => {
+        syncUi();
+        if (submitAttempted) validateForm();
+      });
+    }
+    [fechaInput, veterinarioSelect, tipoAnalisisSelect, resultadosInput, notasAdjuntoInput, precioInput, captchaInput, seguimientoInput].forEach((input) => {
+      if (!input) return;
+      const eventName = input.tagName === 'SELECT' || input.type === 'date' || input.type === 'datetime-local' || input.type === 'number' ? 'change' : 'input';
+      input.addEventListener(eventName, () => {
+        if (submitAttempted) validateForm();
+      });
+    });
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+    if (submitButton) {
+      submitButton.addEventListener('click', (event) => {
+        submitAttempted = true;
+        if (!validateForm()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    }
     syncUi();
   })();
 </script>

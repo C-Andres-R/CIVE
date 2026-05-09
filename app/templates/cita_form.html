@@ -37,7 +37,7 @@
       <div class="usuario-form-row">
         <label class="usuario-form-label">Motivo *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="motivo">{{ datos_formulario.motivo }}</textarea>
+          <textarea class="usuario-input" name="motivo" maxlength="300">{{ datos_formulario.motivo }}</textarea>
         </div>
         <small class="field-error" data-field-error="motivo">{{ errores_campo.motivo or "" }}</small>
       </div>
@@ -122,6 +122,8 @@
     if (!form) return;
 
     const today = new Date();
+    const workdayStartHour = 11;
+    const workdayEndHour = 19;
     const fechaInput = form.querySelector('input[name="fecha_hora"]');
     const motivoInput = form.querySelector('textarea[name="motivo"]');
     const mascotaInput = form.querySelector('select[name="mascota_id"]');
@@ -181,14 +183,25 @@
         setError('fecha_hora', 'Solo puedes agendar citas dentro del año actual.');
         return false;
       }
+      const hour = selectedDate.getHours();
+      const minute = selectedDate.getMinutes();
+      if (hour < workdayStartHour || hour > workdayEndHour || (hour === workdayEndHour && minute > 0)) {
+        setError('fecha_hora', 'Solo puedes agendar citas dentro del horario laboral: 11:00 a 19:00.');
+        return false;
+      }
       setError('fecha_hora', '');
       return true;
     };
 
     // Función para validate motivo.
     const validateMotivo = () => {
-      if (!(motivoInput.value || '').trim()) {
+      const value = (motivoInput.value || '').trim();
+      if (!value) {
         setError('motivo', 'Por favor ingresa el motivo de la cita para continuar.');
+        return false;
+      }
+      if (value.length > 300) {
+        setError('motivo', 'El motivo no puede exceder 300 caracteres.');
         return false;
       }
       setError('motivo', '');
@@ -278,6 +291,7 @@
 
     syncClienteFromMascota();
     toggleSeguimiento();
+    fechaInput.min = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T11:00`;
   })();
 </script>
 {% endblock %}

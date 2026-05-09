@@ -13,6 +13,7 @@ from sqlalchemy import MetaData, Table, func, insert, inspect, select
 from sqlalchemy.orm import aliased
 from werkzeug.utils import secure_filename
 
+from app.captcha import build_captcha, validate_captcha
 from app.extensions import db
 from app.models import Cita, Mascota, Rol, Usuario
 from utils.auth_ui import get_current_user_from_api
@@ -42,8 +43,21 @@ MAX_FILE_SIZE = 2 * 1024 * 1024
 MAX_AGE_BY_SPECIES = {
     "perro": 30,
     "gato": 30,
-    "otro": 50,
+    "otro": 30,
 }
+MAX_RAZA_LENGTH = 100
+MAX_DATOS_ADICIONALES_LENGTH = 500
+MAX_COMPORTAMIENTO_LENGTH = 300
+
+
+def _captcha_scope_mascota_create() -> str:
+    """Construye el scope del captcha para alta de mascota."""
+    return "mascotas-create"
+
+
+def _captcha_scope_mascota_edit(mascota_id: int) -> str:
+    """Construye el scope del captcha para edición de mascota."""
+    return f"mascotas-edit:{mascota_id}"
 
 
 def _redirigir_a_inicio_sesion():
@@ -110,15 +124,6 @@ def _parsear_fecha(value: str):
         return None
 
 
-def _fecha_nacimiento_desde_edad(age: int):
-    """Función para fecha nacimiento desde edad."""
-    today = date.today()
-    try:
-        return date(today.year - age, today.month, today.day)
-    except ValueError:
-        return date(today.year - age, today.month, 1)
-
-
 def _edad_desde_fecha_nacimiento(birthdate: date | None):
     """Función para edad desde fecha nacimiento."""
     if not birthdate:
@@ -147,9 +152,9 @@ def _validar_nombre_mascota(raw_value: str):
     """Función para validar nombre mascota."""
     value = (raw_value or "").strip()
     if not value:
-        return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
-    if len(value) < 2 or len(value) > 60 or any(ch.isspace() for ch in value):
-        return value, "El nombre debe tener entre 2 y 60 letras y contener una sola palabra."
+        return value, "El nombre debe tener entre 2 y 20 letras y contener una sola palabra."
+    if len(value) < 2 or len(value) > 20 or any(ch.isspace() for ch in value):
+        return value, "El nombre debe tener entre 2 y 20 letras y contener una sola palabra."
     if not all(ch.isalpha() for ch in value):
         return value, "El nombre no puede contener números, símbolos ni emojis."
     return value, None
@@ -177,20 +182,6 @@ def _validar_peso(raw_value: str):
     return float(weight), None
 
 
-def _validar_edad_aproximada(raw_value: str, especie: str):
-    """Función para validar edad aproximada."""
-    value = (raw_value or "").strip()
-    if not value:
-        return None, "Debes ingresar la fecha de nacimiento o la edad aproximada."
-    if not re.fullmatch(r"\d+", value):
-        return None, "La edad aproximada debe ser un número entero mayor o igual a 0."
-    age = int(value)
-    max_age = MAX_AGE_BY_SPECIES.get(especie)
-    if max_age is not None and age > max_age:
-        return None, "La edad aproximada excede el máximo permitido para la especie seleccionada."
-    return age, None
-
-
 def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = None):
     """Función para construir datos formulario mascota."""
     form = form or {}
@@ -199,8 +190,6 @@ def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = Non
         return {
             "nombre": mascota.nombre or "",
             "fecha_nacimiento": mascota.fecha_nacimiento.isoformat() if mascota.fecha_nacimiento else "",
-            "usa_edad_aproximada": False,
-            "edad": "",
             "edad_mostrada": edad_mostrada,
             "peso": f"{mascota.peso:.2f}" if mascota.peso is not None else "",
             "raza": mascota.raza or "",
@@ -211,18 +200,11 @@ def _construir_datos_formulario_mascota(form=None, mascota: Mascota | None = Non
         }
 
     fecha_nacimiento = (form.get("fecha_nacimiento") or "").strip()
-    usa_edad_aproximada = (form.get("usa_edad_aproximada") or "").strip().lower() in {"1", "true", "on", "yes"}
-    edad = (form.get("edad") or "").strip()
-    edad_mostrada = ""
-
-    if not usa_edad_aproximada:
-        edad_mostrada = _formatear_etiqueta_edad(_edad_desde_fecha_nacimiento(_parsear_fecha(fecha_nacimiento)))
+    edad_mostrada = _formatear_etiqueta_edad(_edad_desde_fecha_nacimiento(_parsear_fecha(fecha_nacimiento)))
 
     return {
         "nombre": ((form.get("nombre") or "").strip()),
         "fecha_nacimiento": fecha_nacimiento,
-        "usa_edad_aproximada": usa_edad_aproximada,
-        "edad": edad,
         "edad_mostrada": edad_mostrada,
         "peso": (form.get("peso") or "").strip(),
         "raza": (form.get("raza") or "").strip(),
@@ -290,8 +272,6 @@ def _validar_formulario_mascota(form, *, for_update: bool = False):
 
     nombre, nombre_error = _validar_nombre_mascota(form.get("nombre") or "")
     fecha_nacimiento_raw = (form.get("fecha_nacimiento") or "").strip()
-    usa_edad_aproximada = (form.get("usa_edad_aproximada") or "").strip().lower() in {"1", "true", "on", "yes"}
-    edad_raw = (form.get("edad") or "").strip()
     peso_raw = (form.get("peso") or "").strip()
     raza = (form.get("raza") or "").strip()
     especie = (form.get("especie") or "").strip().lower()
@@ -301,39 +281,39 @@ def _validar_formulario_mascota(form, *, for_update: bool = False):
 
     fecha_nacimiento = _parsear_fecha(fecha_nacimiento_raw)
     peso, peso_error = _validar_peso(peso_raw)
-    edad_aproximada = None
 
     if nombre_error:
         errores_campo["nombre"] = nombre_error
 
-    if usa_edad_aproximada:
-        edad_aproximada, edad_error = _validar_edad_aproximada(edad_raw, especie)
-        if edad_error:
-            errores_campo["edad"] = edad_error
-        elif edad_aproximada is not None:
-            fecha_nacimiento = _fecha_nacimiento_desde_edad(edad_aproximada)
+    if not fecha_nacimiento:
+        errores_campo["fecha_nacimiento"] = "Debes ingresar la fecha de nacimiento aproximada."
+    elif fecha_nacimiento > date.today():
+        errores_campo["fecha_nacimiento"] = "La fecha de nacimiento no puede ser futura."
     else:
-        if not fecha_nacimiento:
-            errores_campo["fecha_nacimiento"] = "Debes ingresar la fecha de nacimiento o la edad aproximada."
-        elif fecha_nacimiento > date.today():
-            errores_campo["fecha_nacimiento"] = "La fecha de nacimiento no puede ser futura."
+        edad_calculada = _edad_desde_fecha_nacimiento(fecha_nacimiento)
+        if edad_calculada is not None and edad_calculada > 30:
+            errores_campo["fecha_nacimiento"] = "La edad aproximada no puede ser mayor a 30 años."
 
     if peso_error:
         errores_campo["peso"] = peso_error
 
     if not especie or especie not in ALLOWED_SPECIES:
-        errores_campo["especie"] = "La especie es obligatoria y debe ser válida."
+        errores_campo["especie"] = "La especie es obligatoria."
 
     if not sexo or sexo not in ALLOWED_SEX:
-        errores_campo["sexo"] = "El sexo es obligatorio y debe ser válido."
+        errores_campo["sexo"] = "El sexo es obligatorio."
 
     if not dueno_id:
         errores_campo["dueno_id"] = "Debes asociar un dueño."
 
     if not raza:
         errores_campo["raza"] = "La raza es obligatoria."
+    elif len(raza) > MAX_RAZA_LENGTH:
+        errores_campo["raza"] = f"La raza no puede exceder {MAX_RAZA_LENGTH} caracteres."
 
-    if datos_adicionales and _contar_palabras(datos_adicionales) > 100:
+    if datos_adicionales and len(datos_adicionales) > MAX_DATOS_ADICIONALES_LENGTH:
+        errores_campo["datos_adicionales"] = f"Los datos adicionales no pueden exceder {MAX_DATOS_ADICIONALES_LENGTH} caracteres."
+    elif datos_adicionales and _contar_palabras(datos_adicionales) > 100:
         errores_campo["datos_adicionales"] = "Los datos adicionales no pueden exceder 100 palabras."
 
     dueno = db.session.get(Usuario, dueno_id) if dueno_id else None
@@ -345,7 +325,6 @@ def _validar_formulario_mascota(form, *, for_update: bool = False):
     payload = {
         "nombre": nombre,
         "fecha_nacimiento": fecha_nacimiento,
-        "edad_aproximada": edad_aproximada,
         "peso": peso,
         "raza": raza,
         "especie": especie,
@@ -592,9 +571,17 @@ def mascotas_nueva():
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
+            captcha=build_captcha(_captcha_scope_mascota_create()),
         )
 
     errors, errores_campo, payload = _validar_formulario_mascota(request.form)
+    captcha_scope = _captcha_scope_mascota_create()
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
+    errors = list(errores_campo.values())
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
@@ -613,6 +600,7 @@ def mascotas_nueva():
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
+            captcha=build_captcha(captcha_scope),
         )
 
     mascota = Mascota(
@@ -679,9 +667,17 @@ def mascotas_editar(mascota_id: int):
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
+            captcha=build_captcha(_captcha_scope_mascota_edit(mascota.id)),
         )
 
     errors, errores_campo, payload = _validar_formulario_mascota(request.form, for_update=True)
+    captcha_scope = _captcha_scope_mascota_edit(mascota.id)
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
+    errors = list(errores_campo.values())
 
     if role == ROLE_CLIENTE and me_id is not None:
         payload["dueno_id"] = me_id
@@ -701,6 +697,7 @@ def mascotas_editar(mascota_id: int):
             clientes=clientes,
             only_self_owner=(role == ROLE_CLIENTE),
             me_id=me_id,
+            captcha=build_captcha(captcha_scope),
         )
 
     mascota.nombre = payload["nombre"]
@@ -905,6 +902,17 @@ def mascotas_comportamiento(mascota_id: int):
             datos_formulario={"comportamiento": ""},
             errores_campo={
                 "comportamiento": "Debes describir el comportamiento especial observado para continuar.",
+            },
+        )
+    if len(comportamiento) > MAX_COMPORTAMIENTO_LENGTH:
+        return render_template(
+            "mascota_comportamiento.html",
+            me=me,
+            active_nav="expedientes",
+            mascota=mascota,
+            datos_formulario={"comportamiento": comportamiento},
+            errores_campo={
+                "comportamiento": f"El comportamiento no puede exceder {MAX_COMPORTAMIENTO_LENGTH} caracteres.",
             },
         )
 

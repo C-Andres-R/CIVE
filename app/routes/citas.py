@@ -46,6 +46,9 @@ ABSENCE_REASON_OPTIONS = {
     "emergencia": "Emergencia",
     "otro": "Otro",
 }
+WORKDAY_START_HOUR = 11
+WORKDAY_END_HOUR = 19
+MAX_MOTIVO_LENGTH = 300
 
 
 def _redirigir_a_inicio_sesion():
@@ -117,6 +120,14 @@ def _parsear_fecha(value: str):
 def _es_fecha_hora_futura(value: datetime) -> bool:
     """Indica si una cita quedó programada en una fecha futura."""
     return value > datetime.now()
+
+
+def _esta_en_horario_laboral(value: datetime) -> bool:
+    """Valida si la cita cae dentro del horario laboral de la clínica."""
+    appointment_time = value.time()
+    start_time = time(hour=WORKDAY_START_HOUR, minute=0)
+    end_time = time(hour=WORKDAY_END_HOUR, minute=0)
+    return start_time <= appointment_time <= end_time
 
 
 def _condicion_no_cancelada():
@@ -232,9 +243,13 @@ def _validar_y_normalizar_formulario(me, form, *, editing_cita_id: int | None = 
             errores_campo["fecha_hora"] = "Debes seleccionar una fecha posterior a hoy."
         elif fecha_hora.year != today.year:
             errores_campo["fecha_hora"] = "Solo puedes agendar citas dentro del año actual."
+        elif not _esta_en_horario_laboral(fecha_hora):
+            errores_campo["fecha_hora"] = "Solo puedes agendar citas dentro del horario laboral: 11:00 a 19:00."
 
     if not motivo:
         errores_campo["motivo"] = "Por favor ingresa el motivo de la cita para continuar."
+    elif len(motivo) > MAX_MOTIVO_LENGTH:
+        errores_campo["motivo"] = f"El motivo no puede exceder {MAX_MOTIVO_LENGTH} caracteres."
     if not mascota_id:
         errores_campo["mascota_id"] = "Este campo no puede estar vacío."
     if not veterinario_id:
@@ -918,7 +933,7 @@ def citas_programar_recordatorio(cita_id: int):
 def _bloques_diarios(target_date: date):
     """Función para bloques diarios."""
     slots = []
-    for hour in range(9, 19):
+    for hour in range(WORKDAY_START_HOUR, WORKDAY_END_HOUR + 1):
         slots.append(datetime.combine(target_date, time(hour=hour, minute=0)))
     return slots
 

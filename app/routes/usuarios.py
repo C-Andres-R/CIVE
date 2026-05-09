@@ -2,9 +2,10 @@
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from werkzeug.security import generate_password_hash
 import re
+from app.captcha import build_captcha, validate_captcha
 from app.auth.password_policy import validate_password
 from app.extensions import db
 from app.models import Usuario, Rol, Mascota
@@ -13,6 +14,19 @@ from utils.auth_ui import get_current_user_from_api
 usuarios_bp = Blueprint("usuarios", __name__)
 
 LOGIN_GET_ENDPOINT = "pages.pagina_inicio_sesion"
+MAX_NOMBRES_LENGTH = 30
+MAX_APELLIDO_LENGTH = 20
+MAX_CALLE_LENGTH = 30
+MAX_NUMERO_LENGTH = 10
+MAX_CORREO_LENGTH = 255
+MAX_TELEFONO_LENGTH = 10
+MAX_NOMBRE_COMPLETO_LENGTH = 255
+MAX_DOMICILIO_LENGTH = 255
+
+
+def _excede_longitud(value: str, limit: int) -> bool:
+    """Función para excede longitud."""
+    return len((value or "").strip()) > limit
 
 def redirigir_a_inicio_sesion():
     """Función para redirigir a inicio sesion."""
@@ -39,10 +53,14 @@ def es_telefono_valido(phone: str) -> bool:
     """Función para es telefono valido."""
     if not phone:
         return False
-    if not re.match(r"^[0-9+\-()\s]{10,20}$", phone):
-        return False
-    digits = re.sub(r"\D", "", phone or "")
-    return 10 <= len(digits) <= 15
+    return bool(re.fullmatch(r"\d{10}", phone or ""))
+
+
+def es_numero_calle_valido(value: str) -> bool:
+    """Función para es numero calle valido."""
+    if not value:
+        return True
+    return bool(re.fullmatch(r"\d{1,10}", value))
 
 
 def es_cp_valido(cp: str) -> bool:
@@ -122,6 +140,8 @@ def validar_formulario_usuario(
     nombres: str,
     apellido_paterno: str,
     apellido_materno: str,
+    calle: str,
+    numero: str,
     codigo_postal: str,
     correo: str,
     telefono: str,
@@ -129,6 +149,7 @@ def validar_formulario_usuario(
     rol_id_raw: str,
     activo: bool,
     nombre_completo: str,
+    domicilio: str,
     current_usuario_id: int | None = None,
     editing_usuario_id: int | None = None,
 ):
@@ -138,21 +159,37 @@ def validar_formulario_usuario(
 
     if not nombres:
         errores_campo["nombres"] = "El nombre es obligatorio."
+    elif _excede_longitud(nombres, MAX_NOMBRES_LENGTH):
+        errores_campo["nombres"] = f"El nombre no puede exceder {MAX_NOMBRES_LENGTH} caracteres."
     elif not es_nombre_persona_valido(nombres):
         errores_campo["nombres"] = "El campo no puede contener números."
 
     if not apellido_paterno:
         errores_campo["apellido_paterno"] = "Este campo no puede estar vacío."
+    elif _excede_longitud(apellido_paterno, MAX_APELLIDO_LENGTH):
+        errores_campo["apellido_paterno"] = f"El apellido paterno no puede exceder {MAX_APELLIDO_LENGTH} caracteres."
     elif not es_nombre_persona_valido(apellido_paterno):
         errores_campo["apellido_paterno"] = "El campo no puede contener números."
 
     if not apellido_materno:
         errores_campo["apellido_materno"] = "Este campo no puede estar vacío."
+    elif _excede_longitud(apellido_materno, MAX_APELLIDO_LENGTH):
+        errores_campo["apellido_materno"] = f"El apellido materno no puede exceder {MAX_APELLIDO_LENGTH} caracteres."
     elif not es_nombre_persona_valido(apellido_materno):
         errores_campo["apellido_materno"] = "El campo no puede contener números."
 
+    if calle and _excede_longitud(calle, MAX_CALLE_LENGTH):
+        errores_campo["calle"] = f"La calle no puede exceder {MAX_CALLE_LENGTH} caracteres."
+
+    if numero and _excede_longitud(numero, MAX_NUMERO_LENGTH):
+        errores_campo["numero"] = f"El número no puede exceder {MAX_NUMERO_LENGTH} caracteres."
+    elif numero and not es_numero_calle_valido(numero):
+        errores_campo["numero"] = "El número solo puede contener dígitos."
+
     if not correo:
         errores_campo["correo"] = "El correo es obligatorio."
+    elif _excede_longitud(correo, MAX_CORREO_LENGTH):
+        errores_campo["correo"] = f"El correo no puede exceder {MAX_CORREO_LENGTH} caracteres."
     elif not es_correo_valido(correo):
         errores_campo["correo"] = "El correo no tiene un formato válido."
 
@@ -161,8 +198,10 @@ def validar_formulario_usuario(
 
     if not telefono:
         errores_campo["telefono"] = "El teléfono es obligatorio."
+    elif _excede_longitud(telefono, MAX_TELEFONO_LENGTH):
+        errores_campo["telefono"] = f"El teléfono no puede exceder {MAX_TELEFONO_LENGTH} caracteres."
     elif not es_telefono_valido(telefono):
-        errores_campo["telefono"] = "El teléfono debe tener un formato válido."
+        errores_campo["telefono"] = "El teléfono debe contener exactamente 10 dígitos."
 
     if editing_usuario_id is None and not contrasena:
         errores_campo["contrasena"] = "La contraseña es obligatoria."
@@ -184,6 +223,18 @@ def validar_formulario_usuario(
     if current_usuario_id is not None and editing_usuario_id is not None and current_usuario_id == editing_usuario_id and not activo:
         errores_campo["activo"] = "No puedes desactivarte a ti mismo."
 
+    if nombre_completo and _excede_longitud(nombre_completo, MAX_NOMBRE_COMPLETO_LENGTH):
+        errores_campo["nombres"] = (
+            "La combinación de nombres y apellidos no puede exceder "
+            f"{MAX_NOMBRE_COMPLETO_LENGTH} caracteres."
+        )
+
+    if domicilio and _excede_longitud(domicilio, MAX_DOMICILIO_LENGTH):
+        errores_campo["calle"] = (
+            "La dirección completa no puede exceder "
+            f"{MAX_DOMICILIO_LENGTH} caracteres."
+        )
+
     if correo:
         correo_duplicado_query = db.session.query(Usuario.id).filter(func.lower(Usuario.correo) == correo.lower())
         if editing_usuario_id is not None:
@@ -202,6 +253,21 @@ def pestana_para_nombre_rol(role_name: str) -> str:
     if role == "cliente":
         return "clientes"
     return "administradores"
+
+
+def _captcha_scope_usuario_create() -> str:
+    """Construye el scope del captcha para alta de usuario."""
+    return "usuarios-create"
+
+
+def _captcha_scope_usuario_edit(usuario_id: int) -> str:
+    """Construye el scope del captcha para edición de usuario."""
+    return f"usuarios-edit-{usuario_id}"
+
+
+def _captcha_scope_usuario_toggle(usuario_id: int) -> str:
+    """Construye el scope del captcha para activación o desactivación."""
+    return f"usuarios-toggle-{usuario_id}"
 
 @usuarios_bp.get("/usuarios")
 def usuarios_lista():
@@ -222,12 +288,18 @@ def usuarios_lista():
 
     # Identificamos la pestaña solicitada para mostrar solo ese tipo de usuario.
     tab = (request.args.get("rol") or "administradores").lower()
+    open_captcha_raw = (request.args.get("open_captcha") or "").strip()
+    captcha_error = (request.args.get("captcha_error") or "").strip().lower()
     tab_to_nombre_rol = {
         "administradores": "administrador",
         "veterinarios": "veterinario",
         "clientes": "cliente",
     }
     role_name = tab_to_nombre_rol.get(tab, "administrador")
+    try:
+        open_captcha_user_id = int(open_captcha_raw) if open_captcha_raw else None
+    except ValueError:
+        open_captcha_user_id = None
     usuarios_rows = (
         db.session.query(
             Usuario,
@@ -242,12 +314,19 @@ def usuarios_lista():
         .order_by(Usuario.id.asc())
         .all()
     )
+    captchas_toggle = {
+        int(usuario.id): build_captcha(_captcha_scope_usuario_toggle(int(usuario.id)))
+        for usuario, *_ in usuarios_rows
+    }
 
     return render_template(
         "dashboard_usuarios.html",
         me=me,
         active_tab=tab,
         usuarios_rows=usuarios_rows,
+        captchas_toggle=captchas_toggle,
+        open_captcha_user_id=open_captcha_user_id,
+        captcha_error=captcha_error,
     )
 
 @usuarios_bp.route("/usuarios/nuevo", methods=["GET", "POST"])
@@ -271,6 +350,7 @@ def usuarios_nuevo():
 
     if request.method == "GET":
         datos_formulario = datos_formulario_usuario()
+        captcha = build_captcha(_captcha_scope_usuario_create())
         return render_template(
             "usuario_form.html",
             me=me,
@@ -278,6 +358,7 @@ def usuarios_nuevo():
             datos_formulario=datos_formulario,
             errores_campo={},
             mode="create",
+            captcha=captcha,
         )
 
     # Leemos y validamos los datos enviados por el formulario.
@@ -299,11 +380,14 @@ def usuarios_nuevo():
     nombre = nombre_completo(nombres, apellido_paterno, apellido_materno)
     domicilio = direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
     datos_formulario = datos_formulario_usuario(request.form)
+    captcha_scope = _captcha_scope_usuario_create()
 
     errores_campo, rol = validar_formulario_usuario(
         nombres=nombres,
         apellido_paterno=apellido_paterno,
         apellido_materno=apellido_materno,
+        calle=calle,
+        numero=numero,
         codigo_postal=codigo_postal,
         correo=correo,
         telefono=telefono,
@@ -311,7 +395,13 @@ def usuarios_nuevo():
         rol_id_raw=rol_id_raw,
         activo=activo,
         nombre_completo=nombre,
+        domicilio=domicilio,
     )
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     if errores_campo:
         return render_template(
@@ -321,6 +411,7 @@ def usuarios_nuevo():
             datos_formulario=datos_formulario,
             errores_campo=errores_campo,
             mode="create",
+            captcha=build_captcha(captcha_scope),
         )
 
     nuevo = Usuario(
@@ -354,6 +445,18 @@ def usuarios_nuevo():
             datos_formulario=datos_formulario,
             errores_campo={"correo": "Ya existe un usuario con ese correo."},
             mode="create",
+            captcha=build_captcha(captcha_scope),
+        )
+    except DataError:
+        db.session.rollback()
+        return render_template(
+            "usuario_form.html",
+            me=me,
+            roles=roles,
+            datos_formulario=datos_formulario,
+            errores_campo={"nombres": "Revisa la longitud de los datos capturados antes de guardar."},
+            mode="create",
+            captcha=build_captcha(captcha_scope),
         )
 
     flash("Usuario creado correctamente.", "success")
@@ -383,6 +486,7 @@ def usuarios_editar(usuario_id: int):
 
     if request.method == "GET":
         datos_formulario = datos_formulario_usuario(user=user)
+        captcha = build_captcha(_captcha_scope_usuario_edit(user.id))
         return render_template(
             "usuario_form.html",
             me=me,
@@ -391,6 +495,7 @@ def usuarios_editar(usuario_id: int):
             errores_campo={},
             mode="edit",
             usuario_id=user.id,
+            captcha=captcha,
         )
 
     # Leemos y validamos los datos enviados por el formulario.
@@ -412,6 +517,7 @@ def usuarios_editar(usuario_id: int):
     nombre = nombre_completo(nombres, apellido_paterno, apellido_materno)
     domicilio = direccion_completa(calle, numero, colonia, codigo_postal, estado, entidad)
     datos_formulario = datos_formulario_usuario(request.form)
+    captcha_scope = _captcha_scope_usuario_edit(user.id)
 
     # Evitamos que el administrador se desactive a sí mismo.
     try:
@@ -423,6 +529,8 @@ def usuarios_editar(usuario_id: int):
         nombres=nombres,
         apellido_paterno=apellido_paterno,
         apellido_materno=apellido_materno,
+        calle=calle,
+        numero=numero,
         codigo_postal=codigo_postal,
         correo=correo,
         telefono=telefono,
@@ -430,9 +538,15 @@ def usuarios_editar(usuario_id: int):
         rol_id_raw=rol_id_raw,
         activo=activo,
         nombre_completo=nombre,
+        domicilio=domicilio,
         current_usuario_id=me_id,
         editing_usuario_id=user.id,
     )
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        errores_campo["captcha"] = "Debes resolver el captcha para continuar."
+    elif not validate_captcha(captcha_scope, captcha_answer):
+        errores_campo["captcha"] = "Respuesta errónea. Intenta nuevamente para completar la acción"
 
     if errores_campo:
         return render_template(
@@ -443,6 +557,7 @@ def usuarios_editar(usuario_id: int):
             errores_campo=errores_campo,
             mode="edit",
             usuario_id=user.id,
+            captcha=build_captcha(captcha_scope),
         )
 
     user.nombre = nombre
@@ -476,6 +591,19 @@ def usuarios_editar(usuario_id: int):
             errores_campo={"correo": "Ya existe un usuario con ese correo."},
             mode="edit",
             usuario_id=user.id,
+            captcha=build_captcha(captcha_scope),
+        )
+    except DataError:
+        db.session.rollback()
+        return render_template(
+            "usuario_form.html",
+            me=me,
+            roles=roles,
+            datos_formulario=datos_formulario,
+            errores_campo={"nombres": "Revisa la longitud de los datos capturados antes de guardar."},
+            mode="edit",
+            usuario_id=user.id,
+            captcha=build_captcha(captcha_scope),
         )
 
     flash("Usuario actualizado correctamente.", "success")
@@ -542,7 +670,19 @@ def usuarios_alternar(usuario_id: int):
         flash("No puedes desactivarte a ti mismo.", "error")
         return redirect(url_for("usuarios.usuarios_lista", rol=tab))
 
+    captcha_answer = (request.form.get("captcha_answer") or "").strip()
+    if not captcha_answer:
+        return redirect(url_for("usuarios.usuarios_lista", rol=tab, open_captcha=user.id, captcha_error="missing"))
+
+    if not validate_captcha(_captcha_scope_usuario_toggle(user.id), captcha_answer):
+        return redirect(url_for("usuarios.usuarios_lista", rol=tab, open_captcha=user.id, captcha_error="wrong"))
+
+    was_active = bool(user.activo)
     user.activo = not bool(user.activo)
     db.session.commit()
+    flash(
+        "Usuario desactivado correctamente." if was_active else "Usuario activado correctamente.",
+        "success",
+    )
 
     return redirect(url_for("usuarios.usuarios_lista", rol=tab))

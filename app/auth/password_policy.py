@@ -13,6 +13,7 @@ COMMON_PASSWORDS = {
     "admin",
     "letmein",
 }
+MAX_PASSWORD_LENGTH = 72
 
 
 def validate_password(password: str, *, correo: str = "", nombre: str = "") -> list[str]:
@@ -23,6 +24,8 @@ def validate_password(password: str, *, correo: str = "", nombre: str = "") -> l
 
     if len(pwd) < 12:
         errors.append("La contraseña debe tener al menos 12 caracteres.")
+    if len(pwd) > MAX_PASSWORD_LENGTH:
+        errors.append(f"La contraseña no puede exceder {MAX_PASSWORD_LENGTH} caracteres.")
     if not re.search(r"[A-Z]", pwd):
         errors.append("La contraseña debe incluir al menos una letra mayúscula.")
     if not re.search(r"[a-z]", pwd):

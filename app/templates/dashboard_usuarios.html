@@ -82,7 +82,7 @@
                 <td data-label="Mascotas"><span class="badge">{{ mascotas_count }}</span></td>
 
                 <td class="actions" data-label="Acciones">
-                    <details class="actions-dropdown">
+                    <details class="actions-dropdown" {% if open_captcha_user_id == u.id %}open{% endif %}>
                         <summary class="resumen-acciones">
                             <div class="more-icon"></div>
                         </summary>
@@ -94,11 +94,27 @@
                                 Editar
                             </a>
 
-                            <form method="POST"
+                            <form method="POST" novalidate
                                 action="{{ url_for('usuarios.usuarios_alternar', usuario_id=u.id, rol=active_tab) }}">
-                                <button class="actions-item" type="submit">
+                                <button class="actions-item" type="button" data-toggle-captcha>
                                     {% if u.activo %}Desactivar{% else %}Activar{% endif %}
                                 </button>
+                                <div data-captcha-panel data-captcha-answer="{{ captchas_toggle[u.id].answer }}" {% if open_captcha_user_id != u.id %}hidden{% endif %} style="padding: 8px 12px 0;">
+                                    <label class="subtext" style="display:block; padding-bottom: 8px;">
+                                        Captcha: {{ captchas_toggle[u.id].question }}
+                                    </label>
+                                    <input class="usuario-input" type="text" name="captcha_answer" inputmode="numeric" autocomplete="off" placeholder="Resultado">
+                                    <button class="actions-item" type="submit" style="margin-top: 10px;">
+                                        Confirmar {% if u.activo %}desactivación{% else %}activación{% endif %}
+                                    </button>
+                                    <small class="field-error" data-captcha-error style="display:block; padding-top: 8px; color: #d93025;">
+                                        {% if open_captcha_user_id == u.id and captcha_error == "missing" %}
+                                        Para completar esta acción, resuelve el captcha
+                                        {% elif open_captcha_user_id == u.id and captcha_error == "wrong" %}
+                                        Respuesta errónea. Intenta nuevamente para completar la acción
+                                        {% endif %}
+                                    </small>
+                                </div>
                             </form>
                         </div>
 
@@ -131,7 +147,9 @@
     menus.forEach((menu) => {
       const summary = menu.querySelector('.resumen-acciones');
       const links = menu.querySelectorAll('.actions-menu a');
-      const buttons = menu.querySelectorAll('.actions-menu button');
+      const toggleButtons = menu.querySelectorAll('[data-toggle-captcha]');
+      const captchaPanels = menu.querySelectorAll('[data-captcha-panel]');
+      const forms = menu.querySelectorAll('.actions-menu form');
 
       if (summary) {
         summary.addEventListener('click', (event) => {
@@ -150,9 +168,66 @@
         });
       });
 
-      buttons.forEach((button) => {
+      toggleButtons.forEach((button) => {
         button.addEventListener('click', () => {
-          menu.open = false;
+          const panel = button.parentElement?.querySelector('[data-captcha-panel]');
+          if (!panel) return;
+
+          const willShow = panel.hidden;
+          captchaPanels.forEach((currentPanel) => {
+            currentPanel.hidden = true;
+          });
+          panel.hidden = !willShow;
+
+          if (willShow) {
+            const input = panel.querySelector('input[name="captcha_answer"]');
+            const error = panel.querySelector('[data-captcha-error]');
+            if (error) error.textContent = '';
+            if (input) {
+              input.value = '';
+              input.focus();
+            }
+          }
+        });
+      });
+
+      forms.forEach((form) => {
+        form.addEventListener('submit', (event) => {
+          const panel = form.querySelector('[data-captcha-panel]');
+          const input = form.querySelector('input[name="captcha_answer"]');
+          const error = form.querySelector('[data-captcha-error]');
+          const expectedAnswer = (panel?.dataset.captchaAnswer || '').trim();
+          const value = (input?.value || '').trim();
+
+          if (!panel || panel.hidden) {
+            event.preventDefault();
+            return;
+          }
+
+          if (!value) {
+            event.preventDefault();
+            if (error) {
+              error.textContent = 'Para completar esta acción, resuelve el captcha';
+            }
+            if (input) input.focus();
+            return;
+          }
+
+          if (value !== expectedAnswer) {
+            event.preventDefault();
+            if (error) {
+              error.textContent = 'Respuesta errónea. Intenta nuevamente para completar la acción';
+            }
+            if (input) {
+              input.focus();
+              input.select();
+            }
+            return;
+          }
+
+          if (error) {
+            error.textContent = '';
+          }
         });
       });
     });

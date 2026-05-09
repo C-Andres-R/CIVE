@@ -29,20 +29,71 @@
       <strong>Estado:</strong> {{ mascota.estado|capitalize }}
     </div>
 
-    <form class="usuario-form" method="POST" action="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">
+    <form class="usuario-form" method="POST" novalidate action="{{ url_for('mascotas.mascotas_comportamiento', mascota_id=mascota.id) }}">
       <div class="usuario-form-row">
         <label class="usuario-form-label">Comportamiento *</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="comportamiento" rows="6">{{ datos_formulario.comportamiento }}</textarea>
+          <textarea class="usuario-input" name="comportamiento" rows="6" maxlength="300">{{ datos_formulario.comportamiento }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.comportamiento or "" }}</small>
+        <small class="field-error" data-field-error="comportamiento">{{ errores_campo.comportamiento or "" }}</small>
       </div>
 
       <div class="usuario-actions">
-        <button class="usuario-btn-primary" type="submit">Guardar comportamiento</button>
+        <button class="usuario-btn-primary" type="submit" data-submit-button>Guardar comportamiento</button>
         <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
       </div>
     </form>
   </div>
 </div>
+<script>
+  // Bloque para validación inline del comportamiento.
+  (() => {
+    const form = document.querySelector('.usuario-form');
+    const comportamientoInput = form?.querySelector('textarea[name="comportamiento"]');
+    const submitButton = form?.querySelector('[data-submit-button]');
+    const errorEl = form?.querySelector('[data-field-error="comportamiento"]');
+    let submitAttempted = {{ "true" if errores_campo else "false" }};
+    if (!form || !comportamientoInput || !errorEl) return;
+
+    // Función para definir error.
+    const setError = (message) => {
+      errorEl.textContent = submitAttempted ? (message || '') : '';
+      errorEl.style.color = message ? '#d92d20' : '';
+    };
+
+    // Función para validar comportamiento.
+    const validateComportamiento = () => {
+      const value = (comportamientoInput.value || '').trim();
+      if (!value) {
+        setError('Debes describir el comportamiento especial observado para continuar.');
+        return false;
+      }
+      if (value.length > 300) {
+        setError('El comportamiento no puede exceder 300 caracteres.');
+        return false;
+      }
+      setError('');
+      return true;
+    };
+
+    comportamientoInput.addEventListener('input', () => {
+      if (submitAttempted) validateComportamiento();
+    });
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateComportamiento()) {
+        event.preventDefault();
+      }
+    });
+    if (submitButton) {
+      submitButton.addEventListener('click', (event) => {
+        submitAttempted = true;
+        if (!validateComportamiento()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

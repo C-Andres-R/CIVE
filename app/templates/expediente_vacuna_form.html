@@ -26,7 +26,7 @@
             <option value="alergia" {% if datos_formulario.tipo_registro == 'alergia' %}selected{% endif %}>Alergia</option>
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.tipo_registro or "" }}</small>
+        <small class="field-error" data-field-error="tipo_registro">{{ errores_campo.tipo_registro or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -34,7 +34,7 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="date" name="fecha_registro" value="{{ datos_formulario.fecha_registro }}">
         </div>
-        <small class="field-error">{{ errores_campo.fecha_registro or "" }}</small>
+        <small class="field-error" data-field-error="fecha_registro">{{ errores_campo.fecha_registro or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
@@ -47,7 +47,7 @@
             {% endfor %}
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.veterinario_id or "" }}</small>
+        <small class="field-error" data-field-error="veterinario_id">{{ errores_campo.veterinario_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row vacuna-only-wrap">
@@ -60,7 +60,7 @@
             {% endfor %}
           </select>
         </div>
-        <small class="field-error">{{ errores_campo.insumo_clinico_id or "" }}</small>
+        <small class="field-error" data-field-error="insumo_clinico_id">{{ errores_campo.insumo_clinico_id or "" }}</small>
       </div>
 
       <div class="usuario-form-row vacuna-only-wrap">
@@ -73,24 +73,25 @@
       <div class="usuario-form-row alergia-only-wrap">
         <label class="usuario-form-label">Nombre de la alergia *</label>
         <div class="usuario-input-wrap">
-          <input class="usuario-input" type="text" name="nombre" value="{{ datos_formulario.nombre }}">
+          <input class="usuario-input" type="text" name="nombre" value="{{ datos_formulario.nombre }}" maxlength="120">
         </div>
-        <small class="field-error">{{ errores_campo.nombre or "" }}</small>
+        <small class="field-error" data-field-error="nombre">{{ errores_campo.nombre or "" }}</small>
       </div>
 
       <div class="usuario-form-row reaccion-wrap">
         <label class="usuario-form-label reaccion-label">Reacción identificada</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="reaccion_identificada">{{ datos_formulario.reaccion_identificada }}</textarea>
+          <textarea class="usuario-input" name="reaccion_identificada" maxlength="300">{{ datos_formulario.reaccion_identificada }}</textarea>
         </div>
-        <small class="field-error">{{ errores_campo.reaccion_identificada or "" }}</small>
+        <small class="field-error" data-field-error="reaccion_identificada">{{ errores_campo.reaccion_identificada or "" }}</small>
       </div>
 
       <div class="usuario-form-row">
         <label class="usuario-form-label">Notas adicionales</label>
         <div class="usuario-input-wrap text-area-wrap">
-          <textarea class="usuario-input" name="notas_adicionales">{{ datos_formulario.notas_adicionales }}</textarea>
+          <textarea class="usuario-input" name="notas_adicionales" maxlength="300">{{ datos_formulario.notas_adicionales }}</textarea>
         </div>
+        <small class="field-error" data-field-error="notas_adicionales">{{ errores_campo.notas_adicionales or "" }}</small>
       </div>
 
       {% if can_schedule_followup %}
@@ -106,12 +107,27 @@
         <div class="usuario-input-wrap">
           <input class="usuario-input" type="datetime-local" name="vacuna_seguimiento_programado_para" value="{{ datos_formulario.vacuna_seguimiento_programado_para }}">
         </div>
-        <small class="field-error">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
+        <small class="field-error" data-field-error="vacuna_seguimiento_programado_para">{{ errores_campo.vacuna_seguimiento_programado_para or "" }}</small>
       </div>
       {% endif %}
 
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Captcha *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" value="Resuelve: {{ captcha.question }}" readonly aria-readonly="true">
+        </div>
+      </div>
+
+      <div class="usuario-form-row">
+        <label class="usuario-form-label">Resultado *</label>
+        <div class="usuario-input-wrap">
+          <input class="usuario-input" type="text" name="captcha_answer" inputmode="numeric" autocomplete="off">
+        </div>
+        <small class="field-error" data-field-error="captcha">{{ errores_campo.captcha or "" }}</small>
+      </div>
+
       <div class="usuario-actions">
-        <button class="usuario-btn-primary" type="submit">{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
+        <button class="usuario-btn-primary" type="submit" data-submit-button>{% if mode == 'edit' %}Actualizar{% else %}Guardar{% endif %}</button>
         <a class="usuario-btn-link" href="{{ url_for('expedientes.expedientes_detalle', mascota_id=mascota.id) }}">Cancelar</a>
       </div>
     </form>
@@ -120,8 +136,15 @@
 <script>
   // Bloque para interacciones de la vista.
   (() => {
+    const form = document.querySelector('.usuario-form');
     const tipoSelect = document.querySelector('select[name="tipo_registro"]');
+    const fechaInput = document.querySelector('input[name="fecha_registro"]');
+    const veterinarioSelect = document.querySelector('select[name="veterinario_id"]');
+    const vacunaSelect = document.querySelector('select[name="insumo_clinico_id"]');
     const tieneReaccionInput = document.querySelector('input[name="tiene_reaccion"]');
+    const nombreInput = document.querySelector('input[name="nombre"]');
+    const reaccionInput = document.querySelector('textarea[name="reaccion_identificada"]');
+    const notasInput = document.querySelector('textarea[name="notas_adicionales"]');
     const vacunaRows = document.querySelectorAll('.vacuna-only-wrap');
     const alergiaRows = document.querySelectorAll('.alergia-only-wrap');
     const reaccionWrap = document.querySelector('.reaccion-wrap');
@@ -129,10 +152,145 @@
     const followupWrap = document.querySelector('.vacuna-followup-wrap');
     const followupDateWrap = document.querySelector('.vacuna-followup-date-wrap');
     const followupInput = document.querySelector('input[name="vacuna_requiere_seguimiento"]');
-    if (!tipoSelect || !reaccionWrap || !reaccionLabel) return;
+    const followupDateInput = document.querySelector('input[name="vacuna_seguimiento_programado_para"]');
+    const captchaInput = document.querySelector('input[name="captcha_answer"]');
+    const submitButton = document.querySelector('[data-submit-button]');
+    const errorEls = Object.fromEntries(
+      Array.from(document.querySelectorAll('[data-field-error]')).map((node) => [node.dataset.fieldError, node])
+    );
+    let submitAttempted = false;
+    if (!form || !tipoSelect || !reaccionWrap || !reaccionLabel) return;
 
     // Función para set hidden.
     const setHidden = (rows, hidden) => rows.forEach((row) => row.classList.toggle('hidden', hidden));
+
+    // Función para definir error.
+    const setError = (field, message) => {
+      const node = errorEls[field];
+      if (!node) return;
+      node.textContent = message || '';
+      node.style.color = message ? '#d92d20' : '';
+    };
+
+    // Función para validar fecha no futura.
+    const isFutureDate = (value) => {
+      if (!value) return false;
+      const selected = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(selected.getTime())) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return selected.getTime() > today.getTime();
+    };
+
+    // Función para validar captcha.
+    const validateCaptcha = () => {
+      const value = (captchaInput?.value || '').trim();
+      if (!value) {
+        setError('captcha', 'Debes resolver el captcha para continuar.');
+        return false;
+      }
+      if (!/^[0-9]+$/.test(value)) {
+        setError('captcha', 'El captcha debe responderse con números.');
+        return false;
+      }
+      setError('captcha', '');
+      return true;
+    };
+
+    // Función para validar form.
+    const validateForm = () => {
+      const tipo = tipoSelect.value;
+      const hasReaction = !!(tieneReaccionInput && tieneReaccionInput.checked);
+      let isValid = true;
+
+      if (!tipo) {
+        setError('tipo_registro', 'Debes seleccionar un tipo de registro válido.');
+        isValid = false;
+      } else {
+        setError('tipo_registro', '');
+      }
+
+      const fecha = (fechaInput?.value || '').trim();
+        if (!fecha) {
+          setError('fecha_registro', 'Debes seleccionar una fecha. Si el registro es del mismo día, selecciona nuevamente la fecha de hoy.');
+          isValid = false;
+      } else if (isFutureDate(fecha)) {
+        setError('fecha_registro', 'La fecha no puede ser posterior a hoy.');
+        isValid = false;
+      } else {
+        setError('fecha_registro', '');
+      }
+
+      if (!(veterinarioSelect?.value || '').trim()) {
+        setError('veterinario_id', 'Este campo no puede estar vacío.');
+        isValid = false;
+      } else {
+        setError('veterinario_id', '');
+      }
+
+      if (tipo === 'vacuna') {
+        if (!(vacunaSelect?.value || '').trim()) {
+          setError('insumo_clinico_id', 'Debes seleccionar una vacuna válida del inventario.');
+          isValid = false;
+        } else {
+          setError('insumo_clinico_id', '');
+        }
+      } else {
+        setError('insumo_clinico_id', '');
+      }
+
+      const nombre = (nombreInput?.value || '').trim();
+      if (tipo === 'alergia') {
+        if (!nombre) {
+          setError('nombre', 'Debes capturar el nombre de la alergia para continuar.');
+          isValid = false;
+        } else if (nombre.length > 120) {
+          setError('nombre', 'El nombre de la alergia no puede exceder 120 caracteres.');
+          isValid = false;
+        } else {
+          setError('nombre', '');
+        }
+      } else {
+        setError('nombre', '');
+      }
+
+      const reaccion = (reaccionInput?.value || '').trim();
+      const reaccionEsObligatoria = tipo === 'alergia' || (tipo === 'vacuna' && hasReaction);
+      if (reaccionEsObligatoria && !reaccion) {
+        setError('reaccion_identificada', tipo === 'alergia' ? 'Debes describir la reacción alérgica.' : 'Debes describir la reacción identificada.');
+        isValid = false;
+      } else if (reaccion && reaccion.length > 300) {
+        setError('reaccion_identificada', 'La reacción identificada no puede exceder 300 caracteres.');
+        isValid = false;
+      } else {
+        setError('reaccion_identificada', '');
+      }
+
+      const notas = (notasInput?.value || '').trim();
+      if (notas.length > 300) {
+        setError('notas_adicionales', 'El campo de notas adicionales no puede exceder 300 caracteres.');
+        isValid = false;
+      } else {
+        setError('notas_adicionales', '');
+      }
+
+      if (followupInput && followupDateInput) {
+        const requiereSeguimiento = tipo === 'vacuna' && followupInput.checked;
+        const fechaSeguimiento = (followupDateInput.value || '').trim();
+        if (requiereSeguimiento && !fechaSeguimiento) {
+          setError('vacuna_seguimiento_programado_para', 'Debes indicar la fecha y hora del seguimiento.');
+          isValid = false;
+        } else {
+          setError('vacuna_seguimiento_programado_para', '');
+        }
+      }
+
+      if (!validateCaptcha()) {
+        isValid = false;
+      }
+
+      return isValid;
+    };
 
     // Función para sync ui.
     const syncUi = () => {
@@ -152,6 +310,9 @@
         reaccionWrap.classList.remove('hidden');
         if (followupWrap) followupWrap.classList.add('hidden');
         if (followupDateWrap) followupDateWrap.classList.add('hidden');
+        if (vacunaSelect) vacunaSelect.value = '';
+        if (followupInput) followupInput.checked = false;
+        if (followupDateInput) followupDateInput.value = '';
       } else {
         reaccionLabel.textContent = 'Reacción identificada';
         reaccionWrap.classList.add('hidden');
@@ -161,8 +322,40 @@
     };
 
     tipoSelect.addEventListener('change', syncUi);
-    if (tieneReaccionInput) tieneReaccionInput.addEventListener('change', syncUi);
-    if (followupInput) followupInput.addEventListener('change', syncUi);
+    if (tieneReaccionInput) {
+      tieneReaccionInput.addEventListener('change', () => {
+        syncUi();
+        if (submitAttempted) validateForm();
+      });
+    }
+    if (followupInput) {
+      followupInput.addEventListener('change', () => {
+        syncUi();
+        if (submitAttempted) validateForm();
+      });
+    }
+    [tipoSelect, fechaInput, veterinarioSelect, vacunaSelect, nombreInput, reaccionInput, notasInput, followupDateInput, captchaInput].forEach((input) => {
+      if (!input) return;
+      const eventName = input.tagName === 'SELECT' || input.type === 'date' || input.type === 'datetime-local' ? 'change' : 'input';
+      input.addEventListener(eventName, () => {
+        if (submitAttempted) validateForm();
+      });
+    });
+    form.addEventListener('submit', (event) => {
+      submitAttempted = true;
+      if (!validateForm()) {
+        event.preventDefault();
+      }
+    });
+    if (submitButton) {
+      submitButton.addEventListener('click', (event) => {
+        submitAttempted = true;
+        if (!validateForm()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    }
     syncUi();
   })();
 </script>
