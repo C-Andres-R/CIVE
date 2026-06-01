@@ -17,6 +17,7 @@ from app.security import (
 
 
 CSRF_EXEMPT_ENDPOINTS = {"auth.login"}
+RUN_INLINE_SYNC_TASKS = os.getenv("RUN_INLINE_SYNC_TASKS", "false").strip().lower() == "true"
 
 def create_app():
     """Función para create app."""
@@ -101,12 +102,13 @@ def create_app():
                 flash("La solicitud no pasó la validación de seguridad. Recarga la página e inténtalo de nuevo.", "error")
                 return redirect(request.referrer or url_for("pages.pagina_inicio_sesion"))
 
-        try:
-            sincronizar_recordatorios_programados()
-            sincronizar_encuestas_programadas()
-            sincronizar_seguimientos_programados()
-        except Exception:
-            db.session.rollback()
+        if RUN_INLINE_SYNC_TASKS:
+            try:
+                sincronizar_recordatorios_programados()
+                sincronizar_encuestas_programadas()
+                sincronizar_seguimientos_programados()
+            except Exception:
+                db.session.rollback()
         return None
 
     @app.after_request
