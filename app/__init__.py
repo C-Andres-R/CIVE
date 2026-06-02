@@ -3,6 +3,7 @@
 import os
 from flask import Flask, flash, jsonify, redirect, request, session, url_for
 from dotenv import load_dotenv
+from sqlalchemy.exc import SQLAlchemyError
 from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.followups import asegurar_tabla_seguimientos
@@ -32,7 +33,10 @@ def create_app():
 
     from app import models
     with app.app_context():
-        asegurar_tabla_seguimientos()
+        try:
+            asegurar_tabla_seguimientos()
+        except SQLAlchemyError:
+            db.session.rollback()
 
     from app.routes.health import health_bp
     app.register_blueprint(health_bp)
