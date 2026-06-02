@@ -47,6 +47,14 @@ class Config:
     """Clase para config."""
     SQLALCHEMY_DATABASE_URI = construir_uri_base_datos()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE_SECONDS", "300")),
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT_SECONDS", "10")),
+        "connect_args": {
+            "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "10")),
+        },
+    }
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", API_BASE_URL).rstrip("/")
